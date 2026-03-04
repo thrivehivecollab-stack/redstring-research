@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,7 @@ import {
   Pressable,
   FlatList,
   Modal,
-  TextInput,
-  KeyboardAvoidingView,
+  ActivityIndicator,
   Platform,
   StyleSheet,
 } from 'react-native';
@@ -18,46 +17,120 @@ import Animated, {
   withRepeat,
   withTiming,
   withSequence,
-  useAnimatedProps,
-  interpolate,
-  Extrapolation,
+  withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import {
-  Headphones,
   Radio,
-  Rss,
-  Bookmark,
-  BookmarkCheck,
-  Plus,
-  Circle,
+  Pin,
+  Brain,
+  Share2,
+  Play,
+  X,
   Activity,
   Hash,
+  Plus,
+  BookmarkCheck,
+  CheckCircle2,
 } from 'lucide-react-native';
+import { api } from '@/lib/api/api';
+import useInvestigationStore from '@/lib/state/investigation-store';
 
 // ─── Colors ─────────────────────────────────────────────────────────────────
 const C = {
   bg: '#1A1614',
   surface: '#231F1C',
-  card: '#F5ECD7',
+  card: '#2C2420',
   red: '#C41E3A',
   pin: '#D4A574',
   textLight: '#E8DCC8',
   muted: '#6B5B4F',
   border: '#3D332C',
   cardText: '#2C1810',
+  redDim: '#3D0A14',
 };
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-interface Podcast {
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const PODCAST_SHOWS = [
+  {
+    id: 'casefile',
+    name: 'Casefile True Crime',
+    description: "Anonymous Australian host covers real, often unsolved crimes.",
+    category: 'True Crime',
+    imageColor: '#8B1A1A',
+    initials: 'CF',
+  },
+  {
+    id: 'crimejunkie',
+    name: 'Crime Junkie',
+    description: "Ashley Flowers covers a new crime story every Monday.",
+    category: 'True Crime',
+    imageColor: '#1A3A8B',
+    initials: 'CJ',
+  },
+  {
+    id: 'intercepted',
+    name: 'Intercepted',
+    description: "The Intercept's weekly podcast on politics and national security.",
+    category: 'Investigation',
+    imageColor: '#1A5C2A',
+    initials: 'IN',
+  },
+  {
+    id: 'conspirituality',
+    name: 'Conspirituality',
+    description: "Examining the overlap between conspiracy theories and wellness culture.",
+    category: 'Investigation',
+    imageColor: '#4A1A8B',
+    initials: 'CO',
+  },
+  {
+    id: 'backyard',
+    name: 'Your Own Backyard',
+    description: "Chris Lambert investigates the disappearance of Kristin Smart.",
+    category: 'Cold Case',
+    imageColor: '#5C3A1A',
+    initials: 'YB',
+  },
+];
+
+interface Episode {
   id: string;
-  show: string;
-  host: string;
-  latestEpisode: string;
-  hasNew: boolean;
-  pinned: boolean;
-  category: string;
+  showId: string;
+  title: string;
+  description: string;
+  pubDate: string;
+  duration: string;
+  isNew?: boolean;
 }
+
+const ALL_EPISODES: Episode[] = [
+  // Casefile
+  { id: 'cf1', showId: 'casefile', title: 'Case 301: The Beaumont Children', description: "On Australia Day 1966, three children vanished from Glenelg Beach. The Beaumont children case remains one of Australia's most haunting unsolved disappearances.", pubDate: '2024-12-15', duration: '58:22', isNew: true },
+  { id: 'cf2', showId: 'casefile', title: 'Case 299: The Grimes Sisters', description: "Two Chicago teenagers disappeared on New Year's Eve 1956. Their bodies were found weeks later under mysterious circumstances.", pubDate: '2024-12-01', duration: '51:44', isNew: true },
+  { id: 'cf3', showId: 'casefile', title: 'Case 297: Operation Yewtree', description: "A landmark investigation into institutional abuse by British celebrities and public figures that changed the landscape of UK justice.", pubDate: '2024-11-15', duration: '1:04:11' },
+  { id: 'cf4', showId: 'casefile', title: 'Case 295: The Suffolk Strangler', description: "In late 2006, five women were found murdered near Ipswich, England. Police raced to catch a killer before more lives were lost.", pubDate: '2024-11-01', duration: '47:38' },
+  // Crime Junkie
+  { id: 'cj1', showId: 'crimejunkie', title: 'MURDERED: Alissa Turney', description: "For years, Michael Turney maintained his stepdaughter ran away. The truth was far darker — and it took her sister two decades to prove it.", pubDate: '2024-12-16', duration: '42:18', isNew: true },
+  { id: 'cj2', showId: 'crimejunkie', title: 'MISSING: The Sodder Children', description: "On Christmas Eve 1945, five of the Sodder children disappeared during a house fire. Their parents never believed they died.", pubDate: '2024-12-09', duration: '38:55', isNew: true },
+  { id: 'cj3', showId: 'crimejunkie', title: 'CONSPIRACY: The Zodiac Cipher', description: "New forensic analysis of the 340 cipher has researchers questioning everything we thought we knew about the Zodiac Killer's identity.", pubDate: '2024-12-02', duration: '44:07' },
+  { id: 'cj4', showId: 'crimejunkie', title: 'MURDERED: Hae Min Lee', description: "The case that captivated millions via Serial podcast — but what do the documents say that the podcast left out?", pubDate: '2024-11-25', duration: '51:02' },
+  // Intercepted
+  { id: 'in1', showId: 'intercepted', title: "The NSA's Secret Surveillance Network", description: "New documents reveal a domestic surveillance apparatus far broader than what Edward Snowden exposed in 2013. Investigative reporter James Risen joins.", pubDate: '2024-12-18', duration: '1:02:44', isNew: true },
+  { id: 'in2', showId: 'intercepted', title: 'Pentagon Black Budgets Exposed', description: "A leaked spreadsheet reveals $52 billion in classified programs the public has never heard of. What are they funding?", pubDate: '2024-12-11', duration: '55:30', isNew: true },
+  { id: 'in3', showId: 'intercepted', title: "The CIA's Media Infiltration", description: "Operation Mockingbird never ended — it evolved. Former intelligence officers speak on the record about ongoing media relationships.", pubDate: '2024-12-04', duration: '48:22' },
+  { id: 'in4', showId: 'intercepted', title: 'Whistleblower Protection Is a Myth', description: "Daniel Ellsberg, Tom Drake, and John Kiriakou all faced prosecution. The system is designed to punish, not protect.", pubDate: '2024-11-27', duration: '1:08:15' },
+  // Conspirituality
+  { id: 'co1', showId: 'conspirituality', title: 'The "Med Bed" Grift Targeting Veterans', description: "QAnon-adjacent wellness influencers are selling fake healing technology to desperate veterans. We trace the money.", pubDate: '2024-12-17', duration: '1:22:08', isNew: true },
+  { id: 'co2', showId: 'conspirituality', title: 'How Big Pharma Created Anti-Vax Culture', description: "The evidence is clear: the modern anti-vaccine movement has corporate fingerprints all over it. Follow the funding.", pubDate: '2024-12-10', duration: '1:15:44', isNew: true },
+  { id: 'co3', showId: 'conspirituality', title: 'Inside the MAHA-Industrial Complex', description: "Make America Healthy Again sounds good. But the movement's funding sources reveal a different agenda.", pubDate: '2024-12-03', duration: '1:18:22' },
+  { id: 'co4', showId: 'conspirituality', title: "The Supplement Industry's Hidden Crimes", description: "Unregulated, often dangerous, and wildly profitable. The $50 billion supplement industry operates in a legal grey zone.", pubDate: '2024-11-26', duration: '58:50' },
+  // Your Own Backyard
+  { id: 'yb1', showId: 'backyard', title: 'Season 3 Ep 8: The Phone Call', description: "A newly discovered witness account changes the timeline of Kristin's last known movements. Was there a second vehicle?", pubDate: '2024-12-14', duration: '1:11:33', isNew: true },
+  { id: 'yb2', showId: 'backyard', title: 'Season 3 Ep 7: Campus Security Records', description: "Records obtained via FOIA reveal significant gaps in Cal Poly's security coverage on the night Kristin disappeared.", pubDate: '2024-11-30', duration: '1:04:22' },
+  { id: 'yb3', showId: 'backyard', title: "Season 3 Ep 6: The Neighbor's Story", description: "A neighbor who has never spoken publicly comes forward with information that contradicts Paul Flores' alibi.", pubDate: '2024-11-16', duration: '58:44' },
+  { id: 'yb4', showId: 'backyard', title: 'Season 3 Ep 5: DNA Evidence Revisited', description: "Independent forensic analysts review the DNA evidence that convicted Paul Flores. Their findings are disturbing.", pubDate: '2024-11-02', duration: '1:16:08' },
+];
 
 interface LiveItem {
   id: string;
@@ -66,6 +139,7 @@ interface LiveItem {
   isLive: boolean;
   scheduledTime?: string;
   viewers?: string;
+  topic: string;
 }
 
 interface Keyword {
@@ -73,123 +147,54 @@ interface Keyword {
   tag: string;
 }
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-const INITIAL_PODCASTS: Podcast[] = [
-  {
-    id: '1',
-    show: 'Casefile True Crime',
-    host: 'Anonymous',
-    latestEpisode: 'Case 251: The Zodiac Files',
-    hasNew: true,
-    pinned: false,
-    category: 'True Crime',
-  },
-  {
-    id: '2',
-    show: 'Crime Junkie',
-    host: 'Ashley Flowers',
-    latestEpisode: 'SUSPECT: The Black Dahlia',
-    hasNew: true,
-    pinned: false,
-    category: 'True Crime',
-  },
-  {
-    id: '3',
-    show: 'Your Own Backyard',
-    host: 'Chris Lambert',
-    latestEpisode: 'Ep 72: New Evidence',
-    hasNew: false,
-    pinned: true,
-    category: 'Investigation',
-  },
-  {
-    id: '4',
-    show: 'Conspirituality',
-    host: 'Various',
-    latestEpisode: 'Ep 234: Digital Misinformation',
-    hasNew: false,
-    pinned: false,
-    category: 'Analysis',
-  },
-  {
-    id: '5',
-    show: 'The Intercepted',
-    host: 'Jeremy Scahill',
-    latestEpisode: 'Surveillance State 2025',
-    hasNew: true,
-    pinned: false,
-    category: 'Journalism',
-  },
-];
-
 const LIVE_NOW: LiveItem[] = [
-  {
-    id: 'l1',
-    title: 'Congressional Hearing - AI Surveillance',
-    channel: 'C-SPAN',
-    isLive: true,
-    viewers: '14.2K',
-  },
-  {
-    id: 'l2',
-    title: 'Press Conference: Classified Documents Release',
-    channel: 'Reuters',
-    isLive: true,
-    viewers: '8.7K',
-  },
+  { id: 'l1', title: 'Congressional Hearing — AI Surveillance & Civil Liberties', channel: 'C-SPAN', isLive: true, viewers: '14.2K', topic: 'Surveillance' },
+  { id: 'l2', title: 'Press Conference: Classified Documents Release', channel: 'Reuters Live', isLive: true, viewers: '8.7K', topic: 'Intelligence' },
+  { id: 'l3', title: 'Breaking: FBI Director Senate Confirmation Hearing', channel: 'CSPAN2', isLive: true, viewers: '22.1K', topic: 'Justice' },
 ];
 
 const SCHEDULED: LiveItem[] = [
-  {
-    id: 's1',
-    title: 'Senate Intelligence Committee Briefing',
-    channel: 'C-SPAN 2',
-    isLive: false,
-    scheduledTime: 'Today 3:00 PM',
-  },
-  {
-    id: 's2',
-    title: 'Independent Journalist Panel: Leaks & Ethics',
-    channel: 'Democracy Now',
-    isLive: false,
-    scheduledTime: 'Today 5:30 PM',
-  },
-  {
-    id: 's3',
-    title: 'Whistleblower Protection Act Review',
-    channel: 'PBS NewsHour',
-    isLive: false,
-    scheduledTime: 'Tomorrow 7:00 PM',
-  },
+  { id: 's1', title: 'Senate Intelligence Committee Briefing', channel: 'C-SPAN 2', isLive: false, scheduledTime: 'Today 3:00 PM', topic: 'Intel' },
+  { id: 's2', title: 'Independent Journalist Panel: Leaks & Ethics', channel: 'Democracy Now', isLive: false, scheduledTime: 'Today 5:30 PM', topic: 'Media' },
+  { id: 's3', title: 'Whistleblower Protection Act Review', channel: 'PBS NewsHour', isLive: false, scheduledTime: 'Tomorrow 7:00 PM', topic: 'Law' },
+  { id: 's4', title: 'FOIA Transparency Summit — Panel Discussion', channel: 'Lawfare', isLive: false, scheduledTime: 'Tomorrow 9:00 AM', topic: 'FOIA' },
 ];
 
 const INITIAL_KEYWORDS: Keyword[] = [
-  { id: 'k1', tag: '#operation_deepstate' },
-  { id: 'k2', tag: '#whistleblower' },
-  { id: 'k3', tag: '#classified' },
-  { id: 'k4', tag: '#foia_request' },
-  { id: 'k5', tag: '#surveillance' },
+  { id: 'k1', tag: 'operation_deepstate' },
+  { id: 'k2', tag: 'whistleblower' },
+  { id: 'k3', tag: 'classified' },
+  { id: 'k4', tag: 'foia_request' },
+  { id: 'k5', tag: 'surveillance' },
 ];
 
-// ─── Pulsing Live Dot ─────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getShowById(id: string) {
+  return PODCAST_SHOWS.find(s => s.id === id);
+}
+
+function hasNewEpisodes(showId: string): boolean {
+  return ALL_EPISODES.some(e => e.showId === showId && e.isNew);
+}
+
+// ─── Pulsing Dot ─────────────────────────────────────────────────────────────
 function PulsingDot() {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
   React.useEffect(() => {
     scale.value = withRepeat(
-      withSequence(
-        withTiming(1.6, { duration: 700 }),
-        withTiming(1, { duration: 700 })
-      ),
+      withSequence(withTiming(1.6, { duration: 700 }), withTiming(1, { duration: 700 })),
       -1,
       false
     );
     opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.3, { duration: 700 }),
-        withTiming(1, { duration: 700 })
-      ),
+      withSequence(withTiming(0.3, { duration: 700 }), withTiming(1, { duration: 700 })),
       -1,
       false
     );
@@ -215,8 +220,8 @@ function Toast({ visible, message }: { visible: boolean; message: string }) {
 
   React.useEffect(() => {
     if (visible) {
-      translateY.value = withTiming(0, { duration: 300 });
-      opacityVal.value = withTiming(1, { duration: 300 });
+      translateY.value = withSpring(0, { damping: 20 });
+      opacityVal.value = withTiming(1, { duration: 200 });
     } else {
       translateY.value = withTiming(80, { duration: 300 });
       opacityVal.value = withTiming(0, { duration: 300 });
@@ -230,70 +235,172 @@ function Toast({ visible, message }: { visible: boolean; message: string }) {
 
   return (
     <Animated.View style={[styles.toast, toastStyle]}>
-      <BookmarkCheck size={16} color={C.red} strokeWidth={2} />
+      <CheckCircle2 size={16} color={C.red} strokeWidth={2} />
       <Text style={styles.toastText}>{message}</Text>
     </Animated.View>
   );
 }
 
-// ─── Podcast Card ─────────────────────────────────────────────────────────────
-function PodcastCard({
-  item,
-  onPin,
-  onAddToInvestigation,
-}: {
-  item: Podcast;
-  onPin: (id: string) => void;
-  onAddToInvestigation: (show: string) => void;
-}) {
+// ─── AI Summary Modal ─────────────────────────────────────────────────────────
+interface AISummaryModalProps {
+  visible: boolean;
+  episode: Episode | null;
+  summary: string;
+  loading: boolean;
+  onClose: () => void;
+  onPinAsEvidence: () => void;
+}
+
+function AISummaryModal({ visible, episode, summary, loading, onClose, onPinAsEvidence }: AISummaryModalProps) {
+  if (!episode) return null;
+  const show = getShowById(episode.showId);
+
   return (
-    <View style={styles.podcastCard}>
-      <View style={styles.podcastCardHeader}>
-        <View style={styles.podcastIconWrap}>
-          <Headphones size={18} color={C.red} strokeWidth={2} />
-        </View>
-        <View style={styles.podcastInfo}>
-          <View style={styles.podcastTitleRow}>
-            <Text style={styles.podcastShowName} numberOfLines={1}>
-              {item.show}
-            </Text>
-            {item.hasNew ? (
-              <View style={styles.newBadge}>
-                <Circle size={6} color={C.red} fill={C.red} />
-                <Text style={styles.newBadgeText}>NEW</Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={styles.modalBackdrop} onPress={onClose} />
+        <View style={styles.summarySheet}>
+          <View style={styles.modalHandle} />
+          {/* Header */}
+          <View style={styles.summaryHeader}>
+            <View style={styles.summaryHeaderLeft}>
+              <View style={[styles.showAvatar, { backgroundColor: show?.imageColor ?? C.surface }]}>
+                <Text style={styles.showAvatarText}>{show?.initials ?? '??'}</Text>
               </View>
-            ) : null}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.summaryShowName} numberOfLines={1}>{show?.name ?? ''}</Text>
+                <Text style={styles.summaryEpisodeTitle} numberOfLines={2}>{episode.title}</Text>
+              </View>
+            </View>
+            <Pressable onPress={onClose} style={styles.summaryCloseBtn} hitSlop={8}>
+              <X size={18} color={C.muted} strokeWidth={2} />
+            </Pressable>
           </View>
-          <Text style={styles.podcastHost}>by {item.host}</Text>
-          <Text style={styles.podcastEpisode} numberOfLines={1}>
-            {item.latestEpisode}
-          </Text>
+
+          {/* AI Badge */}
+          <View style={styles.aiBadgeRow}>
+            <Brain size={13} color={C.red} strokeWidth={2} />
+            <Text style={styles.aiBadgeText}>AI SUMMARY</Text>
+          </View>
+
+          {/* Content */}
+          <ScrollView style={styles.summaryScrollArea} showsVerticalScrollIndicator={false}>
+            {loading ? (
+              <View style={styles.summaryLoadingContainer}>
+                <ActivityIndicator size="large" color={C.red} />
+                <Text style={styles.summaryLoadingText}>Analyzing episode...</Text>
+              </View>
+            ) : (
+              <Text style={styles.summaryText}>{summary}</Text>
+            )}
+          </ScrollView>
+
+          {/* Actions */}
+          {!loading && summary.length > 0 ? (
+            <Pressable
+              testID="pin-as-evidence-button"
+              onPress={onPinAsEvidence}
+              style={styles.pinEvidenceBtn}>
+              <Pin size={16} color="#FFFFFF" strokeWidth={2} />
+              <Text style={styles.pinEvidenceBtnText}>Pin as Evidence</Text>
+            </Pressable>
+          ) : null}
         </View>
-        <Pressable
-          testID={`pin-podcast-${item.id}`}
-          onPress={() => onPin(item.id)}
-          style={styles.pinButton}
-          hitSlop={8}>
-          {item.pinned ? (
-            <BookmarkCheck size={20} color={C.pin} strokeWidth={2} />
-          ) : (
-            <Bookmark size={20} color={C.muted} strokeWidth={2} />
-          )}
-        </Pressable>
       </View>
-      <View style={styles.podcastCardFooter}>
-        <View style={styles.categoryChip}>
-          <Text style={styles.categoryChipText}>{item.category}</Text>
+    </Modal>
+  );
+}
+
+// ─── Episode Card ─────────────────────────────────────────────────────────────
+interface EpisodeCardProps {
+  episode: Episode;
+  onAddToBoard: (ep: Episode) => void;
+  onAISummary: (ep: Episode) => void;
+  onShare: (ep: Episode) => void;
+  onPlay: (ep: Episode) => void;
+}
+
+function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: EpisodeCardProps) {
+  const show = getShowById(episode.showId);
+  const scale = useSharedValue(1);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePress = () => {
+    scale.value = withSequence(withTiming(0.98, { duration: 80 }), withSpring(1));
+  };
+
+  return (
+    <Animated.View style={[styles.episodeCard, cardStyle]}>
+      <Pressable onPress={handlePress} style={styles.episodeCardInner}>
+        {/* Top row: show avatar + meta */}
+        <View style={styles.episodeTopRow}>
+          <View style={[styles.showAvatarSmall, { backgroundColor: show?.imageColor ?? C.surface }]}>
+            <Text style={styles.showAvatarSmallText}>{show?.initials ?? '??'}</Text>
+          </View>
+          <View style={styles.episodeMeta}>
+            <Text style={styles.episodeShowLabel} numberOfLines={1}>{show?.name ?? ''}</Text>
+            <View style={styles.episodeMetaRow}>
+              <Text style={styles.episodeDate}>{formatDate(episode.pubDate)}</Text>
+              <View style={styles.metaDot} />
+              <Text style={styles.episodeDuration}>{episode.duration}</Text>
+            </View>
+          </View>
+          {episode.isNew ? (
+            <View style={styles.newBadge}>
+              <Text style={styles.newBadgeText}>NEW</Text>
+            </View>
+          ) : null}
         </View>
-        <Pressable
-          testID={`add-investigation-${item.id}`}
-          onPress={() => onAddToInvestigation(item.show)}
-          style={styles.addInvestigationBtn}>
-          <Plus size={13} color={C.red} strokeWidth={2.5} />
-          <Text style={styles.addInvestigationText}>Add to Investigation</Text>
-        </Pressable>
-      </View>
-    </View>
+
+        {/* Title */}
+        <Text style={styles.episodeTitle}>{episode.title}</Text>
+
+        {/* Description */}
+        <Text style={styles.episodeDesc} numberOfLines={2}>{episode.description}</Text>
+
+        {/* Action row */}
+        <View style={styles.episodeActions}>
+          <Pressable
+            testID={`add-board-${episode.id}`}
+            onPress={() => onAddToBoard(episode)}
+            style={styles.actionBtn}>
+            <Pin size={13} color={C.pin} strokeWidth={2} />
+            <Text style={styles.actionBtnText}>Add to Board</Text>
+          </Pressable>
+
+          <Pressable
+            testID={`ai-summary-${episode.id}`}
+            onPress={() => onAISummary(episode)}
+            style={[styles.actionBtn, styles.actionBtnAI]}>
+            <Brain size={13} color={C.red} strokeWidth={2} />
+            <Text style={[styles.actionBtnText, { color: C.red }]}>AI Summary</Text>
+          </Pressable>
+
+          <Pressable
+            testID={`share-${episode.id}`}
+            onPress={() => onShare(episode)}
+            style={styles.actionBtn}>
+            <Share2 size={13} color={C.muted} strokeWidth={2} />
+            <Text style={styles.actionBtnText}>Share</Text>
+          </Pressable>
+
+          <Pressable
+            testID={`play-${episode.id}`}
+            onPress={() => onPlay(episode)}
+            style={styles.playBtn}>
+            <Play size={11} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />
+            <Text style={styles.playBtnText}>Play</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -316,16 +423,20 @@ function LiveCard({
             <View style={styles.liveIndicatorRow}>
               <PulsingDot />
               <Text style={styles.liveBadgeText}>LIVE</Text>
+              <View style={styles.topicChip}>
+                <Text style={styles.topicChipText}>{item.topic}</Text>
+              </View>
             </View>
           ) : (
             <View style={styles.scheduledIndicator}>
               <Activity size={12} color={C.pin} strokeWidth={2} />
               <Text style={styles.scheduledText}>{item.scheduledTime}</Text>
+              <View style={[styles.topicChip, { borderColor: C.border }]}>
+                <Text style={[styles.topicChipText, { color: C.muted }]}>{item.topic}</Text>
+              </View>
             </View>
           )}
-          <Text style={styles.liveTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
+          <Text style={styles.liveTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.liveChannelRow}>
             <Radio size={12} color={C.muted} strokeWidth={2} />
             <Text style={styles.liveChannelText}>{item.channel}</Text>
@@ -342,7 +453,7 @@ function LiveCard({
           {pinned ? (
             <BookmarkCheck size={20} color={C.pin} strokeWidth={2} />
           ) : (
-            <Bookmark size={20} color={C.muted} strokeWidth={2} />
+            <Pin size={18} color={C.muted} strokeWidth={2} />
           )}
         </Pressable>
       </View>
@@ -353,19 +464,28 @@ function LiveCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function PodcastScreen() {
   const [activeTab, setActiveTab] = useState<'podcasts' | 'live'>('podcasts');
-  const [podcasts, setPodcasts] = useState<Podcast[]>(INITIAL_PODCASTS);
-  const [keywords, setKeywords] = useState<Keyword[]>(INITIAL_KEYWORDS);
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
   const [pinnedLive, setPinnedLive] = useState<Set<string>>(new Set());
+  const [keywords, setKeywords] = useState<Keyword[]>(INITIAL_KEYWORDS);
+
+  // Toast
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [addPodcastVisible, setAddPodcastVisible] = useState(false);
-  const [addKeywordVisible, setAddKeywordVisible] = useState(false);
-  const [podcastUrl, setPodcastUrl] = useState('');
-  const [newKeyword, setNewKeyword] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const tabIndicatorX = useSharedValue(0);
+  // AI Summary
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [summaryEpisode, setSummaryEpisode] = useState<Episode | null>(null);
+  const [summaryText, setSummaryText] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
+  // Investigation store
+  const addNode = useInvestigationStore(s => s.addNode);
+  const activeInvestigationId = useInvestigationStore(s => s.activeInvestigationId);
+  const createInvestigation = useInvestigationStore(s => s.createInvestigation);
+
+  // Tab animation
+  const tabIndicatorX = useSharedValue(0);
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tabIndicatorX.value }],
   }));
@@ -376,32 +496,86 @@ export default function PodcastScreen() {
     Haptics.selectionAsync();
   };
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setToastVisible(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastVisible(false), 2500);
-  };
+  }, []);
 
-  const handlePinPodcast = (id: string) => {
-    setPodcasts(prev =>
-      prev.map(p => {
-        if (p.id === id) {
-          const willPin = !p.pinned;
-          if (willPin) showToast('Added to investigation board');
-          return { ...p, pinned: willPin };
-        }
-        return p;
-      })
-    );
-  };
+  // Filtered episodes
+  const displayedEpisodes = selectedShowId
+    ? ALL_EPISODES.filter(e => e.showId === selectedShowId)
+    : ALL_EPISODES;
 
-  const handleAddToInvestigation = (show: string) => {
-    showToast(`"${show}" added to board`);
-  };
+  // Handlers
+  const handleAddToBoard = useCallback((ep: Episode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const show = getShowById(ep.showId);
+    let invId = activeInvestigationId;
+    if (!invId) {
+      invId = createInvestigation('My Investigation');
+    }
+    const randX = 100 + Math.random() * 200;
+    const randY = 100 + Math.random() * 200;
+    addNode(invId, 'note', ep.title, { x: randX, y: randY }, {
+      description: `${show?.name ?? ''} — ${ep.pubDate}\n\n${ep.description}`,
+    });
+    showToast('Added to investigation board');
+  }, [activeInvestigationId, addNode, createInvestigation, showToast]);
 
-  const handlePinLive = (id: string) => {
+  const handleAISummary = useCallback(async (ep: Episode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSummaryEpisode(ep);
+    setSummaryText('');
+    setSummaryLoading(true);
+    setSummaryVisible(true);
+
+    try {
+      const show = getShowById(ep.showId);
+      const prompt = `Summarize this podcast episode in 2-3 short paragraphs for a researcher's investigation board. Focus on key facts, evidence, and investigative angles.\n\nShow: ${show?.name ?? ''}\nEpisode: ${ep.title}\nDescription: ${ep.description}`;
+      const result = await api.post<{ reply?: string; message?: string; text?: string }>('/api/ai/chat', {
+        message: prompt,
+      });
+      const text = (result as Record<string, string>)?.reply
+        ?? (result as Record<string, string>)?.message
+        ?? (result as Record<string, string>)?.text
+        ?? 'Could not generate summary. Please try again.';
+      setSummaryText(text);
+    } catch {
+      setSummaryText('Unable to generate summary. Check your connection and try again.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
+  const handlePinSummaryAsEvidence = useCallback(() => {
+    if (!summaryEpisode) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const show = getShowById(summaryEpisode.showId);
+    let invId = activeInvestigationId;
+    if (!invId) {
+      invId = createInvestigation('My Investigation');
+    }
+    addNode(invId, 'note', `AI Summary: ${summaryEpisode.title}`, { x: 120, y: 120 }, {
+      description: `${show?.name ?? ''}\n\n${summaryText}`,
+    });
+    setSummaryVisible(false);
+    showToast('Summary pinned as evidence');
+  }, [summaryEpisode, summaryText, activeInvestigationId, addNode, createInvestigation, showToast]);
+
+  const handleShare = useCallback((ep: Episode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    showToast('Share link copied');
+  }, [showToast]);
+
+  const handlePlay = useCallback((ep: Episode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    showToast(`Playing: ${ep.title}`);
+  }, [showToast]);
+
+  const handlePinLive = useCallback((id: string) => {
     setPinnedLive(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -412,34 +586,7 @@ export default function PodcastScreen() {
       }
       return next;
     });
-  };
-
-  const handleAddPodcast = () => {
-    if (!podcastUrl.trim()) return;
-    const newPodcast: Podcast = {
-      id: Date.now().toString(),
-      show: podcastUrl.trim(),
-      host: 'Unknown',
-      latestEpisode: 'Loading...',
-      hasNew: false,
-      pinned: false,
-      category: 'Custom',
-    };
-    setPodcasts(prev => [...prev, newPodcast]);
-    setPodcastUrl('');
-    setAddPodcastVisible(false);
-    showToast('Podcast added to feed');
-  };
-
-  const handleAddKeyword = () => {
-    const raw = newKeyword.trim();
-    if (!raw) return;
-    const tag = raw.startsWith('#') ? raw : `#${raw}`;
-    setKeywords(prev => [...prev, { id: Date.now().toString(), tag }]);
-    setNewKeyword('');
-    setAddKeywordVisible(false);
-    showToast('Keyword added to monitor');
-  };
+  }, [showToast]);
 
   const handleRemoveKeyword = (id: string) => {
     setKeywords(prev => prev.filter(k => k.id !== id));
@@ -451,101 +598,124 @@ export default function PodcastScreen() {
       <View style={styles.container}>
         {/* ── Header ──────────────────────────────────── */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <View>
             <Text style={styles.headerTitle}>LIVE & PODCASTS</Text>
             <Text style={styles.headerSubtitle}>RESEARCH FEED</Text>
           </View>
           <View style={styles.headerIcon}>
-            <Radio size={22} color={C.red} strokeWidth={2} />
+            <Radio size={20} color={C.red} strokeWidth={2} />
           </View>
         </View>
 
         {/* ── Tab Switcher ─────────────────────────────── */}
         <View style={styles.tabSwitcher}>
-          <Pressable
-            testID="tab-podcasts"
-            style={styles.tabButton}
-            onPress={() => switchTab('podcasts')}>
-            <Headphones
-              size={15}
-              color={activeTab === 'podcasts' ? C.textLight : C.muted}
-              strokeWidth={2}
-            />
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === 'podcasts' && styles.tabButtonTextActive,
-              ]}>
-              Podcasts
+          <Pressable testID="tab-podcasts" style={styles.tabButton} onPress={() => switchTab('podcasts')}>
+            <Text style={[styles.tabButtonText, activeTab === 'podcasts' && styles.tabButtonTextActive]}>
+              Episodes
             </Text>
           </Pressable>
-          <Pressable
-            testID="tab-live"
-            style={styles.tabButton}
-            onPress={() => switchTab('live')}>
-            <Radio
-              size={15}
-              color={activeTab === 'live' ? C.textLight : C.muted}
-              strokeWidth={2}
-            />
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === 'live' && styles.tabButtonTextActive,
-              ]}>
-              Live Feed
-            </Text>
+          <Pressable testID="tab-live" style={styles.tabButton} onPress={() => switchTab('live')}>
+            <View style={styles.tabButtonLiveRow}>
+              {activeTab === 'live' ? <PulsingDot /> : null}
+              <Text style={[styles.tabButtonText, activeTab === 'live' && styles.tabButtonTextActive]}>
+                Live Feed
+              </Text>
+            </View>
           </Pressable>
-          {/* Animated underline */}
           <View style={styles.tabIndicatorTrack}>
-            <Animated.View
-              style={[
-                styles.tabIndicator,
-                indicatorStyle,
-                {
-                  width: '50%',
-                },
-              ]}
-            />
+            <Animated.View style={[styles.tabIndicator, indicatorStyle, { width: '50%' }]} />
           </View>
         </View>
 
-        {/* ── Content ─────────────────────────────────── */}
+        {/* ── Podcasts Tab ─────────────────────────────── */}
         {activeTab === 'podcasts' ? (
-          <FlatList<Podcast>
-            testID="podcasts-list"
-            data={podcasts}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={
-              <View style={styles.sectionHeader}>
-                <Rss size={14} color={C.pin} strokeWidth={2} />
-                <Text style={styles.sectionTitle}>TRACKED SHOWS</Text>
-                <Text style={styles.sectionCount}>{podcasts.length}</Text>
-              </View>
-            }
-            renderItem={({ item }) => (
-              <PodcastCard
-                item={item}
-                onPin={handlePinPodcast}
-                onAddToInvestigation={handleAddToInvestigation}
-              />
-            )}
-            ListFooterComponent={
+          <>
+            {/* Show Selector */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={styles.showSelectorContent}>
+              {/* "All" pill */}
               <Pressable
-                testID="add-podcast-button"
+                testID="show-filter-all"
                 onPress={() => {
-                  setAddPodcastVisible(true);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setSelectedShowId(null);
+                  Haptics.selectionAsync();
                 }}
-                style={styles.addSourceBtn}>
-                <Rss size={16} color={C.textLight} strokeWidth={2} />
-                <Text style={styles.addSourceBtnText}>Add Podcast</Text>
+                style={[styles.showPill, selectedShowId === null && styles.showPillActive]}>
+                <Text style={[styles.showPillText, selectedShowId === null && styles.showPillTextActive]}>
+                  All
+                </Text>
+                <View style={[styles.showPillCount, selectedShowId === null && styles.showPillCountActive]}>
+                  <Text style={[styles.showPillCountText, selectedShowId === null && styles.showPillCountTextActive]}>
+                    {ALL_EPISODES.length}
+                  </Text>
+                </View>
               </Pressable>
-            }
-          />
+
+              {PODCAST_SHOWS.map(show => {
+                const isSelected = selectedShowId === show.id;
+                const showHasNew = hasNewEpisodes(show.id);
+                const count = ALL_EPISODES.filter(e => e.showId === show.id).length;
+                return (
+                  <Pressable
+                    testID={`show-filter-${show.id}`}
+                    key={show.id}
+                    onPress={() => {
+                      setSelectedShowId(isSelected ? null : show.id);
+                      Haptics.selectionAsync();
+                    }}
+                    style={[styles.showPill, isSelected && styles.showPillActive]}>
+                    <View style={[styles.showPillAvatar, { backgroundColor: show.imageColor }]}>
+                      <Text style={styles.showPillAvatarText}>{show.initials}</Text>
+                    </View>
+                    <Text style={[styles.showPillText, isSelected && styles.showPillTextActive]} numberOfLines={1}>
+                      {show.name}
+                    </Text>
+                    {showHasNew ? (
+                      <View style={styles.showNewDot} />
+                    ) : null}
+                    <View style={[styles.showPillCount, isSelected && styles.showPillCountActive]}>
+                      <Text style={[styles.showPillCountText, isSelected && styles.showPillCountTextActive]}>
+                        {count}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Episode List */}
+            <FlatList<Episode>
+              testID="episodes-list"
+              data={displayedEpisodes}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={
+                <View style={styles.episodeListHeader}>
+                  <Text style={styles.episodeListHeaderText}>
+                    {selectedShowId
+                      ? (getShowById(selectedShowId)?.name ?? '')
+                      : 'All Episodes'}
+                  </Text>
+                  <Text style={styles.episodeListHeaderCount}>{displayedEpisodes.length} eps</Text>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <EpisodeCard
+                  episode={item}
+                  onAddToBoard={handleAddToBoard}
+                  onAISummary={handleAISummary}
+                  onShare={handleShare}
+                  onPlay={handlePlay}
+                />
+              )}
+            />
+          </>
         ) : (
+          // ── Live Feed Tab ────────────────────────────────
           <ScrollView
             testID="live-feed-scroll"
             contentContainerStyle={styles.listContent}
@@ -557,12 +727,7 @@ export default function PodcastScreen() {
               <Text style={styles.liveCount}>{LIVE_NOW.length}</Text>
             </View>
             {LIVE_NOW.map(item => (
-              <LiveCard
-                key={item.id}
-                item={item}
-                onPin={handlePinLive}
-                pinned={pinnedLive.has(item.id)}
-              />
+              <LiveCard key={item.id} item={item} onPin={handlePinLive} pinned={pinnedLive.has(item.id)} />
             ))}
 
             {/* Scheduled */}
@@ -571,12 +736,7 @@ export default function PodcastScreen() {
               <Text style={styles.sectionTitle}>SCHEDULED</Text>
             </View>
             {SCHEDULED.map(item => (
-              <LiveCard
-                key={item.id}
-                item={item}
-                onPin={handlePinLive}
-                pinned={pinnedLive.has(item.id)}
-              />
+              <LiveCard key={item.id} item={item} onPin={handlePinLive} pinned={pinnedLive.has(item.id)} />
             ))}
 
             {/* Monitoring Keywords */}
@@ -593,151 +753,38 @@ export default function PodcastScreen() {
                     onLongPress={() => handleRemoveKeyword(kw.id)}
                     style={styles.keywordChip}>
                     <Hash size={10} color={C.red} strokeWidth={2.5} />
-                    <Text style={styles.keywordChipText}>
-                      {kw.tag.replace('#', '')}
-                    </Text>
+                    <Text style={styles.keywordChipText}>{kw.tag}</Text>
                   </Pressable>
                 ))}
+                <Pressable
+                  testID="add-keyword-inline"
+                  onPress={() => {
+                    const tag = `keyword_${Date.now()}`;
+                    setKeywords(prev => [...prev, { id: Date.now().toString(), tag }]);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  style={styles.keywordAddChip}>
+                  <Plus size={11} color={C.muted} strokeWidth={2.5} />
+                  <Text style={styles.keywordAddChipText}>Add</Text>
+                </Pressable>
               </View>
-              <Text style={styles.keywordHint}>Long-press to remove</Text>
-              <Pressable
-                testID="add-keyword-button"
-                onPress={() => {
-                  setAddKeywordVisible(true);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={styles.addKeywordBtn}>
-                <Plus size={14} color={C.textLight} strokeWidth={2.5} />
-                <Text style={styles.addKeywordBtnText}>Add Keyword</Text>
-              </Pressable>
+              <Text style={styles.keywordHint}>Long-press to remove a keyword</Text>
             </View>
           </ScrollView>
         )}
 
-        {/* ── FAB ─────────────────────────────────────── */}
-        <Pressable
-          testID="fab-add"
-          onPress={() => {
-            if (activeTab === 'podcasts') {
-              setAddPodcastVisible(true);
-            } else {
-              setAddKeywordVisible(true);
-            }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }}
-          style={styles.fab}>
-          <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
-        </Pressable>
-
         {/* ── Toast ───────────────────────────────────── */}
         <Toast visible={toastVisible} message={toastMessage} />
 
-        {/* ── Add Podcast Modal ────────────────────────── */}
-        <Modal
-          visible={addPodcastVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setAddPodcastVisible(false)}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}>
-            <Pressable
-              style={styles.modalBackdrop}
-              onPress={() => setAddPodcastVisible(false)}
-            />
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHandle} />
-              <View style={styles.modalHeader}>
-                <Rss size={20} color={C.red} strokeWidth={2} />
-                <Text style={styles.modalTitle}>Add Podcast</Text>
-              </View>
-              <Text style={styles.modalSubtitle}>
-                Enter a podcast name, URL, or RSS feed
-              </Text>
-              <TextInput
-                testID="podcast-url-input"
-                value={podcastUrl}
-                onChangeText={setPodcastUrl}
-                placeholder="e.g. https://rss.show/feed or Show Name"
-                placeholderTextColor={C.muted}
-                style={styles.modalInput}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleAddPodcast}
-              />
-              <View style={styles.modalActions}>
-                <Pressable
-                  onPress={() => setAddPodcastVisible(false)}
-                  style={styles.modalCancelBtn}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  testID="confirm-add-podcast"
-                  onPress={handleAddPodcast}
-                  style={[
-                    styles.modalConfirmBtn,
-                    !podcastUrl.trim() && styles.modalConfirmBtnDisabled,
-                  ]}>
-                  <Text style={styles.modalConfirmText}>Track Podcast</Text>
-                </Pressable>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* ── Add Keyword Modal ────────────────────────── */}
-        <Modal
-          visible={addKeywordVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setAddKeywordVisible(false)}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}>
-            <Pressable
-              style={styles.modalBackdrop}
-              onPress={() => setAddKeywordVisible(false)}
-            />
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHandle} />
-              <View style={styles.modalHeader}>
-                <Hash size={20} color={C.red} strokeWidth={2} />
-                <Text style={styles.modalTitle}>Monitor Keyword</Text>
-              </View>
-              <Text style={styles.modalSubtitle}>
-                Track this term across live feeds and social media
-              </Text>
-              <TextInput
-                testID="keyword-input"
-                value={newKeyword}
-                onChangeText={setNewKeyword}
-                placeholder="#keyword or phrase"
-                placeholderTextColor={C.muted}
-                style={styles.modalInput}
-                autoFocus
-                returnKeyType="done"
-                autoCapitalize="none"
-                onSubmitEditing={handleAddKeyword}
-              />
-              <View style={styles.modalActions}>
-                <Pressable
-                  onPress={() => setAddKeywordVisible(false)}
-                  style={styles.modalCancelBtn}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  testID="confirm-add-keyword"
-                  onPress={handleAddKeyword}
-                  style={[
-                    styles.modalConfirmBtn,
-                    !newKeyword.trim() && styles.modalConfirmBtnDisabled,
-                  ]}>
-                  <Text style={styles.modalConfirmText}>Add Keyword</Text>
-                </Pressable>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        {/* ── AI Summary Modal ────────────────────────── */}
+        <AISummaryModal
+          visible={summaryVisible}
+          episode={summaryEpisode}
+          summary={summaryText}
+          loading={summaryLoading}
+          onClose={() => setSummaryVisible(false)}
+          onPinAsEvidence={handlePinSummaryAsEvidence}
+        />
       </View>
     </SafeAreaView>
   );
@@ -745,14 +792,9 @@ export default function PodcastScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
+  safeArea: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.bg },
+
   // Header
   header: {
     flexDirection: 'row',
@@ -760,12 +802,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
-  },
-  headerLeft: {
-    gap: 2,
   },
   headerTitle: {
     fontSize: 22,
@@ -774,27 +813,29 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: C.muted,
     letterSpacing: 3,
+    marginTop: 1,
   },
   headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: C.border,
   },
-  // Tab switcher
+
+  // Tab Switcher
   tabSwitcher: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 12,
     backgroundColor: C.surface,
     borderRadius: 10,
     borderWidth: 1,
@@ -804,12 +845,15 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
     paddingVertical: 11,
     zIndex: 2,
+  },
+  tabButtonLiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   tabButtonText: {
     fontSize: 13,
@@ -817,9 +861,7 @@ const styles = StyleSheet.create({
     color: C.muted,
     letterSpacing: 0.5,
   },
-  tabButtonTextActive: {
-    color: C.textLight,
-  },
+  tabButtonTextActive: { color: C.textLight },
   tabIndicatorTrack: {
     position: 'absolute',
     bottom: 0,
@@ -828,17 +870,237 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: C.border,
   },
-  tabIndicator: {
-    height: 2,
-    backgroundColor: C.red,
-    borderRadius: 2,
+  tabIndicator: { height: 2, backgroundColor: C.red, borderRadius: 2 },
+
+  // Show Selector
+  showSelectorContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
   },
+  showPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  showPillActive: {
+    backgroundColor: C.redDim,
+    borderColor: C.red,
+  },
+  showPillAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showPillAvatarText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  showPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.muted,
+    maxWidth: 110,
+  },
+  showPillTextActive: { color: C.textLight },
+  showNewDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.red,
+  },
+  showPillCount: {
+    backgroundColor: C.bg,
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: C.border,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  showPillCountActive: {
+    backgroundColor: C.red,
+    borderColor: C.red,
+  },
+  showPillCountText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.muted,
+  },
+  showPillCountTextActive: { color: '#FFFFFF' },
+
+  // Episode list header
+  episodeListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  episodeListHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.muted,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  episodeListHeaderCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.muted,
+    backgroundColor: C.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+
   // List
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 120,
   },
+
+  // Episode Card
+  episodeCard: {
+    marginBottom: 10,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  episodeCardInner: {
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    gap: 10,
+  },
+  episodeTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  showAvatarSmall: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  showAvatarSmallText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  episodeMeta: { flex: 1, gap: 2 },
+  episodeShowLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.muted,
+    letterSpacing: 0.3,
+  },
+  episodeMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  episodeDate: { fontSize: 11, color: C.muted, fontWeight: '500' },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: C.muted,
+  },
+  episodeDuration: { fontSize: 11, color: C.pin, fontWeight: '600' },
+  newBadge: {
+    backgroundColor: C.redDim,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: C.red,
+  },
+  newBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: C.red,
+    letterSpacing: 1,
+  },
+  episodeTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.textLight,
+    lineHeight: 21,
+    letterSpacing: 0.1,
+  },
+  episodeDesc: {
+    fontSize: 13,
+    color: C.muted,
+    lineHeight: 18,
+    letterSpacing: 0.1,
+  },
+
+  // Action Buttons
+  episodeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.card,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  actionBtnAI: {
+    backgroundColor: C.redDim,
+    borderColor: C.red,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.muted,
+    letterSpacing: 0.2,
+  },
+  playBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.red,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  playBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+
+  // Section headers (live tab)
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -853,162 +1115,18 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     flex: 1,
   },
-  sectionCount: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.muted,
-    backgroundColor: C.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
   liveCount: {
     fontSize: 11,
     fontWeight: '600',
     color: C.red,
-    backgroundColor: '#3D0A14',
+    backgroundColor: C.redDim,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: C.red,
   },
-  // Podcast Card
-  podcastCard: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  podcastCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
-    gap: 12,
-  },
-  podcastIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#3D0A14',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.red,
-    flexShrink: 0,
-  },
-  podcastInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  podcastTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  podcastShowName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.textLight,
-    letterSpacing: 0.2,
-    flexShrink: 1,
-  },
-  newBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#3D0A14',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: C.red,
-  },
-  newBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: C.red,
-    letterSpacing: 1,
-  },
-  podcastHost: {
-    fontSize: 12,
-    color: C.muted,
-    fontWeight: '500',
-  },
-  podcastEpisode: {
-    fontSize: 12,
-    color: C.pin,
-    fontWeight: '500',
-    fontStyle: 'italic',
-  },
-  pinButton: {
-    padding: 2,
-    flexShrink: 0,
-  },
-  podcastCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-    gap: 8,
-  },
-  categoryChip: {
-    backgroundColor: C.bg,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  categoryChipText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: C.muted,
-    letterSpacing: 0.5,
-  },
-  addInvestigationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#3D0A14',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.red,
-  },
-  addInvestigationText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: C.red,
-    letterSpacing: 0.3,
-  },
-  // Add source button
-  addSourceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 6,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderStyle: 'dashed',
-    backgroundColor: C.surface,
-  },
-  addSourceBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.textLight,
-    letterSpacing: 0.5,
-  },
+
   // Live Card
   liveCard: {
     backgroundColor: C.surface,
@@ -1018,9 +1136,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
-  liveCardActive: {
-    borderColor: C.red,
-  },
+  liveCardActive: { borderColor: C.red },
   liveCardGlow: {
     position: 'absolute',
     top: 0,
@@ -1035,10 +1151,7 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  liveCardLeft: {
-    flex: 1,
-    gap: 6,
-  },
+  liveCardLeft: { flex: 1, gap: 7 },
   liveIndicatorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1049,6 +1162,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: C.red,
     letterSpacing: 2,
+  },
+  topicChip: {
+    backgroundColor: C.redDim,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: C.red,
+  },
+  topicChipText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: C.red,
+    letterSpacing: 0.5,
   },
   scheduledIndicator: {
     flexDirection: 'row',
@@ -1081,8 +1208,10 @@ const styles = StyleSheet.create({
   viewersText: {
     fontSize: 11,
     color: C.muted,
-    marginLeft: 6,
+    marginLeft: 4,
   },
+  pinButton: { padding: 2, flexShrink: 0 },
+
   // Keywords
   keywordsCard: {
     backgroundColor: C.surface,
@@ -1101,7 +1230,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#3D0A14',
+    backgroundColor: C.redDim,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1114,45 +1243,30 @@ const styles = StyleSheet.create({
     color: C.red,
     letterSpacing: 0.3,
   },
+  keywordAddChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.bg,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderStyle: 'dashed',
+  },
+  keywordAddChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.muted,
+  },
   keywordHint: {
     fontSize: 10,
     color: C.muted,
     fontStyle: 'italic',
     letterSpacing: 0.3,
   },
-  addKeywordBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderStyle: 'dashed',
-  },
-  addKeywordBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.textLight,
-  },
-  // FAB
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: C.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: C.red,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
+
   // Toast
   toast: {
     position: 'absolute',
@@ -1181,24 +1295,25 @@ const styles = StyleSheet.create({
     flex: 1,
     letterSpacing: 0.2,
   },
-  // Modal
+
+  // AI Summary Modal
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
   },
-  modalSheet: {
+  summarySheet: {
     backgroundColor: C.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderTopWidth: 1,
     borderColor: C.border,
     padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 44 : 24,
-    gap: 12,
+    paddingBottom: Platform.OS === 'ios' ? 48 : 28,
+    maxHeight: '82%',
   },
   modalHandle: {
     width: 36,
@@ -1206,71 +1321,101 @@ const styles = StyleSheet.create({
     backgroundColor: C.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  modalHeader: {
+  summaryHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 14,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: C.textLight,
-    letterSpacing: 0.3,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: C.muted,
-    lineHeight: 18,
-  },
-  modalInput: {
-    backgroundColor: C.bg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: C.textLight,
-    marginTop: 4,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  modalCancelBtn: {
+  summaryHeaderLeft: {
     flex: 1,
-    paddingVertical: 13,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    backgroundColor: C.bg,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  modalCancelText: {
+  showAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  showAvatarText: {
     fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  summaryShowName: {
+    fontSize: 11,
     fontWeight: '600',
     color: C.muted,
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
-  modalConfirmBtn: {
-    flex: 2,
-    paddingVertical: 13,
-    borderRadius: 10,
-    backgroundColor: C.red,
+  summaryEpisodeTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.textLight,
+    lineHeight: 20,
+  },
+  summaryCloseBtn: {
+    padding: 4,
+    marginTop: 2,
+  },
+  aiBadgeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    marginBottom: 14,
   },
-  modalConfirmBtnDisabled: {
-    opacity: 0.5,
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: C.red,
+    letterSpacing: 2,
   },
-  modalConfirmText: {
+  summaryScrollArea: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  summaryLoadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 14,
+  },
+  summaryLoadingText: {
+    fontSize: 13,
+    color: C.muted,
+    letterSpacing: 0.5,
+  },
+  summaryText: {
     fontSize: 14,
+    color: C.textLight,
+    lineHeight: 22,
+    letterSpacing: 0.2,
+  },
+  pinEvidenceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: C.red,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  pinEvidenceBtnText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  // Pulsing dot
+
+  // Pulsing Dot
   pulsingContainer: {
     width: 14,
     height: 14,

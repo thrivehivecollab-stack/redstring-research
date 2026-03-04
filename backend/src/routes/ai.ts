@@ -157,4 +157,177 @@ aiRouter.post(
   }
 );
 
+// ─── RSS podcast feed helpers ──────────────────────────────────────────────
+
+function extractTag(xml: string, tag: string): string {
+  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'));
+  return match ? (match[1] ?? '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+}
+
+function extractEnclosureUrl(xml: string): string {
+  const match = xml.match(/<enclosure[^>]+url="([^"]+)"/i);
+  return match ? (match[1] ?? '') : '';
+}
+
+function extractItems(xml: string): string[] {
+  const items: string[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const captured = match[1];
+    if (captured !== undefined) items.push(captured);
+  }
+  return items;
+}
+
+function extractChannelImage(xml: string): string {
+  // Try itunes:image href first
+  const itunesImg = xml.match(/<itunes:image[^>]+href="([^"]+)"/i);
+  if (itunesImg) return itunesImg[1] ?? '';
+  // Try <image><url>...</url></image>
+  const imgBlock = xml.match(/<image[^>]*>([\s\S]*?)<\/image>/i);
+  if (imgBlock) {
+    const inner = imgBlock[1] ?? '';
+    const urlMatch = inner.match(/<url[^>]*>([\s\S]*?)<\/url>/i);
+    if (urlMatch) return (urlMatch[1] ?? '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+  }
+  return '';
+}
+
+function extractItunesDuration(xml: string): string {
+  const match = xml.match(/<itunes:duration[^>]*>([\s\S]*?)<\/itunes:duration>/i);
+  return match ? (match[1] ?? '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+}
+
+function extractItemImage(itemXml: string): string {
+  const itunesImg = itemXml.match(/<itunes:image[^>]+href="([^"]+)"/i);
+  if (itunesImg) return itunesImg[1] ?? '';
+  return '';
+}
+
+interface PodcastEpisode {
+  id: string;
+  podcastName: string;
+  title: string;
+  description: string;
+  pubDate: string;
+  audioUrl: string;
+  duration: string;
+  imageUrl: string;
+  feedUrl: string;
+}
+
+const PODCAST_FEEDS: { name: string; url: string }[] = [
+  { name: 'Casefile True Crime', url: 'https://feeds.simplecast.com/8s5ZiA2T' },
+  { name: 'Crime Junkie', url: 'https://feeds.audioboom.com/channels/5016117/feed.rss' },
+  { name: 'Your Own Backyard', url: 'https://feeds.megaphone.fm/ADL9840483321' },
+  { name: 'Conspirituality', url: 'https://feeds.simplecast.com/p5v-hnZX' },
+  { name: 'The Intercept', url: 'https://feeds.simplecast.com/4goAcKEZ' },
+];
+
+async function fetchFeedEpisodes(
+  name: string,
+  feedUrl: string
+): Promise<PodcastEpisode[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    const response = await fetch(feedUrl, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PodcastFetcher/1.0)' },
+    });
+
+    if (!response.ok) return [];
+
+    const xml = await response.text();
+    const channelImage = extractChannelImage(xml);
+    const items = extractItems(xml).slice(0, 3);
+
+    return items.map((item, idx) => {
+      const title = extractTag(item, 'title');
+      const description = extractTag(item, 'description') || extractTag(item, 'itunes:summary');
+      const pubDate = extractTag(item, 'pubDate');
+      const audioUrl = extractEnclosureUrl(item);
+      const duration = extractItunesDuration(item);
+      const itemImage = extractItemImage(item) || channelImage;
+      const guid = extractTag(item, 'guid') || `${feedUrl}-${idx}`;
+
+      return {
+        id: guid,
+        podcastName: name,
+        title,
+        description,
+        pubDate,
+        audioUrl,
+        duration,
+        imageUrl: itemImage,
+        feedUrl,
+      };
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ─── GET /podcasts ──────────────────────────────────────────────────────────
+aiRouter.get('/podcasts', async (c) => {
+  const results = await Promise.allSettled(
+    PODCAST_FEEDS.map((feed) => fetchFeedEpisodes(feed.name, feed.url))
+  );
+
+  const episodes: PodcastEpisode[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      episodes.push(...result.value);
+    }
+  }
+
+  episodes.sort((a, b) => {
+    const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+    const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  return c.json({ data: episodes });
+});
+
+// ─── GET /podcast-image (proxy) ─────────────────────────────────────────────
+aiRouter.get('/podcast-image', async (c) => {
+  const imageUrl = c.req.query('url');
+  if (!imageUrl) {
+    return c.json({ error: { message: 'Missing url query param' } }, 400);
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+
+  try {
+    const response = await fetch(imageUrl, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PodcastFetcher/1.0)' },
+    });
+
+    if (!response.ok) {
+      return c.json({ error: { message: 'Failed to fetch image' } }, 502);
+    }
+
+    const contentType = response.headers.get('content-type') ?? 'image/jpeg';
+    const buffer = await response.arrayBuffer();
+
+    return new Response(buffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=86400',
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Image proxy error';
+    return c.json({ error: { message } }, 500);
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
 export { aiRouter };
+

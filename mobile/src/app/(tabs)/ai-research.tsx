@@ -1317,6 +1317,9 @@ export default function AIResearchScreen() {
   const startHandsFreeRecording = useCallback(async () => {
     if (!handsFreeRef.current) return;
 
+    // Stop any playing audio so user can speak
+    await stopCurrentAudio();
+
     const { status } = await Audio.requestPermissionsAsync();
     if (status !== 'granted') {
       showToast('Microphone permission required for hands-free mode.');
@@ -1342,7 +1345,7 @@ export default function AIResearchScreen() {
     } catch {
       showToast('Could not start recording in hands-free mode.');
     }
-  }, [showToast, startMicAnimation]);
+  }, [showToast, startMicAnimation, stopCurrentAudio]);
 
   // Build the history array for the AI from messages (exclude welcome for brevity if large)
   const buildHistory = useCallback(
@@ -1517,6 +1520,8 @@ export default function AIResearchScreen() {
         setIsTranscribing(false);
       }
     } else {
+      // Stop any playing audio so user can speak
+      await stopCurrentAudio();
       // Request permissions and start recording
       const { status } = await Audio.requestPermissionsAsync();
 

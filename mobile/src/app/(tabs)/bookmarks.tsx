@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
+import * as DocumentPicker from 'expo-document-picker';
 
 const COLORS = {
   background: '#1A1614',
@@ -188,6 +189,42 @@ function SourceIcon({ platform }: { platform: ImportSource['platform'] }) {
       <FileText size={20} color={COLORS.muted} strokeWidth={2} />
     </View>
   );
+}
+
+function parseBrowserBookmarks(html: string): Array<{url: string, title: string}> {
+  const results: Array<{url: string, title: string}> = [];
+  const regex = /<A\s+HREF="([^"]+)"[^>]*>([^<]+)<\/A>/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const url = match[1];
+    const title = match[2].trim();
+    if (url.startsWith('http')) {
+      results.push({ url, title });
+    }
+  }
+  return results;
+}
+
+function guessCategory(url: string): BookmarkCategory {
+  if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')) {
+    return 'Video';
+  }
+  if (url.includes('twitter.com') || url.includes('x.com')) {
+    return 'Tweet';
+  }
+  if (url.endsWith('.pdf') || url.includes('/pdf/') || url.includes('?pdf=')) {
+    return 'PDF';
+  }
+  return 'Article';
+}
+
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
 }
 
 export default function BookmarksScreen() {
@@ -709,10 +746,38 @@ export default function BookmarksScreen() {
             <View style={{ gap: 10 }}>
               <Pressable
                 testID="select-file-button"
-                onPress={() => {
+                onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setImportFileModalVisible(false);
-                  showToast('File picker coming soon. Export your bookmarks and try again.');
+                  try {
+                    const result = await DocumentPicker.getDocumentAsync({
+                      type: ['text/html', 'application/octet-stream', '*/*'],
+                      copyToCacheDirectory: true,
+                    });
+                    if (result.canceled) return;
+                    const asset = result.assets[0];
+                    const html = await fetch(asset.uri).then((r) => r.text());
+                    const parsed = parseBrowserBookmarks(html);
+                    if (parsed.length === 0) {
+                      setImportFileModalVisible(false);
+                      showToast('No bookmarks found in file. Make sure it\'s a browser bookmark HTML export.');
+                      return;
+                    }
+                    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const newBookmarks: BookmarkItem[] = parsed.map((b) => ({
+                      id: String(Date.now()) + Math.random().toString(36).slice(2),
+                      title: b.title,
+                      domain: extractDomain(b.url),
+                      dateImported: today,
+                      category: guessCategory(b.url),
+                      platform: 'browser' as const,
+                    }));
+                    setBookmarks((prev) => [...newBookmarks, ...prev]);
+                    setImportFileModalVisible(false);
+                    showToast(`Imported ${parsed.length} bookmarks`);
+                  } catch (err) {
+                    setImportFileModalVisible(false);
+                    showToast('Failed to read file. Please try again.');
+                  }
                 }}
                 style={({ pressed }) => ({
                   backgroundColor: pressed ? '#9B1530' : COLORS.red,

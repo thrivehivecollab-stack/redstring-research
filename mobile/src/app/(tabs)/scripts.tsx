@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,9 @@ import {
   X,
   BookOpen,
 } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SCRIPTS_KEY = '@red_string_scripts';
 
 const COLORS = {
   background: '#1A1614',
@@ -595,6 +598,27 @@ export default function ScriptsScreen() {
   const [useScript, setUseScript] = useState<Script | null>(null);
   const [editScript, setEditScript] = useState<Script | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+
+  // Load from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem(SCRIPTS_KEY).then((stored) => {
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored) as Script[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setScripts(parsed);
+          }
+        } catch {
+          // If parse fails, keep INITIAL_SCRIPTS
+        }
+      }
+    });
+  }, []);
+
+  // Save to AsyncStorage whenever scripts change
+  useEffect(() => {
+    AsyncStorage.setItem(SCRIPTS_KEY, JSON.stringify(scripts));
+  }, [scripts]);
 
   const filtered = useMemo(() => {
     return scripts.filter((s) => {
