@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Position, NodeType, TagColor, Tag, AISuggestion } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion } from '@/lib/types';
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 }
+
+const TIMELINE_COLORS = [
+  '#C41E3A', '#3B82F6', '#22C55E', '#F59E0B',
+  '#A855F7', '#14B8A6', '#F97316', '#EC4899',
+];
 
 interface InvestigationStore {
   investigations: Investigation[];
@@ -13,6 +18,7 @@ interface InvestigationStore {
   selectedNodeId: string | null;
   connectingFromId: string | null;
   viewMode: 'canvas' | 'list';
+  canvasMode: 'corkboard' | 'mindmap';
 
   // Investigation CRUD
   createInvestigation: (title: string, description?: string) => string;
@@ -26,14 +32,21 @@ interface InvestigationStore {
   moveNode: (investigationId: string, nodeId: string, position: Position) => void;
 
   // Red String CRUD
-  addString: (investigationId: string, fromNodeId: string, toNodeId: string, label?: string) => string;
+  addString: (investigationId: string, fromNodeId: string, toNodeId: string, label?: string, color?: string) => string;
   updateString: (investigationId: string, stringId: string, updates: Partial<RedString>) => void;
   deleteString: (investigationId: string, stringId: string) => void;
+
+  // Timeline CRUD
+  addTimeline: (investigationId: string, label: string) => string;
+  updateTimeline: (investigationId: string, timelineId: string, updates: Partial<Timeline>) => void;
+  deleteTimeline: (investigationId: string, timelineId: string) => void;
+  toggleTimelineMinimized: (investigationId: string, timelineId: string) => void;
 
   // Selection
   setSelectedNode: (nodeId: string | null) => void;
   setConnectingFrom: (nodeId: string | null) => void;
   setViewMode: (mode: 'canvas' | 'list') => void;
+  setCanvasMode: (mode: 'corkboard' | 'mindmap') => void;
 
   // Helpers
   getActiveInvestigation: () => Investigation | undefined;
@@ -47,16 +60,28 @@ const useInvestigationStore = create<InvestigationStore>()(
       selectedNodeId: null,
       connectingFromId: null,
       viewMode: 'canvas',
+      canvasMode: 'corkboard',
 
       createInvestigation: (title, description) => {
         const id = generateId();
         const now = Date.now();
+        const currentYear = new Date().getFullYear();
+        const mainTimeline: Timeline = {
+          id: generateId(),
+          label: 'MAIN',
+          color: '#C41E3A',
+          startYear: 1900,
+          endYear: currentYear,
+          isMinimized: false,
+          createdAt: now,
+        };
         const investigation: Investigation = {
           id,
           title,
           description,
           nodes: [],
           strings: [],
+          timelines: [mainTimeline],
           createdAt: now,
           updatedAt: now,
         };
@@ -153,7 +178,7 @@ const useInvestigationStore = create<InvestigationStore>()(
         }));
       },
 
-      addString: (investigationId, fromNodeId, toNodeId, label) => {
+      addString: (investigationId, fromNodeId, toNodeId, label, color) => {
         const stringId = generateId();
         const now = Date.now();
         const newString: RedString = {
@@ -161,6 +186,7 @@ const useInvestigationStore = create<InvestigationStore>()(
           fromNodeId,
           toNodeId,
           label,
+          color: color ?? '#C41E3A',
           createdAt: now,
         };
         set((state) => ({
@@ -202,9 +228,81 @@ const useInvestigationStore = create<InvestigationStore>()(
         }));
       },
 
+      addTimeline: (investigationId, label) => {
+        const timelineId = generateId();
+        const now = Date.now();
+        const currentYear = new Date().getFullYear();
+        set((state) => {
+          const inv = state.investigations.find((i) => i.id === investigationId);
+          const existingCount = inv?.timelines.length ?? 0;
+          const color = TIMELINE_COLORS[existingCount % TIMELINE_COLORS.length];
+          const timeline: Timeline = {
+            id: timelineId,
+            label,
+            color,
+            startYear: 1900,
+            endYear: currentYear,
+            isMinimized: false,
+            createdAt: now,
+          };
+          return {
+            investigations: state.investigations.map((i) =>
+              i.id === investigationId
+                ? { ...i, timelines: [...i.timelines, timeline], updatedAt: now }
+                : i
+            ),
+          };
+        });
+        return timelineId;
+      },
+
+      updateTimeline: (investigationId, timelineId, updates) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  timelines: inv.timelines.map((t) =>
+                    t.id === timelineId ? { ...t, ...updates } : t
+                  ),
+                }
+              : inv
+          ),
+        }));
+      },
+
+      deleteTimeline: (investigationId, timelineId) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  timelines: inv.timelines.filter((t) => t.id !== timelineId),
+                }
+              : inv
+          ),
+        }));
+      },
+
+      toggleTimelineMinimized: (investigationId, timelineId) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  timelines: inv.timelines.map((t) =>
+                    t.id === timelineId ? { ...t, isMinimized: !t.isMinimized } : t
+                  ),
+                }
+              : inv
+          ),
+        }));
+      },
+
       setSelectedNode: (nodeId) => set({ selectedNodeId: nodeId }),
       setConnectingFrom: (nodeId) => set({ connectingFromId: nodeId }),
       setViewMode: (mode) => set({ viewMode: mode }),
+      setCanvasMode: (mode) => set({ canvasMode: mode }),
 
       getActiveInvestigation: () => {
         const state = get();

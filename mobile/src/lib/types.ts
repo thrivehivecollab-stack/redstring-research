@@ -33,6 +33,7 @@ export interface CanvasNode {
   url?: string; // for link type
   imageUri?: string; // for image type
   content?: string; // for note type
+  timestamp?: number; // unix ms timestamp for when this evidence occurred
   createdAt: number;
   updatedAt: number;
 }
@@ -43,7 +44,19 @@ export interface RedString {
   toNodeId: string;
   label?: string;
   notes?: string;
-  color?: string; // defaults to red
+  color: string; // hex color, default '#C41E3A'
+  thickness?: number; // 1-4, default 2
+  style?: 'solid' | 'dashed' | 'dotted'; // default 'solid'
+  createdAt: number;
+}
+
+export interface Timeline {
+  id: string;
+  label: string;
+  color: string; // hex color from color spectrum
+  startYear: number;
+  endYear: number;
+  isMinimized: boolean;
   createdAt: number;
 }
 
@@ -53,6 +66,7 @@ export interface Investigation {
   description?: string;
   nodes: CanvasNode[];
   strings: RedString[];
+  timelines: Timeline[];
   createdAt: number;
   updatedAt: number;
 }

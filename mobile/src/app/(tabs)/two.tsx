@@ -7,12 +7,30 @@ import {
   useWindowDimensions,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Line, Circle as SvgCircle, Text as SvgText } from 'react-native-svg';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import Svg, {
+  Path,
+  Circle as SvgCircle,
+  Text as SvgText,
+  Defs,
+  Filter,
+  FeGaussianBlur,
+  FeComposite,
+} from 'react-native-svg';
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import {
   ArrowLeft,
@@ -27,11 +45,15 @@ import {
   Trash2,
   X,
   Lock,
+  LayoutGrid,
+  Network,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
-import type { CanvasNode, NodeType, TagColor } from '@/lib/types';
+import type { CanvasNode, NodeType, TagColor, Timeline } from '@/lib/types';
+import TimelinePanel from '@/components/TimelinePanel';
+import MindMapCanvas from '@/components/MindMapCanvas';
 
 // ---- Color constants ----
 const C = {
@@ -59,6 +81,13 @@ const TAG_COLORS: Record<TagColor, string> = {
   teal: '#14B8A6',
 };
 
+// String color palette for the color picker
+const STRING_COLORS = [
+  '#C41E3A', '#3B82F6', '#22C55E', '#F59E0B',
+  '#A855F7', '#14B8A6', '#F97316', '#EC4899',
+  '#E8DCC8', '#FFFFFF',
+];
+
 type IconComponent = React.ComponentType<{ size: number; color: string; strokeWidth: number }>;
 
 const NODE_ICONS: Record<NodeType, IconComponent> = {
@@ -69,6 +98,73 @@ const NODE_ICONS: Record<NodeType, IconComponent> = {
   dataset: Database,
   investigation: Search,
 };
+
+// ---- Bezier path helper ----
+function makeBezierPath(
+  fx: number,
+  fy: number,
+  tx: number,
+  ty: number
+): string {
+  const dx = tx - fx;
+  const dy = ty - fy;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  // For mostly horizontal connections, control points push curve up/down
+  // For mostly vertical, push left/right
+  let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
+  if (absDx >= absDy) {
+    // Horizontal bias
+    const offset = absDy * 0.3 + 20;
+    cp1x = fx + dx * 0.4;
+    cp1y = fy - offset;
+    cp2x = tx - dx * 0.4;
+    cp2y = ty - offset;
+  } else {
+    // Vertical bias
+    const offset = absDx * 0.3 + 20;
+    cp1x = fx + offset;
+    cp1y = fy + dy * 0.4;
+    cp2x = tx + offset;
+    cp2y = ty - dy * 0.4;
+  }
+
+  return `M ${fx} ${fy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${tx} ${ty}`;
+}
+
+// Cubic bezier midpoint at t=0.5
+function bezierMidpoint(
+  fx: number,
+  fy: number,
+  tx: number,
+  ty: number
+): { x: number; y: number } {
+  const dx = tx - fx;
+  const dy = ty - fy;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
+  if (absDx >= absDy) {
+    const offset = absDy * 0.3 + 20;
+    cp1x = fx + dx * 0.4;
+    cp1y = fy - offset;
+    cp2x = tx - dx * 0.4;
+    cp2y = ty - offset;
+  } else {
+    const offset = absDx * 0.3 + 20;
+    cp1x = fx + offset;
+    cp1y = fy + dy * 0.4;
+    cp2x = tx + offset;
+    cp2y = ty - dy * 0.4;
+  }
+  // B(0.5) = (1-t)^3*P0 + 3(1-t)^2*t*P1 + 3(1-t)*t^2*P2 + t^3*P3 at t=0.5
+  const t = 0.5;
+  const mt = 1 - t;
+  const x = mt * mt * mt * fx + 3 * mt * mt * t * cp1x + 3 * mt * t * t * cp2x + t * t * t * tx;
+  const y = mt * mt * mt * fy + 3 * mt * mt * t * cp1y + 3 * mt * t * t * cp2y + t * t * t * ty;
+  return { x, y };
+}
 
 // ---- Node card component ----
 function NodeCard({
@@ -94,31 +190,35 @@ function NodeCard({
   const offsetY = useSharedValue(0);
   const isDragging = useSharedValue(false);
 
-  const panGesture = useMemo(() => {
-    return Gesture.Pan()
-      .enabled(!connectMode)
-      .onStart(() => {
-        isDragging.value = true;
-      })
-      .onUpdate((e) => {
-        offsetX.value = e.translationX / scaleVal.value;
-        offsetY.value = e.translationY / scaleVal.value;
-      })
-      .onEnd(() => {
-        isDragging.value = false;
-        const finalX = node.position.x + offsetX.value;
-        const finalY = node.position.y + offsetY.value;
-        offsetX.value = 0;
-        offsetY.value = 0;
-        runOnJS(onDragEnd)(node.id, finalX, finalY);
-      });
-  }, [connectMode, node.id, node.position.x, node.position.y, scaleVal, onDragEnd, offsetX, offsetY, isDragging]);
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(!connectMode)
+        .onStart(() => {
+          isDragging.value = true;
+        })
+        .onUpdate((e) => {
+          offsetX.value = e.translationX / scaleVal.value;
+          offsetY.value = e.translationY / scaleVal.value;
+        })
+        .onEnd(() => {
+          isDragging.value = false;
+          const finalX = node.position.x + offsetX.value;
+          const finalY = node.position.y + offsetY.value;
+          offsetX.value = 0;
+          offsetY.value = 0;
+          runOnJS(onDragEnd)(node.id, finalX, finalY);
+        }),
+    [connectMode, node.id, node.position.x, node.position.y, scaleVal, onDragEnd, offsetX, offsetY, isDragging]
+  );
 
-  const tapGesture = useMemo(() => {
-    return Gesture.Tap().onEnd(() => {
-      runOnJS(onTap)(node.id);
-    });
-  }, [node.id, onTap]);
+  const tapGesture = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(onTap)(node.id);
+      }),
+    [node.id, onTap]
+  );
 
   const composed = useMemo(() => {
     if (connectMode) return tapGesture;
@@ -150,9 +250,7 @@ function NodeCard({
             isFrom ? { borderWidth: 2, borderColor: C.red } : undefined,
           ]}
         >
-          {/* Pushpin dot */}
           <View style={[styles.pushpin, { backgroundColor: pinColor }]} />
-          {/* Icon + title row */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
             <Icon size={14} color={C.muted} strokeWidth={2} />
             <Text
@@ -163,7 +261,6 @@ function NodeCard({
               {node.title}
             </Text>
           </View>
-          {/* Tags */}
           {node.tags.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
               {node.tags.slice(0, 3).map((tag) => (
@@ -189,26 +286,145 @@ function NodeCard({
   );
 }
 
+// ---- Corkboard SVG strings layer ----
+function StringsLayer({
+  strings,
+  nodeMap,
+  scaleVal,
+  tX,
+  tY,
+  selectedStringId,
+}: {
+  strings: Array<{ id: string; fromNodeId: string; toNodeId: string; label?: string; color: string; thickness?: number; style?: 'solid' | 'dashed' | 'dotted' }>;
+  nodeMap: Map<string, CanvasNode>;
+  scaleVal: Animated.SharedValue<number>;
+  tX: Animated.SharedValue<number>;
+  tY: Animated.SharedValue<number>;
+  selectedStringId: string | null;
+}) {
+  // We need to read shared values synchronously on the JS thread for SVG rendering.
+  // Since SVG is not Animated.View, we use a state-based approach by listening to
+  // canvas pan/zoom changes.
+  const [canvasState, setCanvasState] = useState<{ scale: number; tx: number; ty: number }>({
+    scale: 1,
+    tx: 0,
+    ty: 0,
+  });
+
+  // Track updates via a JS-thread listener
+  const updateCanvasState = useCallback(() => {
+    setCanvasState({
+      scale: scaleVal.value,
+      tx: tX.value,
+      ty: tY.value,
+    });
+  }, [scaleVal, tX, tY]);
+
+  // Reattach whenever scale/pan changes (driven by gesture callbacks)
+  // We'll pass setCanvasState down to the parent and call it on gesture updates
+  // For now, use a polling approach via the parent's gesture onUpdate calling this
+  // Actually, let's just use the direct .value read — it's synchronous on the JS thread
+  const curScale = scaleVal.value;
+  const curTX = tX.value;
+  const curTY = tY.value;
+
+  return (
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <Filter id="stringGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <FeGaussianBlur stdDeviation="2" result="blur" />
+          <FeComposite in="SourceGraphic" in2="blur" operator="over" />
+        </Filter>
+      </Defs>
+      {strings.map((s) => {
+        const fromN = nodeMap.get(s.fromNodeId);
+        const toN = nodeMap.get(s.toNodeId);
+        if (!fromN || !toN) return null;
+        const fx = fromN.position.x * curScale + curTX + (NODE_W * curScale) / 2;
+        const fy = fromN.position.y * curScale + curTY + (NODE_H * curScale) / 2;
+        const tx2 = toN.position.x * curScale + curTX + (NODE_W * curScale) / 2;
+        const ty2 = toN.position.y * curScale + curTY + (NODE_H * curScale) / 2;
+        const pathD = makeBezierPath(fx, fy, tx2, ty2);
+        const mid = bezierMidpoint(fx, fy, tx2, ty2);
+        const color = s.color ?? C.red;
+        const thickness = s.thickness ?? 2;
+        const isSelected = selectedStringId === s.id;
+
+        return (
+          <React.Fragment key={s.id}>
+            {/* Glow layer */}
+            <Path
+              d={pathD}
+              stroke={color}
+              strokeWidth={(thickness + 2) * curScale}
+              fill="none"
+              opacity={0.2}
+            />
+            {/* Main bezier string */}
+            <Path
+              d={pathD}
+              stroke={color}
+              strokeWidth={(isSelected ? thickness + 1.5 : thickness) * curScale}
+              fill="none"
+              opacity={isSelected ? 1 : 0.85}
+              strokeDasharray={
+                s.style === 'dashed'
+                  ? `${6 * curScale},${4 * curScale}`
+                  : s.style === 'dotted'
+                  ? `${2 * curScale},${4 * curScale}`
+                  : undefined
+              }
+            />
+            {/* Endpoint circles */}
+            <SvgCircle cx={fx} cy={fy} r={4 * curScale} fill={color} opacity={0.9} />
+            <SvgCircle cx={tx2} cy={ty2} r={4 * curScale} fill={color} opacity={0.9} />
+            {/* Label at bezier midpoint */}
+            {s.label ? (
+              <SvgText
+                x={mid.x}
+                y={mid.y - 6 * curScale}
+                fill={C.text}
+                fontSize={10 * curScale}
+                textAnchor="middle"
+              >
+                {s.label}
+              </SvgText>
+            ) : null}
+          </React.Fragment>
+        );
+      })}
+    </Svg>
+  );
+}
+
 // ---- Main Canvas Screen ----
 export default function InvestigationCanvas() {
   const router = useRouter();
   const { width: screenW, height: screenH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
-  // Store selectors (primitives / functions only)
+  // Store selectors
   const activeId = useInvestigationStore((s) => s.activeInvestigationId);
   const selectedNodeId = useInvestigationStore((s) => s.selectedNodeId);
   const connectingFromId = useInvestigationStore((s) => s.connectingFromId);
   const investigations = useInvestigationStore((s) => s.investigations);
+  const canvasMode = useInvestigationStore((s) => s.canvasMode);
 
   const setActiveInvestigation = useInvestigationStore((s) => s.setActiveInvestigation);
   const setSelectedNode = useInvestigationStore((s) => s.setSelectedNode);
   const setConnectingFrom = useInvestigationStore((s) => s.setConnectingFrom);
+  const setCanvasMode = useInvestigationStore((s) => s.setCanvasMode);
   const storeAddNode = useInvestigationStore((s) => s.addNode);
   const storeUpdateNode = useInvestigationStore((s) => s.updateNode);
   const storeDeleteNode = useInvestigationStore((s) => s.deleteNode);
   const storeMoveNode = useInvestigationStore((s) => s.moveNode);
   const storeAddString = useInvestigationStore((s) => s.addString);
+  const storeUpdateString = useInvestigationStore((s) => s.updateString);
   const storeDeleteString = useInvestigationStore((s) => s.deleteString);
+  const storeAddTimeline = useInvestigationStore((s) => s.addTimeline);
+  const storeUpdateTimeline = useInvestigationStore((s) => s.updateTimeline);
+  const storeDeleteTimeline = useInvestigationStore((s) => s.deleteTimeline);
+  const storeToggleTimelineMinimized = useInvestigationStore((s) => s.toggleTimelineMinimized);
 
   // Subscription store
   const maxNodesPerInvestigation = useSubscriptionStore((s) => s.maxNodesPerInvestigation);
@@ -223,11 +439,13 @@ export default function InvestigationCanvas() {
 
   const nodes = investigation?.nodes ?? [];
   const strings = investigation?.strings ?? [];
+  const timelines = investigation?.timelines ?? [];
 
   // Local UI state
   const [connectMode, setConnectMode] = useState<boolean>(false);
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
   const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
+  const [selectedStringId, setSelectedStringId] = useState<string | null>(null);
 
   // Bottom sheet
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -313,7 +531,7 @@ export default function InvestigationCanvas() {
     [activeId, storeMoveNode]
   );
 
-  // Add node — with limit check
+  // Add node
   const handleAddNode = useCallback(
     (type: NodeType) => {
       if (!activeId) return;
@@ -349,6 +567,12 @@ export default function InvestigationCanvas() {
     });
   }, [setConnectingFrom]);
 
+  // Toggle canvas mode
+  const toggleCanvasMode = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setCanvasMode(canvasMode === 'corkboard' ? 'mindmap' : 'corkboard');
+  }, [canvasMode, setCanvasMode]);
+
   // Save node edits
   const handleSaveNode = useCallback(() => {
     if (!activeId || !selectedNodeId) return;
@@ -377,7 +601,7 @@ export default function InvestigationCanvas() {
     router.push('/(tabs)');
   }, [setActiveInvestigation, router]);
 
-  // ---- Backdrop ----
+  // Backdrop
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
@@ -410,10 +634,17 @@ export default function InvestigationCanvas() {
   // ---- No active investigation ----
   if (!investigation) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: C.bg }} testID="canvas-empty">
+      <View
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: C.bg }}
+        testID="canvas-empty"
+      >
         <SafeAreaView className="flex-1 items-center justify-center" edges={['top', 'bottom']}>
           <Search size={48} color={C.muted} strokeWidth={1.5} />
-          <Text className="text-lg font-semibold" style={{ color: C.text, marginTop: 16, marginBottom: 8 }}>
+          <Text
+            className="text-lg font-semibold"
+            style={{ color: C.text, marginTop: 16, marginBottom: 8 }}
+          >
             Select an investigation to begin
           </Text>
           <Pressable
@@ -436,90 +667,102 @@ export default function InvestigationCanvas() {
     );
   }
 
-  // ---- Node lookup map ----
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  // Tab bar height estimate (88) + safe area bottom
+  const tabBarH = 88;
+  const bottomOffset = tabBarH;
 
   return (
     <View className="flex-1" style={{ backgroundColor: C.bg }} testID="canvas-screen">
-      {/* ---- CANVAS ---- */}
-      <GestureDetector gesture={canvasGesture}>
-        <View style={StyleSheet.absoluteFill}>
-          {/* Cork texture dots */}
-          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-            {Array.from({ length: 30 }, (_, r) =>
-              Array.from({ length: 20 }, (_, col) => (
-                <SvgCircle
-                  key={`d${r}-${col}`}
-                  cx={r * 25 + 12}
-                  cy={col * 25 + 12}
-                  r={1}
-                  fill="#F5ECD7"
-                  opacity={0.03}
+      {/* ---- CANVAS AREA ---- */}
+      <View style={{ flex: 1, marginBottom: 0 }}>
+        {canvasMode === 'corkboard' ? (
+          /* ---- CORKBOARD MODE ---- */
+          <GestureDetector gesture={canvasGesture}>
+            <View style={StyleSheet.absoluteFill}>
+              {/* Cork texture dots */}
+              <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+                {Array.from({ length: 30 }, (_, r) =>
+                  Array.from({ length: 20 }, (_, col) => (
+                    <SvgCircle
+                      key={`d${r}-${col}`}
+                      cx={r * 25 + 12}
+                      cy={col * 25 + 12}
+                      r={1}
+                      fill="#F5ECD7"
+                      opacity={0.03}
+                    />
+                  ))
+                )}
+              </Svg>
+
+              {/* Bezier string connections */}
+              <StringsLayer
+                strings={strings}
+                nodeMap={nodeMap}
+                scaleVal={scaleVal}
+                tX={tX}
+                tY={tY}
+                selectedStringId={selectedStringId}
+              />
+
+              {/* Node cards */}
+              {nodes.map((node) => (
+                <NodeCard
+                  key={node.id}
+                  node={node}
+                  scaleVal={scaleVal}
+                  tX={tX}
+                  tY={tY}
+                  connectMode={connectMode}
+                  connectingFromId={connectingFromId}
+                  onTap={handleNodeTap}
+                  onDragEnd={handleNodeDragEnd}
                 />
-              ))
-            )}
-          </Svg>
+              ))}
+            </View>
+          </GestureDetector>
+        ) : (
+          /* ---- MIND MAP MODE ---- */
+          <MindMapCanvas
+            nodes={nodes}
+            strings={strings}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={(id) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              const nd = nodes.find((n) => n.id === id);
+              if (nd) {
+                setEditTitle(nd.title);
+                setEditContent(nd.content ?? nd.description ?? '');
+              }
+              setSelectedNode(id);
+              bottomSheetRef.current?.snapToIndex(0);
+            }}
+          />
+        )}
+      </View>
 
-          {/* SVG string connections */}
-          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-            {strings.map((s) => {
-              const fromN = nodeMap.get(s.fromNodeId);
-              const toN = nodeMap.get(s.toNodeId);
-              if (!fromN || !toN) return null;
-              const curScale = scaleVal.value;
-              const curTX = tX.value;
-              const curTY = tY.value;
-              const fx = fromN.position.x * curScale + curTX + (NODE_W * curScale) / 2;
-              const fy = fromN.position.y * curScale + curTY + (NODE_H * curScale) / 2;
-              const toX = toN.position.x * curScale + curTX + (NODE_W * curScale) / 2;
-              const toY = toN.position.y * curScale + curTY + (NODE_H * curScale) / 2;
-              const mx = (fx + toX) / 2;
-              const my = (fy + toY) / 2;
-              return (
-                <React.Fragment key={s.id}>
-                  <Line
-                    x1={fx}
-                    y1={fy}
-                    x2={toX}
-                    y2={toY}
-                    stroke={s.color ?? C.red}
-                    strokeWidth={2}
-                    opacity={0.85}
-                  />
-                  <SvgCircle cx={fx} cy={fy} r={4} fill={C.red} />
-                  <SvgCircle cx={toX} cy={toY} r={4} fill={C.red} />
-                  {s.label ? (
-                    <SvgText
-                      x={mx}
-                      y={my - 6}
-                      fill={C.text}
-                      fontSize={10 * curScale}
-                      textAnchor="middle"
-                    >
-                      {s.label}
-                    </SvgText>
-                  ) : null}
-                </React.Fragment>
-              );
-            })}
-          </Svg>
-
-          {/* Node cards */}
-          {nodes.map((node) => (
-            <NodeCard
-              key={node.id}
-              node={node}
-              scaleVal={scaleVal}
-              tX={tX}
-              tY={tY}
-              connectMode={connectMode}
-              connectingFromId={connectingFromId}
-              onTap={handleNodeTap}
-              onDragEnd={handleNodeDragEnd}
-            />
-          ))}
-        </View>
-      </GestureDetector>
+      {/* ---- TIMELINE PANEL — sits above tab bar ---- */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: bottomOffset }}>
+        <TimelinePanel
+          investigationId={activeId ?? ''}
+          timelines={timelines}
+          nodes={nodes}
+          onAddTimeline={(label) => {
+            if (activeId) storeAddTimeline(activeId, label);
+          }}
+          onDeleteTimeline={(timelineId) => {
+            if (activeId) storeDeleteTimeline(activeId, timelineId);
+          }}
+          onToggleMinimized={(timelineId) => {
+            if (activeId) storeToggleTimelineMinimized(activeId, timelineId);
+          }}
+          onUpdateTimeline={(timelineId, updates) => {
+            if (activeId) storeUpdateTimeline(activeId, timelineId, updates);
+          }}
+        />
+      </View>
 
       {/* ---- TOP BAR ---- */}
       <SafeAreaView
@@ -567,29 +810,56 @@ export default function InvestigationCanvas() {
                 {connectingFromId ? 'Tap second node' : 'Tap first node'}
               </Text>
             ) : maxNodes !== Infinity ? (
-              <Text className="text-xs" style={{ color: isAtNodeLimit ? C.red : C.muted }}>
+              <Text
+                className="text-xs"
+                style={{ color: isAtNodeLimit ? C.red : C.muted }}
+              >
                 {nodes.length}/{maxNodes} nodes{isAtNodeLimit ? ' — limit reached' : null}
               </Text>
             ) : null}
           </View>
 
-          {/* Connect toggle */}
+          {/* Canvas mode toggle */}
           <Pressable
-            testID="connect-toggle"
-            onPress={toggleConnectMode}
+            testID="canvas-mode-toggle"
+            onPress={toggleCanvasMode}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
               borderRadius: 18,
-              backgroundColor: connectMode ? C.red : pressed ? C.border : C.surface,
+              backgroundColor: pressed ? C.border : C.surface,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: connectMode ? 0 : 1,
+              borderWidth: 1,
               borderColor: C.border,
             })}
           >
-            <Cable size={18} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
+            {canvasMode === 'corkboard' ? (
+              <Network size={17} color={C.text} strokeWidth={2} />
+            ) : (
+              <LayoutGrid size={17} color={C.text} strokeWidth={2} />
+            )}
           </Pressable>
+
+          {/* Connect toggle (corkboard only) */}
+          {canvasMode === 'corkboard' ? (
+            <Pressable
+              testID="connect-toggle"
+              onPress={toggleConnectMode}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: connectMode ? C.red : pressed ? C.border : C.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: connectMode ? 0 : 1,
+                borderColor: C.border,
+              })}
+            >
+              <Cable size={18} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
+            </Pressable>
+          ) : null}
 
           {/* Add node */}
           <Pressable
@@ -637,7 +907,14 @@ export default function InvestigationCanvas() {
           onPress={() => setShowAddMenu(false)}
         >
           <Pressable onPress={() => {}} style={styles.addMenuContainer}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+            >
               <Text className="text-lg font-bold" style={{ color: C.text }}>
                 Add Node
               </Text>
@@ -645,13 +922,15 @@ export default function InvestigationCanvas() {
                 <X size={20} color={C.muted} strokeWidth={2} />
               </Pressable>
             </View>
-            {([
-              { type: 'note' as const, label: 'Note', Icon: FileText },
-              { type: 'link' as const, label: 'Link', Icon: Link2 },
-              { type: 'image' as const, label: 'Image', Icon: ImageIcon },
-              { type: 'folder' as const, label: 'Folder', Icon: Folder },
-              { type: 'dataset' as const, label: 'Dataset', Icon: Database },
-            ]).map((item) => (
+            {(
+              [
+                { type: 'note' as const, label: 'Note', Icon: FileText },
+                { type: 'link' as const, label: 'Link', Icon: Link2 },
+                { type: 'image' as const, label: 'Image', Icon: ImageIcon },
+                { type: 'folder' as const, label: 'Folder', Icon: Folder },
+                { type: 'dataset' as const, label: 'Dataset', Icon: Database },
+              ] as const
+            ).map((item) => (
               <Pressable
                 key={item.type}
                 testID={`add-node-${item.type}`}
@@ -730,10 +1009,16 @@ export default function InvestigationCanvas() {
             >
               <Lock size={24} color={C.red} strokeWidth={2} />
             </View>
-            <Text className="text-xl font-bold" style={{ color: C.text, marginBottom: 8, textAlign: 'center' }}>
+            <Text
+              className="text-xl font-bold"
+              style={{ color: C.text, marginBottom: 8, textAlign: 'center' }}
+            >
               Node Limit Reached
             </Text>
-            <Text className="text-sm" style={{ color: C.muted, lineHeight: 20, marginBottom: 24, textAlign: 'center' }}>
+            <Text
+              className="text-sm"
+              style={{ color: C.muted, lineHeight: 20, marginBottom: 24, textAlign: 'center' }}
+            >
               {tier === 'free'
                 ? `Free accounts are limited to ${maxNodes} nodes per investigation. Upgrade to Pro for up to 200, or Plus for unlimited.`
                 : `You've reached the ${maxNodes} node limit for your plan. Upgrade to Plus for unlimited nodes.`}
@@ -798,7 +1083,14 @@ export default function InvestigationCanvas() {
           {selectedNode ? (
             <>
               {/* Type badge */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
                 <View
                   style={{
                     backgroundColor: C.bg,
@@ -815,14 +1107,24 @@ export default function InvestigationCanvas() {
                     color: C.pin,
                     strokeWidth: 2,
                   })}
-                  <Text style={{ color: C.pin, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' }}>
+                  <Text
+                    style={{
+                      color: C.pin,
+                      fontSize: 11,
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                    }}
+                  >
                     {selectedNode.type}
                   </Text>
                 </View>
               </View>
 
               {/* Title input */}
-              <Text className="text-xs font-semibold" style={{ color: C.muted, marginBottom: 6, letterSpacing: 1 }}>
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: C.muted, marginBottom: 6, letterSpacing: 1 }}
+              >
                 TITLE
               </Text>
               <BottomSheetTextInput
@@ -835,7 +1137,10 @@ export default function InvestigationCanvas() {
               />
 
               {/* Content input */}
-              <Text className="text-xs font-semibold" style={{ color: C.muted, marginBottom: 6, marginTop: 16, letterSpacing: 1 }}>
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: C.muted, marginBottom: 6, marginTop: 16, letterSpacing: 1 }}
+              >
                 CONTENT
               </Text>
               <BottomSheetTextInput
@@ -851,7 +1156,10 @@ export default function InvestigationCanvas() {
               {/* Tags */}
               {selectedNode.tags.length > 0 ? (
                 <>
-                  <Text className="text-xs font-semibold" style={{ color: C.muted, marginTop: 16, marginBottom: 8, letterSpacing: 1 }}>
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: C.muted, marginTop: 16, marginBottom: 8, letterSpacing: 1 }}
+                  >
                     TAGS
                   </Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -865,7 +1173,13 @@ export default function InvestigationCanvas() {
                           paddingVertical: 4,
                         }}
                       >
-                        <Text style={{ color: TAG_COLORS[tag.color], fontSize: 12, fontWeight: '600' }}>
+                        <Text
+                          style={{
+                            color: TAG_COLORS[tag.color],
+                            fontSize: 12,
+                            fontWeight: '600',
+                          }}
+                        >
                           {tag.label}
                         </Text>
                       </View>
@@ -874,47 +1188,81 @@ export default function InvestigationCanvas() {
                 </>
               ) : null}
 
-              {/* Connected strings */}
+              {/* Connected strings with color pickers */}
               {selectedNodeStrings.length > 0 ? (
                 <>
-                  <Text className="text-xs font-semibold" style={{ color: C.muted, marginTop: 16, marginBottom: 8, letterSpacing: 1 }}>
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: C.muted, marginTop: 16, marginBottom: 8, letterSpacing: 1 }}
+                  >
                     CONNECTIONS ({selectedNodeStrings.length})
                   </Text>
                   {selectedNodeStrings.map((s) => {
-                    const otherId = s.fromNodeId === selectedNodeId ? s.toNodeId : s.fromNodeId;
+                    const otherId =
+                      s.fromNodeId === selectedNodeId ? s.toNodeId : s.fromNodeId;
                     const otherNode = nodes.find((n) => n.id === otherId);
                     return (
-                      <View
-                        key={s.id}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingVertical: 8,
-                          borderBottomWidth: 1,
-                          borderBottomColor: C.border,
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text className="text-sm font-medium" style={{ color: C.text }}>
-                            {otherNode?.title ?? 'Unknown'}
-                          </Text>
-                          {s.label ? (
-                            <Text className="text-xs" style={{ color: C.red }}>
-                              {s.label}
-                            </Text>
-                          ) : null}
-                        </View>
-                        <Pressable
-                          onPress={() => {
-                            if (activeId) {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              storeDeleteString(activeId, s.id);
-                            }
+                      <View key={s.id} style={{ marginBottom: 12 }}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingVertical: 8,
+                            borderBottomWidth: 1,
+                            borderBottomColor: C.border,
                           }}
                         >
-                          <X size={16} color={C.muted} strokeWidth={2} />
-                        </Pressable>
+                          <View style={{ flex: 1 }}>
+                            <Text className="text-sm font-medium" style={{ color: C.text }}>
+                              {otherNode?.title ?? 'Unknown'}
+                            </Text>
+                            {s.label ? (
+                              <Text className="text-xs" style={{ color: s.color ?? C.red }}>
+                                {s.label}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Pressable
+                            onPress={() => {
+                              if (activeId) {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                storeDeleteString(activeId, s.id);
+                              }
+                            }}
+                          >
+                            <X size={16} color={C.muted} strokeWidth={2} />
+                          </Pressable>
+                        </View>
+                        {/* String color picker */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            gap: 6,
+                            paddingVertical: 8,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          {STRING_COLORS.map((col) => (
+                            <Pressable
+                              key={col}
+                              onPress={() => {
+                                if (activeId) {
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                  storeUpdateString(activeId, s.id, { color: col });
+                                }
+                              }}
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 11,
+                                backgroundColor: col,
+                                borderWidth: s.color === col ? 3 : 1,
+                                borderColor: s.color === col ? '#FFFFFF' : 'transparent',
+                              }}
+                            />
+                          ))}
+                        </View>
                       </View>
                     );
                   })}
