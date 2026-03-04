@@ -51,6 +51,7 @@ import {
   Lock,
   LayoutGrid,
   Network,
+  BookOpen,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
@@ -947,6 +948,27 @@ export default function InvestigationCanvas() {
             ) : (
               <LayoutGrid size={17} color={C.text} strokeWidth={2} />
             )}
+          </Pressable>
+
+          {/* Sources button */}
+          <Pressable
+            testID="sources-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push({ pathname: '/sources-panel', params: { investigationId: investigation.id } });
+            }}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: pressed ? C.border : C.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: C.border,
+            })}
+          >
+            <BookOpen size={17} color={C.text} strokeWidth={2} />
           </Pressable>
 
           {/* Connect toggle (corkboard only) */}

@@ -57,11 +57,14 @@ function RootLayoutNav() {
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="paywall" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="tip-inbox" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="sources-panel" options={{ presentation: 'modal', headerShown: false }} />
         </Stack.Protected>
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />
           <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
         </Stack.Protected>
+        <Stack.Screen name="tip-submit" options={{ presentation: 'card', headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );
