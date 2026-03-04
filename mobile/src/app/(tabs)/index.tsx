@@ -351,6 +351,7 @@ export default function InvestigationsDashboard() {
   // Tour store
   const hasCompletedTour = useTourStore((s) => s.hasCompletedTour);
   const isDemoMode = useTourStore((s) => s.isDemoMode);
+  const startTour = useTourStore((s) => s.startTour);
   const completeTour = useTourStore((s) => s.completeTour);
   const startTourFromStep = useTourStore((s) => s.startTourFromStep);
   const startDemoMode = useTourStore((s) => s.startDemoMode);
@@ -385,7 +386,7 @@ export default function InvestigationsDashboard() {
     }
     const secondsSinceStart = (Date.now() - sessionStartedAt) / 1000;
     if (!hasCompletedTour && secondsSinceStart < 60) {
-      const timer = setTimeout(() => setShowVideoOnboarding(true), 1200);
+      const timer = setTimeout(() => startTour(), 1200);
       return () => clearTimeout(timer);
     }
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -590,7 +591,7 @@ export default function InvestigationsDashboard() {
                 testID="help-button"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowVideoOnboarding(true);
+                  setShowHelpMenu(true);
                 }}
                 style={({ pressed }) => ({
                   width: 32,
@@ -753,13 +754,13 @@ export default function InvestigationsDashboard() {
               </Text>
             </View>
 
-            {/* Watch Intro Video */}
+            {/* Take the Tour */}
             <Pressable
               testID="help-start-tour"
               onPress={() => {
                 setShowHelpMenu(false);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setTimeout(() => setShowVideoOnboarding(true), 200);
+                setTimeout(() => startTour(), 200);
               }}
               style={({ pressed }) => ({
                 flexDirection: 'row',
@@ -775,8 +776,8 @@ export default function InvestigationsDashboard() {
                 <Play size={18} color={COLORS.red} strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Watch Intro Video</Text>
-                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>See how Red String works</Text>
+                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Take the Tour</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>18-step guided walkthrough</Text>
               </View>
               {!hasCompletedTour ? (
                 <View style={{ backgroundColor: COLORS.red, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>

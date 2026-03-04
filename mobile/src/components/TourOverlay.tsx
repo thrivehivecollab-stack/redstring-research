@@ -14,6 +14,7 @@ import Animated, {
   withSequence,
   withRepeat,
   runOnJS,
+  ReduceMotion,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import useTourStore from '@/lib/state/tour-store';
@@ -59,12 +60,12 @@ export default function TourOverlay() {
 
   useEffect(() => {
     if (isRunning) {
-      backdropOpacity.value = withTiming(1, { duration: 300 });
-      tooltipOpacity.value = withTiming(1, { duration: 300 });
-      tooltipScale.value = withSpring(1, { damping: 18, stiffness: 220 });
+      backdropOpacity.value = withTiming(1, { duration: 300, reduceMotion: ReduceMotion.Never });
+      tooltipOpacity.value = withTiming(1, { duration: 300, reduceMotion: ReduceMotion.Never });
+      tooltipScale.value = withSpring(1, { damping: 18, stiffness: 220, reduceMotion: ReduceMotion.Never });
     } else {
-      backdropOpacity.value = withTiming(0, { duration: 200 });
-      tooltipOpacity.value = withTiming(0, { duration: 200 });
+      backdropOpacity.value = withTiming(0, { duration: 200, reduceMotion: ReduceMotion.Never });
+      tooltipOpacity.value = withTiming(0, { duration: 200, reduceMotion: ReduceMotion.Never });
     }
   }, [isRunning, backdropOpacity, tooltipOpacity, tooltipScale]);
 
@@ -79,14 +80,14 @@ export default function TourOverlay() {
     prevStepRef.current = currentStep;
 
     // Slide out old, slide in new
-    tooltipOpacity.value = withTiming(0, { duration: 120 }, () => {
+    tooltipOpacity.value = withTiming(0, { duration: 120, reduceMotion: ReduceMotion.Never }, () => {
       tooltipTranslateX.value = -direction * 40;
-      tooltipOpacity.value = withTiming(1, { duration: 200 });
-      tooltipTranslateX.value = withSpring(0, { damping: 20, stiffness: 280 });
+      tooltipOpacity.value = withTiming(1, { duration: 200, reduceMotion: ReduceMotion.Never });
+      tooltipTranslateX.value = withSpring(0, { damping: 20, stiffness: 280, reduceMotion: ReduceMotion.Never });
     });
     tooltipScale.value = withSequence(
-      withTiming(0.95, { duration: 80 }),
-      withSpring(1, { damping: 18, stiffness: 220 })
+      withTiming(0.95, { duration: 80, reduceMotion: ReduceMotion.Never }),
+      withSpring(1, { damping: 18, stiffness: 220, reduceMotion: ReduceMotion.Never })
     );
   }, [currentStep, isRunning, tooltipOpacity, tooltipTranslateX, tooltipScale]);
 
@@ -99,8 +100,8 @@ export default function TourOverlay() {
     tapOpacity.value = 0.8;
     tapScale.value = withRepeat(
       withSequence(
-        withTiming(1.4, { duration: 600 }),
-        withTiming(1, { duration: 600 })
+        withTiming(1.4, { duration: 600, reduceMotion: ReduceMotion.Never }),
+        withTiming(1, { duration: 600, reduceMotion: ReduceMotion.Never })
       ),
       -1,
       false
