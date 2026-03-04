@@ -13,9 +13,10 @@ const envSchema = z.object({
   // Better Auth
   BETTER_AUTH_SECRET: z.string(),
   BACKEND_URL: z.string().optional().default("http://localhost:3000"),
-  // Email (Resend)
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().optional().default("Red String <noreply@redstring.app>"),
+  // SMS (Twilio) - optional, falls back to dev mode
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
 });
 
 /**

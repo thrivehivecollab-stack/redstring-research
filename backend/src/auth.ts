@@ -1,12 +1,9 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { expo } from "@better-auth/expo";
-import { username, emailOTP } from "better-auth/plugins";
-import { Resend } from "resend";
+import { username, phoneNumber } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
-
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 export const auth = betterAuth({
   baseURL: env.BACKEND_URL,
@@ -17,32 +14,28 @@ export const auth = betterAuth({
   plugins: [
     expo(),
     username(),
-    emailOTP({
-      async sendVerificationOTP({ email, otp, type }) {
-        if (resend) {
-          await resend.emails.send({
-            from: env.EMAIL_FROM!,
-            to: email,
-            subject: "Your Red String verification code",
-            html: `
-              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-                <h2 style="color: #c0392b;">Red String Research</h2>
-                <p>Your verification code is:</p>
-                <h1 style="letter-spacing: 8px; color: #c0392b; font-size: 40px;">${otp}</h1>
-                <p style="color: #666;">This code expires in 10 minutes. Do not share it with anyone.</p>
-              </div>
-            `,
+    phoneNumber({
+      async sendOTP({ phoneNumber, code }) {
+        if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER) {
+          // Real SMS via Twilio
+          const twilio = require("twilio");
+          const client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
+          await client.messages.create({
+            body: `Your Red String verification code: ${code}`,
+            from: env.TWILIO_PHONE_NUMBER,
+            to: phoneNumber,
           });
         } else {
           // Dev fallback: log OTP to backend console
-          console.log(`\n🔑 [DEV OTP] Email: ${email} | Code: ${otp} | Type: ${type}\n`);
+          console.log(`\n[DEV OTP] Phone: ${phoneNumber} | Code: ${code}\n`);
         }
       },
       expiresIn: 600, // 10 minutes
+      otpLength: 6,
     }),
   ],
   emailAndPassword: {
-    enabled: true,
+    enabled: false,
   },
   trustedOrigins: [
     "http://localhost:*",
