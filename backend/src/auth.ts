@@ -1,4 +1,4 @@
-// auth v2 - phone OTP
+// auth v3 - phone OTP
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { expo } from "@better-auth/expo";
