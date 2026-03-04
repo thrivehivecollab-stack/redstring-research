@@ -30,6 +30,11 @@ export const auth = betterAuth({
           console.log(`\n[DEV OTP] Phone: ${phoneNumber} | Code: ${code}\n`);
         }
       },
+      signUpOnVerification: {
+        // Auto-create account when user verifies their phone for the first time
+        getTempEmail: (phone) => `${phone.replace(/\+/g, "").replace(/\s/g, "")}@phone.redstring.app`,
+        getTempName: (phone) => phone,
+      },
       expiresIn: 600, // 10 minutes
       otpLength: 6,
     }),
