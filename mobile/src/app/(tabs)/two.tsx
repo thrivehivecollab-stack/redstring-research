@@ -58,6 +58,8 @@ import useSubscriptionStore from '@/lib/state/subscription-store';
 import type { CanvasNode, NodeType, TagColor, Timeline } from '@/lib/types';
 import TimelinePanel from '@/components/TimelinePanel';
 import MindMapCanvas from '@/components/MindMapCanvas';
+import ColorLegend from '@/components/ColorLegend';
+import ColorSuggestionSheet from '@/components/ColorSuggestionSheet';
 
 // ---- Color constants ----
 const C = {
@@ -243,6 +245,7 @@ function NodeCard({
 
   const Icon = NODE_ICONS[node.type] ?? FileText;
   const pinColor = node.color ? TAG_COLORS[node.color] : C.pin;
+  const leftBorderColor = node.color ? TAG_COLORS[node.color] : 'transparent';
   const isFrom = connectingFromId === node.id;
 
   return (
@@ -254,8 +257,24 @@ function NodeCard({
             isFrom ? { borderWidth: 2, borderColor: C.red } : undefined,
           ]}
         >
+          {/* Colored left category stripe */}
+          {node.color ? (
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 4,
+                backgroundColor: leftBorderColor,
+                borderTopLeftRadius: 8,
+                borderBottomLeftRadius: 8,
+                opacity: 0.85,
+              }}
+            />
+          ) : null}
           <View style={[styles.pushpin, { backgroundColor: pinColor }]} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
             <Icon size={14} color={C.muted} strokeWidth={2} />
             <Text
               className="text-xs font-bold"
@@ -266,7 +285,7 @@ function NodeCard({
             </Text>
           </View>
           {node.tags.length > 0 ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
               {node.tags.slice(0, 3).map((tag) => (
                 <View
                   key={tag.id}
@@ -450,6 +469,9 @@ export default function InvestigationCanvas() {
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
   const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
   const [selectedStringId, setSelectedStringId] = useState<string | null>(null);
+  const [showSuggestionSheet, setShowSuggestionSheet] = useState<boolean>(false);
+  const [colorToast, setColorToast] = useState<string | null>(null);
+  const colorToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---- Screenshot / background protection ----
   const [showPrivacyOverlay, setShowPrivacyOverlay] = useState<boolean>(false);
@@ -464,6 +486,19 @@ export default function InvestigationCanvas() {
       }
     });
     return () => sub.remove();
+  }, []);
+
+  // Cleanup color toast timer
+  useEffect(() => {
+    return () => {
+      if (colorToastTimer.current) clearTimeout(colorToastTimer.current);
+    };
+  }, []);
+
+  const showColorToastMessage = useCallback((message: string) => {
+    setColorToast(message);
+    if (colorToastTimer.current) clearTimeout(colorToastTimer.current);
+    colorToastTimer.current = setTimeout(() => setColorToast(null), 2000);
   }, []);
 
   // Bottom sheet
@@ -782,6 +817,39 @@ export default function InvestigationCanvas() {
           }}
         />
       </View>
+
+      {/* ---- COLOR LEGEND — left edge, vertically centered ---- */}
+      {activeId ? (
+        <ColorLegend
+          investigationId={activeId}
+          onSuggestPress={() => setShowSuggestionSheet(true)}
+        />
+      ) : null}
+
+      {/* ---- COLOR TOAST ---- */}
+      {colorToast ? (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(300)}
+          style={{
+            position: 'absolute',
+            bottom: bottomOffset + 80,
+            alignSelf: 'center',
+            backgroundColor: 'rgba(26, 22, 20, 0.92)',
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderWidth: 1,
+            borderColor: C.border,
+            zIndex: 200,
+          }}
+          pointerEvents="none"
+        >
+          <Text style={{ color: C.text, fontSize: 13, fontWeight: '600' }}>
+            {colorToast}
+          </Text>
+        </Animated.View>
+      ) : null}
 
       {/* ---- TOP BAR ---- */}
       <SafeAreaView
@@ -1207,6 +1275,59 @@ export default function InvestigationCanvas() {
                 </>
               ) : null}
 
+              {/* ---- COLOR CODE section ---- */}
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: C.muted, marginTop: 16, marginBottom: 10, letterSpacing: 1 }}
+              >
+                COLOR CODE
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                {(Object.entries(TAG_COLORS) as Array<[TagColor, string]>).map(([colorKey, hex]) => {
+                  const isAssigned = selectedNode.color === colorKey;
+                  // Find legend label for this color
+                  const legendEntry = investigation.colorLegend?.find((e) => e.color === hex);
+                  return (
+                    <Pressable
+                      key={colorKey}
+                      testID={`color-swatch-${colorKey}`}
+                      onPress={() => {
+                        if (!activeId || !selectedNodeId) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        const newColor: TagColor | undefined = isAssigned ? undefined : colorKey;
+                        storeUpdateNode(activeId, selectedNodeId, { color: newColor });
+                        if (!isAssigned && legendEntry) {
+                          showColorToastMessage(`Tagged as ${legendEntry.label}`);
+                        }
+                      }}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: hex,
+                        borderWidth: isAssigned ? 3 : 1.5,
+                        borderColor: isAssigned ? '#FFFFFF' : 'transparent',
+                        shadowColor: isAssigned ? hex : 'transparent',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: isAssigned ? 0.9 : 0,
+                        shadowRadius: isAssigned ? 8 : 0,
+                        elevation: isAssigned ? 4 : 0,
+                      }}
+                    />
+                  );
+                })}
+              </View>
+              {/* Legend label hint */}
+              {selectedNode.color ? (
+                <Text style={{ color: C.muted, fontSize: 12, marginTop: 6 }}>
+                  {(() => {
+                    const hex = TAG_COLORS[selectedNode.color];
+                    const legendEntry = investigation.colorLegend?.find((e) => e.color === hex);
+                    return legendEntry ? `${legendEntry.label}` : selectedNode.color;
+                  })()}
+                </Text>
+              ) : null}
+
               {/* Connected strings with color pickers */}
               {selectedNodeStrings.length > 0 ? (
                 <>
@@ -1329,6 +1450,15 @@ export default function InvestigationCanvas() {
           ) : null}
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {/* ---- COLOR SUGGESTION SHEET ---- */}
+      {activeId ? (
+        <ColorSuggestionSheet
+          investigationId={activeId}
+          isVisible={showSuggestionSheet}
+          onClose={() => setShowSuggestionSheet(false)}
+        />
+      ) : null}
 
       {/* ---- PRIVACY OVERLAY (screenshot / background protection) ---- */}
       {showPrivacyOverlay ? (

@@ -60,6 +60,11 @@ export interface Timeline {
   createdAt: number;
 }
 
+export interface ColorLegendEntry {
+  color: string; // hex color
+  label: string;
+}
+
 export interface Investigation {
   id: string;
   title: string;
@@ -67,6 +72,7 @@ export interface Investigation {
   nodes: CanvasNode[];
   strings: RedString[];
   timelines: Timeline[];
+  colorLegend?: ColorLegendEntry[];
   createdAt: number;
   updatedAt: number;
 }

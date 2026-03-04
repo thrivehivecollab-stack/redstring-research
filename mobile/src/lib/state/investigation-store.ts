@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry } from '@/lib/types';
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
@@ -50,6 +50,9 @@ interface InvestigationStore {
 
   // Helpers
   getActiveInvestigation: () => Investigation | undefined;
+
+  // Color Legend
+  updateColorLegend: (investigationId: string, legend: ColorLegendEntry[]) => void;
 }
 
 const useInvestigationStore = create<InvestigationStore>()(
@@ -307,6 +310,16 @@ const useInvestigationStore = create<InvestigationStore>()(
       getActiveInvestigation: () => {
         const state = get();
         return state.investigations.find((inv) => inv.id === state.activeInvestigationId);
+      },
+
+      updateColorLegend: (investigationId, legend) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? { ...inv, colorLegend: legend, updatedAt: Date.now() }
+              : inv
+          ),
+        }));
       },
     }),
     {
