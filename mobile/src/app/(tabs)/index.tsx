@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search } from 'lucide-react-native';
+import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import useInvestigationStore from '@/lib/state/investigation-store';
+import useSubscriptionStore from '@/lib/state/subscription-store';
 import type { Investigation } from '@/lib/types';
 
 // Color constants
@@ -186,7 +187,12 @@ export default function InvestigationsDashboard() {
   const deleteInvestigation = useInvestigationStore((s) => s.deleteInvestigation);
   const setActiveInvestigation = useInvestigationStore((s) => s.setActiveInvestigation);
 
+  const tier = useSubscriptionStore((s) => s.tier);
+  const maxInvestigations = useSubscriptionStore((s) => s.maxInvestigations);
+  const maxInvestigationsCount = maxInvestigations();
+
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetTitle, setDeleteTargetTitle] = useState<string>('');
@@ -210,6 +216,16 @@ export default function InvestigationsDashboard() {
     setShowCreateModal(false);
     router.push('/(tabs)/two');
   }, [newTitle, newDescription, createInvestigation, router]);
+
+  const handleNewInvestigationPress = useCallback(() => {
+    if (investigations.length >= maxInvestigationsCount) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setShowLimitModal(true);
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowCreateModal(true);
+  }, [investigations.length, maxInvestigationsCount]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -253,34 +269,66 @@ export default function InvestigationsDashboard() {
 
   const keyExtractor = useCallback((item: Investigation) => item.id, []);
 
+  const tierLabel = tier === 'free' ? 'FREE' : tier === 'pro' ? 'PRO' : 'PLUS';
+  const tierColor = tier === 'free' ? COLORS.muted : tier === 'pro' ? COLORS.pin : '#F0C060';
+
   return (
     <View className="flex-1" style={{ backgroundColor: COLORS.background }} testID="investigations-screen">
       <SafeAreaView className="flex-1" edges={['top']}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text
-              className="text-3xl font-black"
-              style={{ color: COLORS.red, letterSpacing: 2 }}
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text
+                className="text-3xl font-black"
+                style={{ color: COLORS.red, letterSpacing: 2 }}
+              >
+                RED STRING
+              </Text>
+            </View>
+            {/* Plan badge */}
+            <Pressable
+              testID="plan-badge"
+              onPress={() => router.push('/paywall')}
+              style={{
+                backgroundColor: tierColor + '22',
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: tierColor + '55',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+              }}
             >
-              RED STRING
-            </Text>
+              <Text style={{ color: tierColor, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>
+                {tierLabel}
+              </Text>
+              {tier === 'free' ? (
+                <Lock size={10} color={tierColor} strokeWidth={2.5} />
+              ) : null}
+            </Pressable>
           </View>
-          <Text
-            className="text-sm font-semibold"
-            style={{ color: COLORS.muted, letterSpacing: 4, marginTop: 2 }}
-          >
-            RESEARCH
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: COLORS.muted, letterSpacing: 4, marginTop: 2 }}
+            >
+              RESEARCH
+            </Text>
+            {maxInvestigationsCount !== Infinity ? (
+              <Text style={{ color: COLORS.muted, fontSize: 11 }}>
+                {investigations.length}/{maxInvestigationsCount} cases
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         {/* New Investigation Button */}
         <Pressable
           testID="new-investigation-button"
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowCreateModal(true);
-          }}
+          onPress={handleNewInvestigationPress}
           style={({ pressed }) => ({
             marginHorizontal: 20,
             marginTop: 16,
@@ -454,6 +502,95 @@ export default function InvestigationsDashboard() {
             </Pressable>
           </Pressable>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Limit Reached Modal */}
+      <Modal
+        visible={showLimitModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLimitModal(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowLimitModal(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: '100%',
+              maxWidth: 400,
+              backgroundColor: COLORS.surface,
+              borderRadius: 20,
+              padding: 28,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: 'rgba(196, 30, 58, 0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Lock size={24} color={COLORS.red} strokeWidth={2} />
+            </View>
+            <Text className="text-xl font-bold" style={{ color: COLORS.textLight, marginBottom: 8, textAlign: 'center' }}>
+              Investigation Limit Reached
+            </Text>
+            <Text className="text-sm" style={{ color: COLORS.muted, lineHeight: 20, marginBottom: 24, textAlign: 'center' }}>
+              {tier === 'free'
+                ? `Free accounts are limited to ${maxInvestigationsCount} investigations. Upgrade to Pro for up to 25, or Plus for unlimited.`
+                : `You've reached the ${maxInvestigationsCount} investigation limit for your plan. Upgrade to Plus for unlimited investigations.`}
+            </Text>
+            <Pressable
+              testID="upgrade-from-limit-button"
+              onPress={() => {
+                setShowLimitModal(false);
+                router.push('/paywall');
+              }}
+              style={({ pressed }) => ({
+                width: '100%',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                backgroundColor: pressed ? '#A3162E' : COLORS.red,
+                marginBottom: 12,
+                shadowColor: COLORS.red,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              })}
+            >
+              <Text className="text-base font-bold" style={{ color: '#FFFFFF' }}>
+                Upgrade Now
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="dismiss-limit-modal-button"
+              onPress={() => setShowLimitModal(false)}
+              style={({ pressed }) => ({
+                paddingVertical: 10,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ color: COLORS.muted, fontSize: 14 }}>Not now</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Delete Confirmation Modal */}

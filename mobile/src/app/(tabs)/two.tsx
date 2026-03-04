@@ -26,9 +26,11 @@ import {
   Search,
   Trash2,
   X,
+  Lock,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
+import useSubscriptionStore from '@/lib/state/subscription-store';
 import type { CanvasNode, NodeType, TagColor } from '@/lib/types';
 
 // ---- Color constants ----
