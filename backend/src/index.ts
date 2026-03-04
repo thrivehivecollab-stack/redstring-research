@@ -46,7 +46,7 @@ app.use("*", async (c, next) => {
 });
 
 // Better Auth handler — handles all /api/auth/* routes
-app.on(["GET", "POST"], "/api/auth/**", (c) => auth.handler(c.req.raw));
+app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
 
 // Health check endpoint
 app.get("/health", (c) => c.json({ status: "ok" }));
