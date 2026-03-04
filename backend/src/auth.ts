@@ -6,6 +6,8 @@ import { username, phoneNumber } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
 
+export let lastDevOtp: { phone: string; code: string } | null = null;
+
 export const auth = betterAuth({
   baseURL: env.BACKEND_URL,
   secret: env.BETTER_AUTH_SECRET,
@@ -27,7 +29,8 @@ export const auth = betterAuth({
             to: phoneNumber,
           });
         } else {
-          // Dev fallback: log OTP to backend console
+          // Dev fallback: store OTP in memory and log to backend console
+          lastDevOtp = { phone: phoneNumber, code };
           console.log(`\n[DEV OTP] Phone: ${phoneNumber} | Code: ${code}\n`);
         }
       },

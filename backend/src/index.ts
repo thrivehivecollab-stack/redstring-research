@@ -2,8 +2,9 @@ import "@vibecodeapp/proxy"; // DO NOT REMOVE OTHERWISE VIBECODE PROXY WILL NOT 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import "./env";
+import { env } from "./env";
 import { logger } from "hono/logger";
-import { auth } from "./auth";
+import { auth, lastDevOtp } from "./auth";
 import type { HonoVariables } from "./types";
 import { sampleRouter } from "./routes/sample";
 import { collabRouter } from "./routes/collab";
@@ -57,6 +58,13 @@ app.route("/api/collab", collabRouter);
 app.route("/api/me", meRouter);
 app.route("/api/sources", sourcesRouter);
 app.route("/api/tips", tipsRouter);
+
+// Dev-only route to expose last OTP code
+if (env.NODE_ENV !== "production") {
+  app.get("/api/dev/last-otp", (c) => {
+    return c.json({ data: lastDevOtp ?? { code: null, phone: null } });
+  });
+}
 
 const port = Number(process.env.PORT) || 3000;
 

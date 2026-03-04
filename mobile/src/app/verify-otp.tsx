@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -38,6 +38,45 @@ export default function VerifyOtpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendSuccess, setResendSuccess] = useState<boolean>(false);
+  const [devOtpCode, setDevOtpCode] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    const trimmedPhone = (phone ?? "").trim();
+    if (!trimmedPhone) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/dev/last-otp`
+        );
+        if (!res.ok) return;
+        const json = await res.json() as { data: { code: string | null; phone: string | null } };
+        const { code, phone: otpPhone } = json.data;
+        if (code && otpPhone === trimmedPhone) {
+          setDevOtpCode(code);
+          if (intervalRef.current !== null) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+        }
+      } catch {
+        // silently ignore network errors during polling
+      }
+    };
+
+    intervalRef.current = setInterval(poll, 2000);
+    // Run immediately on mount too
+    poll();
+
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [phone]);
 
   const handleVerify = async (code: string) => {
     const trimmedPhone = (phone ?? "").trim();
@@ -237,6 +276,44 @@ export default function VerifyOtpScreen() {
               >
                 In dev mode, check server logs for the code
               </Text>
+            ) : null}
+
+            {/* Dev mode OTP display box */}
+            {__DEV__ && devOtpCode ? (
+              <View
+                style={{
+                  marginTop: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#D4A574",
+                  backgroundColor: "#231F1C",
+                  paddingVertical: 14,
+                  paddingHorizontal: 20,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: COLORS.muted,
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                    marginBottom: 6,
+                  }}
+                >
+                  DEV MODE — Your code:
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontWeight: "900",
+                    color: "#D4A574",
+                    letterSpacing: 8,
+                  }}
+                >
+                  {devOtpCode}
+                </Text>
+              </View>
             ) : null}
           </Animated.View>
 
