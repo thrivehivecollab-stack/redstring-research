@@ -8,6 +8,8 @@ import type { HonoVariables } from "./types";
 import { sampleRouter } from "./routes/sample";
 import { collabRouter } from "./routes/collab";
 import { meRouter } from "./routes/me";
+import { sourcesRouter } from "./routes/sources";
+import { tipsRouter } from "./routes/tips";
 
 const app = new Hono<{ Variables: HonoVariables }>();
 
@@ -53,6 +55,8 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 app.route("/api/sample", sampleRouter);
 app.route("/api/collab", collabRouter);
 app.route("/api/me", meRouter);
+app.route("/api/sources", sourcesRouter);
+app.route("/api/tips", tipsRouter);
 
 const port = Number(process.env.PORT) || 3000;
 

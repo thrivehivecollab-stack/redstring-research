@@ -25,6 +25,11 @@ model User {
   collaborations  CollabMember[]
   contributions   NodeContribution[]
   auditLogs       AuditLog[]
+
+  // Tips & Sources
+  receivedTips    Tip[]        @relation("TipRecipient")
+  sentTips        Tip[]        @relation("TipSender")
+  nodeSources     NodeSource[] @relation("NodeSourceOwner")
 }
 
 model Session {
@@ -164,4 +169,101 @@ model AuditLog {
 
   collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
   user            User          @relation(fields: [userId], references: [id])
+}
+
+// ============================================
+// SOURCE ATTRIBUTION MODELS
+// ============================================
+
+// Source attribution for nodes
+model NodeSource {
+  id              String   @id @default(cuid())
+  investigationId String   // local investigation ID
+  nodeId          String   // local node ID
+  ownerId         String   // investigator's user ID
+
+  // Who provided the info
+  sourceType      String   // 'url' | 'x_user' | 'tiktok_user' | 'instagram_user' | 'person' | 'document' | 'tip' | 'other'
+  sourceName      String   // display name, e.g. "@CanadianBacon1776" or "Epoch Times"
+  sourceHandle    String?  // social handle if applicable
+  sourceUrl       String?  // direct URL to the content
+  sourceProfileUrl String? // URL to their profile
+  platform        String?  // 'x' | 'tiktok' | 'instagram' | 'youtube' | 'facebook' | 'website' | 'podcast' | 'other'
+
+  // What they contributed
+  contentType     String?  // 'article' | 'video' | 'testimony' | 'tip' | 'hypothesis' | 'evidence' | 'document'
+  contentSummary  String?  // brief description of what this source contributed
+
+  // Chain of custody — if X user showed an article from Epoch Times
+  // primarySource = "@XUser", secondarySource = "Epoch Times"
+  secondarySourceName String? // the original origin if cited through another source
+  secondarySourceUrl  String?
+
+  // Credibility
+  credibility     String   @default("unverified") // 'primary' | 'secondary' | 'unverified' | 'disputed' | 'confirmed'
+  verifiedAt      DateTime?
+  verifiedBy      String?  // user ID who verified
+
+  addedAt         DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  owner           User     @relation("NodeSourceOwner", fields: [ownerId], references: [id])
+}
+
+// ============================================
+// TIP INBOX MODELS
+// ============================================
+
+// Tip inbox — anonymous or attributed tips submitted to an investigator
+model Tip {
+  id              String   @id @default(cuid())
+  investigationId String?  // if tipper specifies which investigation it's for
+  recipientId     String   // investigator receiving the tip (user ID)
+
+  // Tipper identity (may be anonymous)
+  tipperUserId    String?  // if they're a registered user
+  tipperName      String?  // display name they chose
+  tipperEmail     String?  // for follow-up
+  tipperHandle    String?  // social handle
+  isAnonymous     Boolean  @default(false)
+
+  // The tip content
+  subject         String
+  content         String   // full tip text
+  attachmentUrls  String?  // JSON array of URLs to evidence they're sharing
+  relatedNodeIds  String?  // JSON array of node IDs this tip relates to
+
+  // AI vetting
+  aiVettingStatus  String   @default("pending") // 'pending' | 'processing' | 'complete' | 'failed'
+  aiVettingSummary String?  // AI assessment of tip credibility and relevance
+  aiKeyFindings    String?  // JSON array of key claims extracted
+  aiCredibilityScore Int?   // 0-100
+  aiSuggestedTags  String?  // JSON array of suggested tags/categories
+  aiRelatedNodes   String?  // JSON array of node IDs AI thinks this connects to
+
+  // Investigation status
+  status            String   @default("unread") // 'unread' | 'read' | 'investigating' | 'verified' | 'dismissed' | 'merged'
+  investigatorNotes String?
+  mergedToNodeId    String?  // if tip was converted to a node
+
+  // Communication thread
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  recipient       User     @relation("TipRecipient", fields: [recipientId], references: [id])
+  tipper          User?    @relation("TipSender", fields: [tipperUserId], references: [id])
+  messages        TipMessage[]
+}
+
+// Threaded messages between investigator and tipper
+model TipMessage {
+  id                 String   @id @default(cuid())
+  tipId              String
+  senderId           String?  // null = anonymous tipper
+  senderName         String?  // display name
+  isFromInvestigator Boolean  @default(false)
+  content            String
+  createdAt          DateTime @default(now())
+
+  tip                Tip      @relation(fields: [tipId], references: [id], onDelete: Cascade)
 }

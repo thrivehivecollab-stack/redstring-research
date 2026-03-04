@@ -20,6 +20,22 @@ export interface Tag {
   color: TagColor;
 }
 
+export interface NodeSource {
+  id: string;
+  sourceType: 'url' | 'x_user' | 'tiktok_user' | 'instagram_user' | 'person' | 'document' | 'tip' | 'other';
+  sourceName: string;           // "@CanadianBacon1776" or "Epoch Times"
+  sourceHandle?: string;
+  sourceUrl?: string;
+  sourceProfileUrl?: string;
+  platform?: 'x' | 'tiktok' | 'instagram' | 'youtube' | 'facebook' | 'website' | 'podcast' | 'other';
+  contentType?: 'article' | 'video' | 'testimony' | 'tip' | 'hypothesis' | 'evidence' | 'document';
+  contentSummary?: string;
+  secondarySourceName?: string;  // e.g. article author showed Epoch Times piece
+  secondarySourceUrl?: string;
+  credibility: 'primary' | 'secondary' | 'unverified' | 'disputed' | 'confirmed';
+  addedAt: number;
+}
+
 export interface CanvasNode {
   id: string;
   type: NodeType;
@@ -34,6 +50,7 @@ export interface CanvasNode {
   imageUri?: string; // for image type
   content?: string; // for note type
   timestamp?: number; // unix ms timestamp for when this evidence occurred
+  sources?: NodeSource[];
   createdAt: number;
   updatedAt: number;
 }
@@ -84,4 +101,42 @@ export interface AISuggestion {
   suggestedLabel: string;
   reason: string;
   accepted: boolean;
+}
+
+// Tip types
+export type TipStatus = 'unread' | 'investigating' | 'verified' | 'dismissed';
+
+export interface TipVetting {
+  score: number; // 0-100
+  summary: string;
+  keyFindings: string[];
+  redFlags: string[];
+  strengths: string[];
+  followUpQuestions: string[];
+  vettedAt: number;
+}
+
+export interface TipMessage {
+  id: string;
+  fromInvestigator: boolean;
+  text: string;
+  sentAt: number;
+}
+
+export interface Tip {
+  id: string;
+  recipientId: string;
+  investigationId?: string;
+  subject: string;
+  content: string;
+  tipperName?: string;
+  tipperEmail?: string;
+  tipperHandle?: string;
+  isAnonymous: boolean;
+  evidenceUrls: string[];
+  status: TipStatus;
+  vetting?: TipVetting;
+  messages: TipMessage[];
+  submittedAt: number;
+  updatedAt: number;
 }

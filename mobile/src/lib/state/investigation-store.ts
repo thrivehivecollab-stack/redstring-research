@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource } from '@/lib/types';
+import { api } from '@/lib/api/api';
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
@@ -30,6 +31,11 @@ interface InvestigationStore {
   updateNode: (investigationId: string, nodeId: string, updates: Partial<CanvasNode>) => void;
   deleteNode: (investigationId: string, nodeId: string) => void;
   moveNode: (investigationId: string, nodeId: string, position: Position) => void;
+
+  // Source CRUD
+  addSource: (investigationId: string, nodeId: string, source: Omit<NodeSource, 'id' | 'addedAt'>) => void;
+  updateSource: (investigationId: string, nodeId: string, sourceId: string, updates: Partial<NodeSource>) => void;
+  removeSource: (investigationId: string, nodeId: string, sourceId: string) => void;
 
   // Red String CRUD
   addString: (investigationId: string, fromNodeId: string, toNodeId: string, label?: string, color?: string) => string;
@@ -175,6 +181,85 @@ const useInvestigationStore = create<InvestigationStore>()(
                   nodes: inv.nodes.map((n) =>
                     n.id === nodeId ? { ...n, position } : n
                   ),
+                }
+              : inv
+          ),
+        }));
+      },
+
+      addSource: (investigationId, nodeId, source) => {
+        const sourceId = generateId();
+        const now = Date.now();
+        const newSource: NodeSource = {
+          ...source,
+          id: sourceId,
+          addedAt: now,
+        };
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  nodes: inv.nodes.map((n) =>
+                    n.id === nodeId
+                      ? { ...n, sources: [...(n.sources ?? []), newSource], updatedAt: now }
+                      : n
+                  ),
+                  updatedAt: now,
+                }
+              : inv
+          ),
+        }));
+        // Fire-and-forget sync to backend
+        api.post('/api/sources', {
+          investigationId,
+          nodeId,
+          source: newSource,
+        }).catch(() => {/* ignore errors */});
+      },
+
+      updateSource: (investigationId, nodeId, sourceId, updates) => {
+        const now = Date.now();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  nodes: inv.nodes.map((n) =>
+                    n.id === nodeId
+                      ? {
+                          ...n,
+                          sources: (n.sources ?? []).map((s) =>
+                            s.id === sourceId ? { ...s, ...updates } : s
+                          ),
+                          updatedAt: now,
+                        }
+                      : n
+                  ),
+                  updatedAt: now,
+                }
+              : inv
+          ),
+        }));
+      },
+
+      removeSource: (investigationId, nodeId, sourceId) => {
+        const now = Date.now();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  nodes: inv.nodes.map((n) =>
+                    n.id === nodeId
+                      ? {
+                          ...n,
+                          sources: (n.sources ?? []).filter((s) => s.id !== sourceId),
+                          updatedAt: now,
+                        }
+                      : n
+                  ),
+                  updatedAt: now,
                 }
               : inv
           ),
