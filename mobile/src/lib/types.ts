@@ -90,6 +90,7 @@ export interface Investigation {
   strings: RedString[];
   timelines: Timeline[];
   colorLegend?: ColorLegendEntry[];
+  isDemo?: boolean;
   createdAt: number;
   updatedAt: number;
 }

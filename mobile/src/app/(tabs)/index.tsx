@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut } from 'lucide-react-native';
+import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Map as MapIcon, Inbox } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import useCollabStore from '@/lib/state/collab-store';
+import useTourStore from '@/lib/state/tour-store';
 import { useSession } from '@/lib/auth/use-session';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { authClient } from '@/lib/auth/auth-client';
 import CollabSheet from '@/components/CollabSheet';
+import TourOverlay from '@/components/TourOverlay';
+import WhatsNewModal, { shouldShowWhatsNew, markWhatsNewSeen } from '@/components/WhatsNewModal';
+import { createDemoInvestigation } from '@/lib/demoData';
 import type { Investigation } from '@/lib/types';
 import type { CollabSession } from '@/lib/state/collab-store';
 
@@ -187,6 +191,112 @@ function InvestigationCard({
   );
 }
 
+function DemoCard({ onLaunch }: { onLaunch: () => void }) {
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(400).springify()}
+      style={{ marginHorizontal: 20, marginBottom: 20 }}
+    >
+      <Pressable
+        testID="demo-card"
+        onPress={onLaunch}
+        style={({ pressed }) => ({
+          borderRadius: 14,
+          padding: 18,
+          opacity: pressed ? 0.92 : 1,
+          backgroundColor: COLORS.surface,
+          borderWidth: 1.5,
+          borderColor: pressed ? COLORS.red : 'rgba(196,30,58,0.5)',
+          shadowColor: COLORS.red,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: pressed ? 0.35 : 0.2,
+          shadowRadius: 12,
+          elevation: 8,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        })}
+      >
+        {/* DEMO badge */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 14,
+            backgroundColor: COLORS.red,
+            borderRadius: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+          }}
+        >
+          <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>
+            DEMO
+          </Text>
+        </View>
+
+        {/* Play icon */}
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(196,30,58,0.15)',
+            borderWidth: 1,
+            borderColor: 'rgba(196,30,58,0.3)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 12,
+          }}
+        >
+          <Play size={18} color={COLORS.red} strokeWidth={2} />
+        </View>
+
+        <Text style={{ color: COLORS.textLight, fontSize: 17, fontWeight: '700', marginBottom: 4 }}>
+          Operation: Shadow Network
+        </Text>
+        <Text style={{ color: COLORS.muted, fontSize: 13, marginBottom: 12, lineHeight: 18 }}>
+          Explore all features with a pre-loaded investigation
+        </Text>
+
+        {/* Stats chips */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {['15 nodes', '12 connections', 'Full source attribution', 'Timeline events'].map((label) => (
+            <View
+              key={label}
+              style={{
+                backgroundColor: 'rgba(196,30,58,0.1)',
+                borderRadius: 6,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderWidth: 1,
+                borderColor: 'rgba(196,30,58,0.2)',
+              }}
+            >
+              <Text style={{ color: COLORS.red, fontSize: 11, fontWeight: '600' }}>{label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Launch button */}
+        <View
+          style={{
+            backgroundColor: COLORS.red,
+            borderRadius: 10,
+            paddingVertical: 11,
+            alignItems: 'center',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          <Play size={14} color="#FFF" strokeWidth={2.5} />
+          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700', letterSpacing: 0.3 }}>
+            Launch Demo
+          </Text>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function EmptyState() {
   return (
     <View className="flex-1 items-center justify-center" style={{ paddingHorizontal: 40, paddingBottom: 60 }}>
@@ -225,6 +335,8 @@ export default function InvestigationsDashboard() {
   const createInvestigation = useInvestigationStore((s) => s.createInvestigation);
   const deleteInvestigation = useInvestigationStore((s) => s.deleteInvestigation);
   const setActiveInvestigation = useInvestigationStore((s) => s.setActiveInvestigation);
+  const addDemoInvestigation = useInvestigationStore((s) => s.addDemoInvestigation);
+  const removeDemoInvestigation = useInvestigationStore((s) => s.removeDemoInvestigation);
 
   const tier = useSubscriptionStore((s) => s.tier);
   const maxInvestigations = useSubscriptionStore((s) => s.maxInvestigations);
@@ -235,10 +347,24 @@ export default function InvestigationsDashboard() {
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();
 
+  // Tour store
+  const hasCompletedTour = useTourStore((s) => s.hasCompletedTour);
+  const isDemoMode = useTourStore((s) => s.isDemoMode);
+  const isRunning = useTourStore((s) => s.isRunning);
+  const startTour = useTourStore((s) => s.startTour);
+  const startTourFromStep = useTourStore((s) => s.startTourFromStep);
+  const startDemoMode = useTourStore((s) => s.startDemoMode);
+  const exitDemoMode = useTourStore((s) => s.exitDemoMode);
+  const setSessionStart = useTourStore((s) => s.setSessionStart);
+  const sessionStartedAt = useTourStore((s) => s.sessionStartedAt);
+
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
+  const [showHelpMenu, setShowHelpMenu] = useState<boolean>(false);
+  const [showWhatsNew, setShowWhatsNew] = useState<boolean>(false);
+  const [showExitDemoConfirm, setShowExitDemoConfirm] = useState<boolean>(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetTitle, setDeleteTargetTitle] = useState<string>('');
   const [newTitle, setNewTitle] = useState<string>('');
@@ -249,9 +375,36 @@ export default function InvestigationsDashboard() {
   const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
   const [collabSheetVisible, setCollabSheetVisible] = useState<boolean>(false);
 
-  // Sort investigations by most recently updated
+  // Auto-start tour on first session
+  useEffect(() => {
+    if (!session?.user) return;
+    if (!sessionStartedAt) {
+      setSessionStart();
+      return;
+    }
+    const secondsSinceStart = (Date.now() - sessionStartedAt) / 1000;
+    if (!hasCompletedTour && !isRunning && secondsSinceStart < 60) {
+      const timer = setTimeout(() => startTour(), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check what's new on mount
+  useEffect(() => {
+    shouldShowWhatsNew().then((show) => {
+      if (show) {
+        const timer = setTimeout(() => {
+          setShowWhatsNew(true);
+          markWhatsNewSeen();
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    });
+  }, []);
+
+  // Filter non-demo investigations for display
   const sortedInvestigations = React.useMemo(
-    () => [...investigations].sort((a, b) => b.updatedAt - a.updatedAt),
+    () => [...investigations].filter((inv) => !inv.isDemo).sort((a, b) => b.updatedAt - a.updatedAt),
     [investigations]
   );
 
@@ -277,14 +430,15 @@ export default function InvestigationsDashboard() {
   }, [newTitle, newDescription, createInvestigation, router]);
 
   const handleNewInvestigationPress = useCallback(() => {
-    if (investigations.length >= maxInvestigationsCount) {
+    const nonDemoCount = investigations.filter((inv) => !inv.isDemo).length;
+    if (nonDemoCount >= maxInvestigationsCount) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setShowLimitModal(true);
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowCreateModal(true);
-  }, [investigations.length, maxInvestigationsCount]);
+  }, [investigations, maxInvestigationsCount]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -332,6 +486,24 @@ export default function InvestigationsDashboard() {
     }
   }, [invalidateSession]);
 
+  const handleLaunchDemo = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowHelpMenu(false);
+    const demo = createDemoInvestigation();
+    startDemoMode();
+    addDemoInvestigation(demo);
+    router.push('/(tabs)/two');
+    // Auto-start tour from canvas_intro (step index 5) after delay
+    setTimeout(() => startTourFromStep(5), 1000);
+  }, [startDemoMode, addDemoInvestigation, router, startTourFromStep]);
+
+  const handleExitDemo = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    exitDemoMode();
+    removeDemoInvestigation();
+    setShowExitDemoConfirm(false);
+  }, [exitDemoMode, removeDemoInvestigation]);
+
   const renderItem = useCallback(
     ({ item, index }: { item: Investigation; index: number }) => (
       <InvestigationCard
@@ -355,9 +527,30 @@ export default function InvestigationsDashboard() {
     ? (collabSessionMap.get(collabSheetInvestigationId) ?? null)
     : null;
 
+  const nonDemoInvestigationCount = investigations.filter((inv) => !inv.isDemo).length;
+
   return (
     <View className="flex-1" style={{ backgroundColor: COLORS.background }} testID="investigations-screen">
-      <SafeAreaView className="flex-1" edges={['top']}>
+      {/* Demo Mode Banner */}
+      {isDemoMode ? (
+        <Pressable
+          testID="demo-mode-banner"
+          onPress={() => setShowExitDemoConfirm(true)}
+          style={{
+            backgroundColor: COLORS.red,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 16,
+          }}
+        >
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+            DEMO MODE — This is sample data. Tap to exit.
+          </Text>
+        </Pressable>
+      ) : null}
+
+      <SafeAreaView className="flex-1" edges={isDemoMode ? [] : ['top']}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -370,6 +563,43 @@ export default function InvestigationsDashboard() {
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* Help button */}
+              <Pressable
+                testID="help-button"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowHelpMenu(true);
+                }}
+                style={({ pressed }) => ({
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
+                  borderWidth: 1,
+                  borderColor: hasCompletedTour ? COLORS.border : COLORS.red,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <HelpCircle size={15} color={hasCompletedTour ? COLORS.muted : COLORS.red} strokeWidth={2} />
+                {/* Unread badge */}
+                {!hasCompletedTour ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: COLORS.red,
+                      borderWidth: 1.5,
+                      borderColor: COLORS.background,
+                    }}
+                  />
+                ) : null}
+              </Pressable>
+
               {/* Account button */}
               <Pressable
                 testID="account-button"
@@ -425,7 +655,7 @@ export default function InvestigationsDashboard() {
             </Text>
             {maxInvestigationsCount !== Infinity ? (
               <Text style={{ color: COLORS.muted, fontSize: 11 }}>
-                {investigations.length}/{maxInvestigationsCount} cases
+                {nonDemoInvestigationCount}/{maxInvestigationsCount} cases
               </Text>
             ) : null}
           </View>
@@ -460,19 +690,183 @@ export default function InvestigationsDashboard() {
         </Pressable>
 
         {/* Investigations List */}
-        {sortedInvestigations.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <FlatList
-            testID="investigations-list"
-            data={sortedInvestigations}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={{ paddingTop: 4, paddingBottom: 20 }}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+        <FlatList
+          testID="investigations-list"
+          data={sortedInvestigations}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={!isDemoMode ? <DemoCard onLaunch={handleLaunchDemo} /> : null}
+          ListEmptyComponent={<EmptyState />}
+        />
       </SafeAreaView>
+
+      {/* Help Menu Modal */}
+      <Modal
+        visible={showHelpMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowHelpMenu(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          onPress={() => setShowHelpMenu(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: '100%',
+              maxWidth: 340,
+              backgroundColor: COLORS.surface,
+              borderRadius: 20,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+              <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '800', letterSpacing: 0.3 }}>
+                Help & Explore
+              </Text>
+            </View>
+
+            {/* Take the Tour */}
+            <Pressable
+              testID="help-start-tour"
+              onPress={() => {
+                setShowHelpMenu(false);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setTimeout(() => startTour(), 200);
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                padding: 16,
+                backgroundColor: pressed ? COLORS.border : 'transparent',
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+              })}
+            >
+              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(196,30,58,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(196,30,58,0.25)' }}>
+                <MapIcon size={18} color={COLORS.red} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Take the Tour</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>18-step guided walkthrough</Text>
+              </View>
+              {!hasCompletedTour ? (
+                <View style={{ backgroundColor: COLORS.red, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>NEW</Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            {/* Load Demo */}
+            <Pressable
+              testID="help-load-demo"
+              onPress={handleLaunchDemo}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                padding: 16,
+                backgroundColor: pressed ? COLORS.border : 'transparent',
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+              })}
+            >
+              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(212,165,116,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212,165,116,0.25)' }}>
+                <Play size={18} color={COLORS.pin} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Load Demo Investigation</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>15 nodes, 12 strings, full data</Text>
+              </View>
+            </Pressable>
+
+            {/* What's New */}
+            <Pressable
+              testID="help-whats-new"
+              onPress={() => {
+                setShowHelpMenu(false);
+                setTimeout(() => setShowWhatsNew(true), 200);
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                padding: 16,
+                backgroundColor: pressed ? COLORS.border : 'transparent',
+              })}
+            >
+              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(34,197,94,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' }}>
+                <Inbox size={18} color="#22C55E" strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>What's New</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>v2.0 — Bezier strings, timeline & more</Text>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Exit Demo Confirm Modal */}
+      <Modal
+        visible={showExitDemoConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExitDemoConfirm(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          onPress={() => setShowExitDemoConfirm(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              backgroundColor: COLORS.surface,
+              borderRadius: 20,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '700', marginBottom: 10 }}>
+              Exit Demo Mode?
+            </Text>
+            <Text style={{ color: COLORS.muted, fontSize: 14, lineHeight: 20, marginBottom: 24 }}>
+              Your real investigations are safe. The demo data will be removed.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Pressable
+                onPress={() => setShowExitDemoConfirm(false)}
+                style={({ pressed }) => ({
+                  flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: pressed ? COLORS.border : 'transparent',
+                  borderWidth: 1, borderColor: COLORS.border,
+                })}
+              >
+                <Text style={{ color: COLORS.muted, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                testID="confirm-exit-demo-button"
+                onPress={handleExitDemo}
+                style={({ pressed }) => ({
+                  flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: pressed ? '#A3162E' : COLORS.red,
+                })}
+              >
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>Exit Demo</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Account Modal */}
       <Modal
@@ -911,6 +1305,15 @@ export default function InvestigationsDashboard() {
         visible={collabSheetVisible}
         onClose={() => setCollabSheetVisible(false)}
         currentUserId={session?.user?.id}
+      />
+
+      {/* Tour Overlay */}
+      <TourOverlay />
+
+      {/* What's New Modal */}
+      <WhatsNewModal
+        visible={showWhatsNew}
+        onClose={() => setShowWhatsNew(false)}
       />
     </View>
   );

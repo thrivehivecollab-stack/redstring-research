@@ -59,6 +59,10 @@ interface InvestigationStore {
 
   // Color Legend
   updateColorLegend: (investigationId: string, legend: ColorLegendEntry[]) => void;
+
+  // Demo
+  addDemoInvestigation: (investigation: Investigation) => void;
+  removeDemoInvestigation: () => void;
 }
 
 const useInvestigationStore = create<InvestigationStore>()(
@@ -404,6 +408,26 @@ const useInvestigationStore = create<InvestigationStore>()(
               ? { ...inv, colorLegend: legend, updatedAt: Date.now() }
               : inv
           ),
+        }));
+      },
+
+      addDemoInvestigation: (investigation) => {
+        set((state) => ({
+          investigations: [
+            ...state.investigations.filter((inv) => !inv.isDemo),
+            investigation,
+          ],
+          activeInvestigationId: investigation.id,
+        }));
+      },
+
+      removeDemoInvestigation: () => {
+        set((state) => ({
+          investigations: state.investigations.filter((inv) => !inv.isDemo),
+          activeInvestigationId:
+            state.investigations.find((inv) => inv.id === state.activeInvestigationId)?.isDemo
+              ? null
+              : state.activeInvestigationId,
         }));
       },
     }),

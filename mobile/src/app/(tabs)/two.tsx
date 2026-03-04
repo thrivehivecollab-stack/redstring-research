@@ -55,11 +55,13 @@ import {
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
+import useTourStore from '@/lib/state/tour-store';
 import type { CanvasNode, NodeType, TagColor, Timeline } from '@/lib/types';
 import TimelinePanel from '@/components/TimelinePanel';
 import MindMapCanvas from '@/components/MindMapCanvas';
 import ColorLegend from '@/components/ColorLegend';
 import ColorSuggestionSheet from '@/components/ColorSuggestionSheet';
+import TourOverlay from '@/components/TourOverlay';
 
 // ---- Color constants ----
 const C = {
@@ -454,6 +456,9 @@ export default function InvestigationCanvas() {
   const tier = useSubscriptionStore((s) => s.tier);
   const maxNodes = maxNodesPerInvestigation();
 
+  // Tour/demo store
+  const isDemoMode = useTourStore((s) => s.isDemoMode);
+
   // Derive active investigation
   const investigation = useMemo(
     () => investigations.find((inv) => inv.id === activeId),
@@ -729,6 +734,22 @@ export default function InvestigationCanvas() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: C.bg }} testID="canvas-screen">
+      {/* Demo Mode Banner */}
+      {isDemoMode ? (
+        <View
+          testID="canvas-demo-banner"
+          style={{
+            backgroundColor: C.red,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+            DEMO MODE — Sample investigation data
+          </Text>
+        </View>
+      ) : null}
       {/* ---- CANVAS AREA ---- */}
       <View style={{ flex: 1, marginBottom: 0 }}>
         {canvasMode === 'corkboard' ? (
@@ -1523,6 +1544,9 @@ export default function InvestigationCanvas() {
           </Text>
         </Animated.View>
       ) : null}
+
+      {/* Tour Overlay */}
+      <TourOverlay />
     </View>
   );
 }
