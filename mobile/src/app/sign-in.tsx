@@ -170,6 +170,7 @@ export default function SignInScreen() {
   const [phone, setPhone] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [socialMessage, setSocialMessage] = useState<string | null>(null);
 
   const buttonScale = useSharedValue(1);
   const buttonAnimStyle = useAnimatedStyle(() => ({
@@ -455,6 +456,68 @@ export default function SignInScreen() {
                 </Animated.View>
               </View>
             </Animated.View>
+
+            {/* OR divider */}
+            <Animated.View entering={FadeInDown.delay(400).duration(500)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, marginBottom: 16 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+              <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '600', letterSpacing: 1 }}>OR</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+            </Animated.View>
+
+            {/* Social sign-in buttons */}
+            <Animated.View entering={FadeInDown.delay(500).duration(500)} style={{ gap: 12 }}>
+              {/* Google */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSocialMessage('Google Sign-In coming soon. Use phone number for now.');
+                  setTimeout(() => setSocialMessage(null), 3000);
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  backgroundColor: pressed ? '#2A2421' : COLORS.surface,
+                  borderRadius: 12, padding: 14,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#4285F4', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>G</Text>
+                </View>
+                <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '600' }}>Continue with Google</Text>
+              </Pressable>
+
+              {/* Apple */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSocialMessage('Apple Sign-In coming soon. Use phone number for now.');
+                  setTimeout(() => setSocialMessage(null), 3000);
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  backgroundColor: pressed ? '#2A2421' : COLORS.surface,
+                  borderRadius: 12, padding: 14,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#F5ECD7', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#1A1614', fontSize: 12, fontWeight: '900' }}></Text>
+                </View>
+                <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '600' }}>Continue with Apple</Text>
+              </Pressable>
+            </Animated.View>
+
+            {/* Social message toast */}
+            {socialMessage ? (
+              <Animated.View entering={FadeInDown.duration(300)} style={{
+                marginTop: 12, backgroundColor: COLORS.surface, borderRadius: 10, padding: 12,
+                borderWidth: 1, borderColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: COLORS.amber,
+              }}>
+                <Text style={{ color: COLORS.text, fontSize: 13, textAlign: 'center' }}>{socialMessage}</Text>
+              </Animated.View>
+            ) : null}
 
             {/* Footer text */}
             <Animated.View

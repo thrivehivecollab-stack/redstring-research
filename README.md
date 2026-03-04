@@ -4,33 +4,75 @@ A visual investigation canvas app for mapping relationships, evidence, and conne
 
 ## Features
 
-### Investigations Dashboard
+### Investigations Dashboard (Tab 1)
 - Create and manage multiple investigations
 - View investigation cards with node/string counts
-- Delete investigations with confirmation
+- Swipe-to-delete with undo toast
 - Sorted by most recently updated
+- Demo mode with pre-loaded "Operation: Shadow Network" investigation
+- 18-step guided tour for new users
+- Subscription tier management (Free / Pro / Plus)
 
-### Visual Investigation Canvas
+### Visual Investigation Canvas (Tab 2)
 - Pannable and zoomable corkboard canvas
-- Draggable pushpin-style node cards
+- Draggable pushpin-style node cards with drag-to-trash
 - Multiple node types: Note, Link, Image, Folder, Dataset
-- Red string connections between any two nodes
-- Connect mode toggle for creating connections
-- Node detail bottom sheet for editing
-- Add nodes at canvas center
+- Bezier red string connections with custom colors and labels
+- Connect mode for creating connections
+- Mind map view alternative
+- Timeline panel for chronological events
+- Color legend for node categorization
+- Source attribution tracking per node
+- Collaboration sessions
 
-### Node System
-- Each node appears as a cream-colored pushpin card
-- Color-coded pushpin dots
-- Tag support with color coding
-- Editable title and content
+### Scripts & Templates (Tab 3)
+- Pre-built investigation script templates
+- Categories: Interview, FOIA, Source Contact, Evidence, Custom
+- Variable substitution with live preview
+- FOIA request templates, whistleblower contact scripts, interview scripts
+- Create and edit custom scripts
 
-### Red String Connections
-- Draw red string connections between any nodes
-- Connection labels
-- Visual endpoint circles
-- Midpoint label display
-- Delete connections from node detail view
+### Live & Podcasts (Tab 4)
+- Track investigation/journalism podcasts
+- Live feed monitoring with LIVE indicators
+- Social media keyword monitoring
+- Pin content to investigation board
+
+### AI Research Assistant (Tab 5)
+- AI chat interface for research assistance
+- Voice input with listening animation
+- Quick action chips: Analyze Evidence, Find Connections, Research Topic, Summarize Case
+- Simulated AI responses with investigation context
+- Pin AI responses to investigation board
+- Auto-scroll on new messages
+
+### Bookmarks & Import (Tab 6)
+- Import bookmarks from X/Twitter, browsers, Pocket, Instapaper
+- Filter by type: Articles, Tweets, Videos, PDFs
+- Search imported bookmarks
+- Add bookmarks directly to investigations as notes or links
+- Social sign-in (Google/Apple) — UI ready, coming soon
+
+### Authentication
+- Phone number OTP authentication via Better Auth
+- Social sign-in options (Google/Apple) on sign-in screen
+
+### Tips System
+- Public tip submission form
+- Tip inbox with vetting scores
+- Conversation threads with tipsters
+
+## Navigation
+
+```
+(tabs)/
+  index.tsx         — Investigations Dashboard
+  two.tsx           — Investigation Canvas
+  scripts.tsx       — Scripts & Templates
+  podcast.tsx       — Live & Podcasts
+  ai-research.tsx   — AI Research Assistant
+  bookmarks.tsx     — Bookmarks & Import
+```
 
 ## Architecture
 
@@ -46,7 +88,8 @@ A visual investigation canvas app for mapping relationships, evidence, and conne
 
 ### Backend (`/backend`)
 - Hono web framework on Bun
-- Health check endpoint
+- Better Auth for phone OTP authentication
+- Prisma + SQLite database
 
 ## Color Palette
 - Background: `#1A1614` (deep warm charcoal)

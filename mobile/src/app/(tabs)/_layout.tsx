@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Search, Map } from 'lucide-react-native';
+import { Search, Map, Brain, Radio, FileText, Bookmark } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -38,6 +38,42 @@ export default function TabLayout() {
           title: 'Canvas',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Map size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scripts"
+        options={{
+          title: 'Scripts',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <FileText size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="podcast"
+        options={{
+          title: 'Live & Pods',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Radio size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ai-research"
+        options={{
+          title: 'AI Research',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Brain size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="bookmarks"
+        options={{
+          title: 'Bookmarks',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Bookmark size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
