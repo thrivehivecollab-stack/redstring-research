@@ -118,7 +118,6 @@ const INITIAL_SOURCES: ImportSource[] = [
   { id: 'x', name: 'X / Twitter Bookmarks', platform: 'x', connected: false },
   { id: 'browser', name: 'Browser Bookmarks', platform: 'browser', connected: true, bookmarkCount: 2847 },
   { id: 'pocket', name: 'Pocket', platform: 'pocket', connected: false },
-  { id: 'instapaper', name: 'Instapaper', platform: 'instapaper', connected: false },
 ];
 
 const FILTER_TABS: FilterTab[] = ['All', 'Articles', 'Tweets', 'Videos', 'PDFs'];
@@ -691,7 +690,7 @@ export default function BookmarksScreen() {
             <View style={{ gap: 10, marginBottom: 24 }}>
               {[
                 'Export bookmarks from your browser or app',
-                'Supported: Chrome, Firefox, Safari, Pocket, Instapaper',
+                'Supported: Chrome, Firefox, Safari, Pocket',
                 'Tap the button below to select your export file',
                 'We\'ll parse and import all bookmarks automatically',
               ].map((step, i) => (

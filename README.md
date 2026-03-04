@@ -39,12 +39,17 @@ A visual investigation canvas app for mapping relationships, evidence, and conne
 - Pin content to investigation board
 
 ### AI Research Assistant (Tab 5)
-- AI chat interface for research assistance
-- Voice input with listening animation
+- Real AI chat powered by OpenAI GPT-4o-mini via backend
+- Full conversation history sent with each message for context
+- Voice input with listening animation (UX ready)
 - Quick action chips: Analyze Evidence, Find Connections, Research Topic, Summarize Case
-- Simulated AI responses with investigation context
+- **Highlight & Categorize system**: long-press any AI message to assign a color category
+  - Red = Critical Evidence, Amber = Key Lead, Green = Confirmed Fact
+  - Blue = Background Info, Purple = Suspect/Person, Orange = Timeline Event
+- Auto-tag generation on highlighted messages
+- Highlights panel showing all tagged excerpts
+- New Conversation button with confirmation guard
 - Pin AI responses to investigation board
-- Auto-scroll on new messages
 
 ### Bookmarks & Import (Tab 6)
 - Import bookmarks from X/Twitter, browsers, Pocket, Instapaper

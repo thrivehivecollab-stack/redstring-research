@@ -8,9 +8,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import {
   Mic,
   Send,
@@ -20,11 +20,16 @@ import {
   Pin,
   X,
   MessageCircle,
+  Highlighter,
+  Trash2,
+  RotateCcw,
+  ChevronDown,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
   FadeIn,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -34,128 +39,573 @@ import Animated, {
   SlideInUp,
   SlideOutDown,
 } from 'react-native-reanimated';
+import { api } from '@/lib/api/api';
+import useInvestigationStore from '@/lib/state/investigation-store';
 
-// ─── Color constants ───────────────────────────────────────────────────────
+// ─── Color constants ────────────────────────────────────────────────────────
 const COLORS = {
   background: '#1A1614',
   surface: '#231F1C',
-  card: '#F5ECD7',
   red: '#C41E3A',
   pin: '#D4A574',
   textLight: '#E8DCC8',
   muted: '#6B5B4F',
   border: '#3D332C',
-  cardText: '#2C1810',
 } as const;
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// ─── Highlight categories ───────────────────────────────────────────────────
+interface HighlightCategory {
+  id: string;
+  color: string;
+  name: string;
+}
+
+const HIGHLIGHT_CATEGORIES: HighlightCategory[] = [
+  { id: 'critical', color: '#C41E3A', name: 'Critical Evidence' },
+  { id: 'lead', color: '#D4A574', name: 'Key Lead' },
+  { id: 'confirmed', color: '#22C55E', name: 'Confirmed Fact' },
+  { id: 'background', color: '#3B82F6', name: 'Background Info' },
+  { id: 'suspect', color: '#A855F7', name: 'Suspect/Person' },
+  { id: 'timeline', color: '#F97316', name: 'Timeline Event' },
+];
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'ai';
   text: string;
   timestamp: Date;
   pinned?: boolean;
+  highlight?: HighlightCategory;
+  autoTag?: string;
 }
 
-// ─── AI response templates ─────────────────────────────────────────────────
-function generateAIResponse(userMessage: string): string {
-  const lower = userMessage.toLowerCase();
-
-  if (lower.includes('evidence') || lower.includes('analyze')) {
-    return `Analyzing the evidence you've described. Several key patterns emerge:\n\n• The timeline suggests a coordinated sequence of events between the identified parties\n• Cross-referencing known associates reveals three degrees of separation with the primary subject\n• Anomalies in the financial records align with the 72-hour window before the incident\n\nRecommendation: Focus your next node connections on the financial thread. Shall I map the known relationships?`;
-  }
-  if (lower.includes('connect') || lower.includes('connection')) {
-    return `Connection analysis complete. I've identified potential links worth investigating:\n\n• Subject A and Subject C share three mutual contacts not previously documented\n• The geographic overlap between events on March 4th and March 11th suggests coordinated movement\n• A digital footprint pattern matches similar cases from 2019\n\nThese threads warrant red-string connections on your board. Pin any of these to your investigation?`;
-  }
-  if (lower.includes('research') || lower.includes('topic')) {
-    return `Research complete. Here's what the open-source intelligence reveals:\n\n• Historical precedent shows three similar incidents in the past decade, all unresolved\n• Key players in this domain have documented ties to organizations of interest\n• Recent news coverage (last 90 days) contains 7 relevant articles flagged for cross-reference\n\nI can drill deeper into any of these threads. What aspect demands closest scrutiny?`;
-  }
-  if (lower.includes('summar') || lower.includes('case')) {
-    return `Case Summary — Current Status:\n\n**Core Hypothesis:** The primary evidence chain supports a coordinated effort involving multiple actors.\n\n**Strongest Leads:** Financial anomalies (confidence: HIGH), Timeline inconsistencies (confidence: MEDIUM), Witness corroboration gaps (confidence: HIGH)\n\n**Missing Links:** Origin point of the initial event, Identity of the unnamed third party in document set B\n\nYour investigation is approximately 34% toward a conclusive narrative. Shall I suggest next investigative steps?`;
-  }
-  if (lower.includes('who') || lower.includes('person') || lower.includes('suspect')) {
-    return `Person-of-interest analysis initiated. Based on available data patterns:\n\n• Primary subject: Known associations suggest professional background in logistics or finance\n• Secondary subject: Digital presence shows irregular activity spikes correlating with key dates\n• Unknown actor (referenced in node #7): Behavioral signature matches documented operatives from prior cases\n\nI recommend adding a dedicated node for each identified party. Want me to draft profile summaries?`;
-  }
-  if (lower.includes('when') || lower.includes('timeline') || lower.includes('date')) {
-    return `Timeline reconstruction in progress. Critical temporal markers identified:\n\n• T-minus 72 hours: Anomalous communications logged\n• T-zero: Inciting incident (your anchor point)\n• T+24 hours: Three parties change behavior patterns simultaneously\n• T+7 days: Cover narrative solidifies across public record\n\nThe 72-hour pre-event window is the most actionable gap. Shall I generate a timeline node cluster for your board?`;
-  }
-
-  // Generic investigative response
-  const responses = [
-    `Interesting line of inquiry. Cross-referencing your question against known investigation frameworks:\n\n• The pattern you've identified appears in 23% of cases with similar profiles\n• Two adjacent threads could unlock this: the financial audit trail and the communications gap around the key dates\n• I'd recommend documenting this as a node — even unconfirmed threads have investigative value\n\nWhat additional context can you provide? The more data I have, the sharper the analysis.`,
-    `Running analysis on your query. Initial findings:\n\n• Your investigation touches on a well-documented category of cases where official narratives diverge from physical evidence\n• Three key investigative principles apply here: follow the money, track the timeline, identify who benefits\n• Current evidence density in your case: moderate — you have enough to form a working hypothesis\n\nShall I suggest specific questions to pursue in your next research session?`,
-    `Noted, Investigator. This is a critical piece of the puzzle. My assessment:\n\n• The information you've provided adds a new vector worth tracking\n• Historical pattern matching suggests this type of detail often connects to a larger organizational structure\n• Recommend flagging this for your red string board with HIGH priority\n\nI can help you draft a research brief or identify sources to corroborate this thread. What's your next move?`,
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
+interface AIChatResponse {
+  message: string;
 }
 
-// ─── Quick action chips ────────────────────────────────────────────────────
+// ─── Quick actions ──────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { label: 'Analyze Evidence', icon: Zap },
-  { label: 'Find Connections', icon: Brain },
-  { label: 'Research Topic', icon: BookOpen },
-  { label: 'Summarize Case', icon: MessageCircle },
-];
+  { label: 'Analyze Evidence', icon: Zap, immediate: true, text: 'Analyze Evidence' },
+  { label: 'Find Connections', icon: Brain, immediate: true, text: 'Find Connections' },
+  { label: 'Research Topic', icon: BookOpen, immediate: false, text: 'Research this topic: ' },
+  {
+    label: 'Summarize Case',
+    icon: MessageCircle,
+    immediate: true,
+    text: 'Give me a case summary based on our conversation so far',
+  },
+] as const;
 
-// ─── ThinkingDots component ────────────────────────────────────────────────
+// ─── ThinkingDots ───────────────────────────────────────────────────────────
 function ThinkingDots() {
   const dot1 = useSharedValue(0);
   const dot2 = useSharedValue(0);
   const dot3 = useSharedValue(0);
 
   useEffect(() => {
-    const bounce = (sv: Animated.SharedValue<number>, delay: number) => {
-      sv.value = withRepeat(
-        withSequence(
-          withTiming(delay, { duration: 0 }),
-          withTiming(-6, { duration: 350 }),
-          withTiming(0, { duration: 350 })
-        ),
-        -1,
-        false
-      );
+    const bounce = (sv: Animated.SharedValue<number>, delayMs: number) => {
+      setTimeout(() => {
+        sv.value = withRepeat(
+          withSequence(
+            withTiming(-6, { duration: 350 }),
+            withTiming(0, { duration: 350 })
+          ),
+          -1,
+          false
+        );
+      }, delayMs);
     };
     bounce(dot1, 0);
-    setTimeout(() => bounce(dot2, 0), 180);
-    setTimeout(() => bounce(dot3, 0), 360);
+    bounce(dot2, 180);
+    bounce(dot3, 360);
   }, []);
 
-  const style1 = useAnimatedStyle(() => ({ transform: [{ translateY: dot1.value }] }));
-  const style2 = useAnimatedStyle(() => ({ transform: [{ translateY: dot2.value }] }));
-  const style3 = useAnimatedStyle(() => ({ transform: [{ translateY: dot3.value }] }));
+  const s1 = useAnimatedStyle(() => ({ transform: [{ translateY: dot1.value }] }));
+  const s2 = useAnimatedStyle(() => ({ transform: [{ translateY: dot2.value }] }));
+  const s3 = useAnimatedStyle(() => ({ transform: [{ translateY: dot3.value }] }));
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 10 }}>
-      {[style1, style2, style3].map((style, i) => (
+      {[s1, s2, s3].map((style, i) => (
         <Animated.View
           key={i}
-          style={[
-            {
-              width: 7,
-              height: 7,
-              borderRadius: 3.5,
-              backgroundColor: COLORS.pin,
-            },
-            style,
-          ]}
+          style={[{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: COLORS.pin }, style]}
         />
       ))}
     </View>
   );
 }
 
-// ─── MessageBubble ─────────────────────────────────────────────────────────
+// ─── Highlight Action Sheet ─────────────────────────────────────────────────
+function HighlightSheet({
+  visible,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (cat: HighlightCategory) => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}
+        onPress={onClose}
+      >
+        <Pressable onPress={() => null}>
+          <View
+            style={{
+              backgroundColor: COLORS.surface,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderTopWidth: 1,
+              borderTopColor: COLORS.border,
+              paddingTop: 8,
+              paddingBottom: 36,
+            }}
+          >
+            {/* Grabber */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: COLORS.border,
+                alignSelf: 'center',
+                marginBottom: 16,
+                marginTop: 4,
+              }}
+            />
+
+            {/* Title */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingHorizontal: 20,
+                marginBottom: 18,
+              }}
+            >
+              <Highlighter size={18} color={COLORS.pin} strokeWidth={2} />
+              <Text
+                style={{
+                  color: COLORS.textLight,
+                  fontSize: 16,
+                  fontWeight: '800',
+                  letterSpacing: 1,
+                }}
+              >
+                HIGHLIGHT AS
+              </Text>
+            </View>
+
+            {/* Color options */}
+            <View style={{ paddingHorizontal: 16, gap: 10 }}>
+              {HIGHLIGHT_CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat.id}
+                  testID={`highlight-${cat.id}`}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    onSelect(cat);
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 14,
+                    backgroundColor: pressed
+                      ? `${cat.color}22`
+                      : `${cat.color}11`,
+                    borderRadius: 14,
+                    paddingHorizontal: 16,
+                    paddingVertical: 13,
+                    borderLeftWidth: 4,
+                    borderLeftColor: cat.color,
+                    borderWidth: 1,
+                    borderColor: `${cat.color}33`,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      backgroundColor: cat.color,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      color: COLORS.textLight,
+                      fontSize: 15,
+                      fontWeight: '700',
+                      flex: 1,
+                    }}
+                  >
+                    {cat.name}
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: `${cat.color}33`,
+                      borderRadius: 6,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Text style={{ color: cat.color, fontSize: 10, fontWeight: '800' }}>
+                      TAG
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Cancel */}
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => ({
+                marginHorizontal: 16,
+                marginTop: 14,
+                backgroundColor: pressed ? 'rgba(255,255,255,0.05)' : 'transparent',
+                borderRadius: 14,
+                paddingVertical: 14,
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: COLORS.border,
+              })}
+            >
+              <Text style={{ color: COLORS.muted, fontSize: 15, fontWeight: '600' }}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Highlights Panel Modal ─────────────────────────────────────────────────
+function HighlightsPanel({
+  visible,
+  onClose,
+  highlighted,
+  onClearAll,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  highlighted: Message[];
+  onClearAll: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
+        onPress={onClose}
+      >
+        <Pressable onPress={() => null}>
+          <View
+            style={{
+              backgroundColor: COLORS.surface,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderTopWidth: 1,
+              borderTopColor: COLORS.border,
+              paddingTop: 8,
+              maxHeight: 560,
+            }}
+          >
+            {/* Grabber */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: COLORS.border,
+                alignSelf: 'center',
+                marginBottom: 12,
+                marginTop: 4,
+              }}
+            />
+
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                paddingBottom: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+                gap: 8,
+              }}
+            >
+              <Highlighter size={18} color={COLORS.pin} strokeWidth={2} />
+              <Text
+                style={{
+                  color: COLORS.textLight,
+                  fontSize: 16,
+                  fontWeight: '800',
+                  letterSpacing: 1,
+                  flex: 1,
+                }}
+              >
+                HIGHLIGHTS ({highlighted.length})
+              </Text>
+              {highlighted.length > 0 ? (
+                <Pressable
+                  testID="clear-all-highlights"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    onClearAll();
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
+                    borderRadius: 8,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                  })}
+                >
+                  <Trash2 size={12} color={COLORS.red} strokeWidth={2.5} />
+                  <Text style={{ color: COLORS.red, fontSize: 12, fontWeight: '700' }}>
+                    Clear All
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                testID="close-highlights-panel"
+                onPress={onClose}
+                style={{ marginLeft: 4, padding: 4 }}
+              >
+                <X size={18} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            {/* List */}
+            {highlighted.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 48 }}>
+                <Highlighter size={32} color={COLORS.border} strokeWidth={1.5} />
+                <Text
+                  style={{
+                    color: COLORS.muted,
+                    fontSize: 14,
+                    marginTop: 12,
+                    textAlign: 'center',
+                  }}
+                >
+                  No highlights yet.{'\n'}Long-press an AI message to highlight it.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={{ maxHeight: 400 }}
+                contentContainerStyle={{ padding: 16, gap: 10 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {highlighted.map((msg) => (
+                  <View
+                    key={msg.id}
+                    style={{
+                      borderRadius: 12,
+                      borderLeftWidth: 4,
+                      borderLeftColor: msg.highlight?.color ?? COLORS.pin,
+                      backgroundColor: COLORS.background,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      gap: 6,
+                    }}
+                  >
+                    {/* Category badge */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: msg.highlight?.color,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          color: msg.highlight?.color,
+                          fontSize: 10,
+                          fontWeight: '800',
+                          letterSpacing: 0.8,
+                        }}
+                      >
+                        {msg.highlight?.name?.toUpperCase()}
+                      </Text>
+                    </View>
+
+                    {/* Auto-tag */}
+                    {msg.autoTag ? (
+                      <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700' }}>
+                        {msg.autoTag}
+                      </Text>
+                    ) : null}
+
+                    {/* Preview */}
+                    <Text
+                      style={{ color: COLORS.muted, fontSize: 13, lineHeight: 18 }}
+                      numberOfLines={2}
+                    >
+                      {msg.text.slice(0, 120)}
+                      {msg.text.length > 120 ? '...' : null}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            <View style={{ height: 24 }} />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Confirm New Conversation Modal ────────────────────────────────────────
+function ConfirmNewConvoModal({
+  visible,
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 32,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: 'rgba(196,30,58,0.15)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+              marginBottom: 16,
+            }}
+          >
+            <RotateCcw size={22} color={COLORS.red} strokeWidth={2} />
+          </View>
+          <Text
+            style={{
+              color: COLORS.textLight,
+              fontSize: 18,
+              fontWeight: '800',
+              textAlign: 'center',
+              marginBottom: 8,
+            }}
+          >
+            New Conversation?
+          </Text>
+          <Text
+            style={{
+              color: COLORS.muted,
+              fontSize: 14,
+              textAlign: 'center',
+              lineHeight: 20,
+              marginBottom: 24,
+            }}
+          >
+            This will clear the current conversation. Highlights will also be cleared. This cannot
+            be undone.
+          </Text>
+          <Pressable
+            testID="confirm-new-convo"
+            onPress={onConfirm}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? '#A3162E' : COLORS.red,
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+              marginBottom: 10,
+            })}
+          >
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800' }}>
+              Start Fresh
+            </Text>
+          </Pressable>
+          <Pressable
+            testID="cancel-new-convo"
+            onPress={onCancel}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? 'rgba(255,255,255,0.05)' : 'transparent',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            })}
+          >
+            <Text style={{ color: COLORS.muted, fontSize: 15, fontWeight: '600' }}>
+              Keep Going
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── MessageBubble ──────────────────────────────────────────────────────────
 function MessageBubble({
   message,
   index,
   onPin,
+  onLongPress,
 }: {
   message: Message;
   index: number;
   onPin: (id: string) => void;
+  onLongPress: (id: string) => void;
 }) {
   const isUser = message.role === 'user';
-
   const timeStr = message.timestamp.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
@@ -164,7 +614,7 @@ function MessageBubble({
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(index < 5 ? 0 : 0).duration(320).springify()}
+      entering={FadeInDown.delay(0).duration(320).springify()}
       style={{
         flexDirection: isUser ? 'row-reverse' : 'row',
         marginHorizontal: 16,
@@ -192,16 +642,17 @@ function MessageBubble({
         </View>
       ) : null}
 
-      {/* Bubble */}
+      {/* Bubble wrapper */}
       <View style={{ maxWidth: '78%' }}>
-        {/* AI badge */}
+        {/* AI top row: badge + timestamp + highlight indicator */}
         {!isUser ? (
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 4,
+              gap: 6,
               marginBottom: 5,
+              flexWrap: 'wrap',
             }}
           >
             <View
@@ -217,39 +668,83 @@ function MessageBubble({
               </Text>
             </View>
             <Text style={{ color: COLORS.muted, fontSize: 11 }}>{timeStr}</Text>
+            {message.highlight ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: `${message.highlight.color}22`,
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                  borderWidth: 1,
+                  borderColor: `${message.highlight.color}44`,
+                }}
+              >
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: message.highlight.color,
+                  }}
+                />
+                <Text
+                  style={{
+                    color: message.highlight.color,
+                    fontSize: 9,
+                    fontWeight: '800',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {message.highlight.name.toUpperCase()}
+                </Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
-        <View
-          style={{
-            backgroundColor: isUser ? COLORS.red : COLORS.surface,
-            borderRadius: 16,
-            borderBottomRightRadius: isUser ? 4 : 16,
-            borderBottomLeftRadius: isUser ? 16 : 4,
-            paddingHorizontal: 14,
-            paddingVertical: 11,
-            borderWidth: isUser ? 0 : 1,
-            borderColor: COLORS.border,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 6,
-            elevation: 3,
-          }}
+        {/* Bubble body */}
+        <Pressable
+          testID={`message-bubble-${message.id}`}
+          onLongPress={!isUser ? () => onLongPress(message.id) : undefined}
+          delayLongPress={380}
         >
-          <Text
+          <View
             style={{
-              color: isUser ? '#FFF' : COLORS.textLight,
-              fontSize: 14,
-              lineHeight: 21,
-              fontWeight: '400',
+              backgroundColor: isUser ? COLORS.red : COLORS.surface,
+              borderRadius: 16,
+              borderBottomRightRadius: isUser ? 4 : 16,
+              borderBottomLeftRadius: isUser ? 16 : 4,
+              paddingHorizontal: 14,
+              paddingVertical: 11,
+              borderWidth: message.highlight ? 0 : isUser ? 0 : 1,
+              borderColor: COLORS.border,
+              borderLeftWidth: message.highlight && !isUser ? 4 : isUser ? 0 : 1,
+              borderLeftColor:
+                message.highlight && !isUser ? message.highlight.color : COLORS.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 6,
+              elevation: 3,
             }}
           >
-            {message.text}
-          </Text>
-        </View>
+            <Text
+              style={{
+                color: isUser ? '#FFF' : COLORS.textLight,
+                fontSize: 14,
+                lineHeight: 21,
+                fontWeight: '400',
+              }}
+            >
+              {message.text}
+            </Text>
+          </View>
+        </Pressable>
 
-        {/* Timestamp + Pin button for user messages */}
+        {/* User timestamp */}
         {isUser ? (
           <Text
             style={{
@@ -263,67 +758,108 @@ function MessageBubble({
           </Text>
         ) : null}
 
-        {/* Pin to Board button for AI messages */}
+        {/* Auto-tag + Pin row for AI messages */}
         {!isUser ? (
-          <Pressable
-            testID={`pin-message-${message.id}`}
-            onPress={() => onPin(message.id)}
-            style={({ pressed }) => ({
+          <View
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 5,
+              gap: 8,
               marginTop: 7,
-              alignSelf: 'flex-start',
-              backgroundColor: message.pinned
-                ? 'rgba(212,165,116,0.18)'
-                : pressed
-                ? 'rgba(212,165,116,0.12)'
-                : 'rgba(212,165,116,0.07)',
-              borderRadius: 8,
-              paddingHorizontal: 9,
-              paddingVertical: 5,
-              borderWidth: 1,
-              borderColor: message.pinned
-                ? 'rgba(212,165,116,0.5)'
-                : 'rgba(212,165,116,0.2)',
-            })}
+              flexWrap: 'wrap',
+            }}
           >
-            <Pin size={11} color={COLORS.pin} strokeWidth={2.5} />
-            <Text style={{ color: COLORS.pin, fontSize: 11, fontWeight: '700' }}>
-              {message.pinned ? 'Pinned' : 'Pin to Board'}
-            </Text>
-          </Pressable>
+            {message.autoTag ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: 'rgba(212,165,116,0.1)',
+                  borderRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderWidth: 1,
+                  borderColor: 'rgba(212,165,116,0.25)',
+                }}
+              >
+                <Pin size={9} color={COLORS.pin} strokeWidth={2.5} />
+                <Text style={{ color: COLORS.pin, fontSize: 10, fontWeight: '700' }}>
+                  {message.autoTag}
+                </Text>
+              </View>
+            ) : null}
+            <Pressable
+              testID={`pin-message-${message.id}`}
+              onPress={() => onPin(message.id)}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                backgroundColor: message.pinned
+                  ? 'rgba(212,165,116,0.18)'
+                  : pressed
+                  ? 'rgba(212,165,116,0.12)'
+                  : 'rgba(212,165,116,0.07)',
+                borderRadius: 8,
+                paddingHorizontal: 9,
+                paddingVertical: 5,
+                borderWidth: 1,
+                borderColor: message.pinned
+                  ? 'rgba(212,165,116,0.5)'
+                  : 'rgba(212,165,116,0.2)',
+              })}
+            >
+              <Pin size={11} color={COLORS.pin} strokeWidth={2.5} />
+              <Text style={{ color: COLORS.pin, fontSize: 11, fontWeight: '700' }}>
+                {message.pinned ? 'Pinned' : 'Pin to Board'}
+              </Text>
+            </Pressable>
+          </View>
         ) : null}
       </View>
     </Animated.View>
   );
 }
 
-// ─── Main screen ───────────────────────────────────────────────────────────
+// ─── Main screen ────────────────────────────────────────────────────────────
 export default function AIResearchScreen() {
-  const router = useRouter();
+  // Investigation context
+  const activeInvestigationId = useInvestigationStore((s) => s.activeInvestigationId);
+  const investigations = useInvestigationStore((s) => s.investigations);
+  const activeInvestigation = investigations.find((i) => i.id === activeInvestigationId);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'ai',
-      text: 'Welcome, Investigator. I\'m your research assistant. Ask me anything about your investigation, request help analyzing evidence, suggest connections, or have me research topics for you. What are we uncovering today?',
-      timestamp: new Date(),
-    },
-  ]);
+  const WELCOME: Message = {
+    id: 'welcome',
+    role: 'ai',
+    text: activeInvestigation
+      ? `Welcome back, Investigator. I'm your AI research assistant for "${activeInvestigation.title}". Ask me to analyze evidence, find connections, research topics, or summarize your case. Long-press any of my responses to highlight and categorize them. What are we uncovering today?`
+      : "Welcome, Investigator. I'm your AI research assistant. Ask me anything — analyze evidence, find connections, research topics, or build a case summary. Long-press any of my responses to highlight and categorize them. What are we uncovering today?",
+    timestamp: new Date(),
+  };
+
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [inputText, setInputText] = useState<string>('');
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+
+  // Modals
+  const [highlightSheetVisible, setHighlightSheetVisible] = useState<boolean>(false);
+  const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
+  const [highlightsPanelVisible, setHighlightsPanelVisible] = useState<boolean>(false);
+  const [confirmNewConvoVisible, setConfirmNewConvoVisible] = useState<boolean>(false);
+
+  // Toast
   const [toastVisible, setToastVisible] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
   const flatListRef = useRef<FlatList<Message>>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Mic pulse animation
+  // Mic animation
   const micPulse = useSharedValue(1);
   const micOpacity = useSharedValue(1);
-
   const micAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: micPulse.value }],
     opacity: micOpacity.value,
@@ -331,18 +867,12 @@ export default function AIResearchScreen() {
 
   const startMicAnimation = useCallback(() => {
     micPulse.value = withRepeat(
-      withSequence(
-        withTiming(1.12, { duration: 600 }),
-        withTiming(0.94, { duration: 600 })
-      ),
+      withSequence(withTiming(1.12, { duration: 600 }), withTiming(0.94, { duration: 600 })),
       -1,
       true
     );
     micOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 600 }),
-        withTiming(1, { duration: 600 })
-      ),
+      withSequence(withTiming(0.7, { duration: 600 }), withTiming(1, { duration: 600 })),
       -1,
       true
     );
@@ -357,100 +887,229 @@ export default function AIResearchScreen() {
     setToastMessage(msg);
     setToastVisible(true);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToastVisible(false), 2400);
+    toastTimerRef.current = setTimeout(() => setToastVisible(false), 2600);
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
   }, []);
 
-  const handleSend = useCallback(() => {
-    const text = inputText.trim();
-    if (!text || isThinking) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setInputText('');
-
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      text,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setIsThinking(true);
-    scrollToBottom();
-
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(text);
-      const aiMsg: Message = {
-        id: `ai-${Date.now()}`,
-        role: 'ai',
-        text: aiResponse,
-        timestamp: new Date(),
-      };
-      setIsThinking(false);
-      setMessages((prev) => [...prev, aiMsg]);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      scrollToBottom();
-    }, 1500);
-  }, [inputText, isThinking, scrollToBottom]);
-
-  const handleMicPress = useCallback(() => {
-    if (isListening) {
-      setIsListening(false);
-      stopMicAnimation();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Simulate captured voice input
-      const voiceCapture = 'Analyze the evidence and find connections between the key suspects';
-      setInputText(voiceCapture);
-    } else {
-      setIsListening(true);
-      startMicAnimation();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      // Auto-stop after 3 seconds
-      setTimeout(() => {
-        setIsListening(false);
-        stopMicAnimation();
-        const voiceCapture = 'Analyze the evidence and find connections between the key suspects';
-        setInputText(voiceCapture);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }, 3000);
-    }
-  }, [isListening, startMicAnimation, stopMicAnimation]);
-
-  const handleQuickAction = useCallback(
-    (label: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setInputText(label);
+  // Build the history array for the AI from messages (exclude welcome for brevity if large)
+  const buildHistory = useCallback(
+    (currentMessages: Message[]): ChatMessage[] => {
+      return currentMessages
+        .filter((m) => m.id !== 'welcome')
+        .map((m) => ({
+          role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
+          content: m.text,
+        }));
     },
     []
   );
 
-  const handlePinMessage = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // ─── Send message (real AI) ────────────────────────────────────────────
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isThinking) return;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setInputText('');
+
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        text: trimmed,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => {
+        const next = [...prev, userMsg];
+        return next;
+      });
+      setIsThinking(true);
+      scrollToBottom();
+
+      // Build conversation history for context
+      setMessages((prev) => {
+        const history = buildHistory(prev);
+
+        // Fire the API call asynchronously using the built history
+        const doFetch = async (hist: ChatMessage[]) => {
+          try {
+            const response = await api.post<AIChatResponse>('/api/ai/chat', {
+              messages: [
+                ...hist,
+                { role: 'user', content: trimmed },
+              ],
+              investigationContext: activeInvestigation?.title,
+            });
+
+            const aiText =
+              response?.message ??
+              "I couldn't process that request. Please try again.";
+
+            const aiMsg: Message = {
+              id: `ai-${Date.now()}`,
+              role: 'ai',
+              text: aiText,
+              timestamp: new Date(),
+            };
+
+            setIsThinking(false);
+            setMessages((p) => [...p, aiMsg]);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            scrollToBottom();
+          } catch (err) {
+            const errMsg: Message = {
+              id: `ai-err-${Date.now()}`,
+              role: 'ai',
+              text: "I encountered an error processing your request. Please check your connection and try again.",
+              timestamp: new Date(),
+            };
+            setIsThinking(false);
+            setMessages((p) => [...p, errMsg]);
+            scrollToBottom();
+          }
+        };
+
+        doFetch(history);
+        return prev;
+      });
+    },
+    [isThinking, scrollToBottom, buildHistory, activeInvestigation]
+  );
+
+  const handleSend = useCallback(() => {
+    sendMessage(inputText);
+  }, [inputText, sendMessage]);
+
+  // ─── Mic ────────────────────────────────────────────────────────────────
+  const handleMicPress = useCallback(() => {
+    if (isListening) {
+      setIsListening(false);
+      stopMicAnimation();
+      if (listenTimerRef.current) clearTimeout(listenTimerRef.current);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setInputText('[Voice captured - transcription]');
+      showToast('Voice input requires microphone permission. Type your message above.');
+    } else {
+      setIsListening(true);
+      startMicAnimation();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      showToast('Voice input requires microphone permission. Type your message above.');
+      listenTimerRef.current = setTimeout(() => {
+        setIsListening(false);
+        stopMicAnimation();
+        setInputText('[Voice captured - transcription]');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }, 3000);
+    }
+  }, [isListening, startMicAnimation, stopMicAnimation, showToast]);
+
+  // ─── Quick actions ───────────────────────────────────────────────────────
+  const handleQuickAction = useCallback(
+    (action: (typeof QUICK_ACTIONS)[number]) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (action.immediate) {
+        sendMessage(action.text);
+      } else {
+        setInputText(action.text);
+      }
+    },
+    [sendMessage]
+  );
+
+  // ─── Pin ─────────────────────────────────────────────────────────────────
+  const handlePinMessage = useCallback(
+    (id: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, pinned: !m.pinned } : m))
+      );
+      showToast('Pinned to investigation board');
+    },
+    [showToast]
+  );
+
+  // ─── Highlight long-press ─────────────────────────────────────────────
+  const handleLongPress = useCallback((id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setTargetMessageId(id);
+    setHighlightSheetVisible(true);
+  }, []);
+
+  const handleHighlightSelect = useCallback(
+    (cat: HighlightCategory) => {
+      setHighlightSheetVisible(false);
+      if (!targetMessageId) return;
+
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== targetMessageId) return m;
+          const firstWords = m.text.split(' ').slice(0, 8).join(' ');
+          const autoTag = `${firstWords}... [${cat.name}]`;
+          return { ...m, highlight: cat, autoTag, pinned: true };
+        })
+      );
+
+      showToast(`Highlighted as "${cat.name}" — Pinned to Board`);
+      setTargetMessageId(null);
+    },
+    [targetMessageId, showToast]
+  );
+
+  // ─── Highlights panel ────────────────────────────────────────────────
+  const highlightedMessages = messages.filter((m) => m.highlight);
+
+  const handleClearAllHighlights = useCallback(() => {
     setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, pinned: !m.pinned } : m))
+      prev.map((m) => ({ ...m, highlight: undefined, autoTag: undefined }))
     );
-    showToast('Pinned to investigation board');
+    setHighlightsPanelVisible(false);
+    showToast('All highlights cleared');
   }, [showToast]);
 
+  // ─── New conversation ────────────────────────────────────────────────
+  const handleNewConversation = useCallback(() => {
+    const nonWelcome = messages.filter((m) => m.id !== 'welcome');
+    if (nonWelcome.length > 3) {
+      setConfirmNewConvoVisible(true);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setMessages([{ ...WELCOME, timestamp: new Date() }]);
+    }
+  }, [messages]);
+
+  const handleConfirmNewConvo = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setConfirmNewConvoVisible(false);
+    setMessages([{ ...WELCOME, timestamp: new Date() }]);
+    showToast('New conversation started');
+  }, [showToast]);
+
+  // ─── Render message ──────────────────────────────────────────────────
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => (
-      <MessageBubble message={item} index={index} onPin={handlePinMessage} />
+      <MessageBubble
+        message={item}
+        index={index}
+        onPin={handlePinMessage}
+        onLongPress={handleLongPress}
+      />
     ),
-    [handlePinMessage]
+    [handlePinMessage, handleLongPress]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);
 
+  const messageCount = messages.filter((m) => m.id !== 'welcome').length;
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }} testID="ai-research-screen">
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* ── Header ───────────────────────────────────── */}
+
+        {/* ── Header ─────────────────────────────────────────────────── */}
         <View
           style={{
             flexDirection: 'row',
@@ -463,7 +1122,7 @@ export default function AIResearchScreen() {
             gap: 12,
           }}
         >
-          {/* Brain icon as logo */}
+          {/* Brain icon */}
           <View
             style={{
               width: 38,
@@ -496,35 +1155,75 @@ export default function AIResearchScreen() {
                 color: COLORS.muted,
                 fontSize: 10,
                 fontWeight: '700',
-                letterSpacing: 3,
+                letterSpacing: 2.5,
                 marginTop: 1,
               }}
             >
-              ASSISTANT
+              {messageCount > 0
+                ? `${messageCount} MESSAGE${messageCount === 1 ? '' : 'S'}`
+                : 'ASSISTANT'}
             </Text>
           </View>
 
-          {/* Status dot */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: 3.5,
-                backgroundColor: '#22C55E',
-              }}
-            />
-            <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '600' }}>
-              ONLINE
+          {/* Highlights button */}
+          <Pressable
+            testID="open-highlights-panel"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setHighlightsPanelVisible(true);
+            }}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              backgroundColor: pressed
+                ? 'rgba(212,165,116,0.18)'
+                : highlightedMessages.length > 0
+                ? 'rgba(212,165,116,0.12)'
+                : 'rgba(212,165,116,0.06)',
+              borderRadius: 10,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderWidth: 1,
+              borderColor:
+                highlightedMessages.length > 0
+                  ? 'rgba(212,165,116,0.4)'
+                  : 'rgba(212,165,116,0.2)',
+            })}
+          >
+            <Highlighter size={13} color={COLORS.pin} strokeWidth={2.2} />
+            <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700' }}>
+              {highlightedMessages.length > 0
+                ? `Highlights (${highlightedMessages.length})`
+                : 'Highlights'}
             </Text>
-          </View>
+          </Pressable>
+
+          {/* New conversation */}
+          <Pressable
+            testID="new-conversation"
+            onPress={handleNewConversation}
+            style={({ pressed }) => ({
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              backgroundColor: pressed
+                ? 'rgba(255,255,255,0.08)'
+                : 'rgba(255,255,255,0.04)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            })}
+          >
+            <RotateCcw size={15} color={COLORS.muted} strokeWidth={2} />
+          </Pressable>
         </View>
 
-        {/* ── Message list ─────────────────────────────── */}
+        {/* ── Messages + Input ────────────────────────────────────────── */}
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
           <FlatList
             ref={flatListRef}
@@ -539,6 +1238,7 @@ export default function AIResearchScreen() {
               isThinking ? (
                 <Animated.View
                   entering={FadeIn.duration(200)}
+                  exiting={FadeOut.duration(200)}
                   style={{
                     flexDirection: 'row',
                     marginHorizontal: 16,
@@ -579,7 +1279,7 @@ export default function AIResearchScreen() {
             }
           />
 
-          {/* ── Bottom input area ─────────────────────── */}
+          {/* ── Input area ──────────────────────────────────────────── */}
           <View
             style={{
               backgroundColor: COLORS.background,
@@ -600,11 +1300,13 @@ export default function AIResearchScreen() {
                 gap: 8,
               }}
             >
-              {QUICK_ACTIONS.map(({ label, icon: Icon }) => (
+              {QUICK_ACTIONS.map(({ label, icon: Icon, ...rest }) => (
                 <Pressable
                   key={label}
                   testID={`quick-action-${label.toLowerCase().replace(/\s+/g, '-')}`}
-                  onPress={() => handleQuickAction(label)}
+                  onPress={() =>
+                    handleQuickAction({ label, icon: Icon, ...rest } as (typeof QUICK_ACTIONS)[number])
+                  }
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -639,6 +1341,7 @@ export default function AIResearchScreen() {
             {isListening ? (
               <Animated.View
                 entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(200)}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -661,7 +1364,9 @@ export default function AIResearchScreen() {
                     backgroundColor: COLORS.red,
                   }}
                 />
-                <Text style={{ color: COLORS.red, fontSize: 13, fontWeight: '700', flex: 1 }}>
+                <Text
+                  style={{ color: COLORS.red, fontSize: 13, fontWeight: '700', flex: 1 }}
+                >
                   Listening...
                 </Text>
                 <Pressable onPress={handleMicPress}>
@@ -670,7 +1375,7 @@ export default function AIResearchScreen() {
               </Animated.View>
             ) : null}
 
-            {/* Text input row */}
+            {/* Input row */}
             <View
               style={{
                 flexDirection: 'row',
@@ -679,12 +1384,12 @@ export default function AIResearchScreen() {
                 gap: 10,
               }}
             >
-              {/* Mic button */}
+              {/* Mic */}
               <Animated.View style={micAnimStyle}>
                 <Pressable
                   testID="mic-button"
                   onPress={handleMicPress}
-                  style={({pressed}) => ({
+                  style={({ pressed }) => ({
                     width: 48,
                     height: 48,
                     borderRadius: 24,
@@ -694,9 +1399,7 @@ export default function AIResearchScreen() {
                       ? 'rgba(196,30,58,0.2)'
                       : COLORS.surface,
                     borderWidth: 2,
-                    borderColor: isListening
-                      ? COLORS.red
-                      : 'rgba(196,30,58,0.35)',
+                    borderColor: isListening ? COLORS.red : 'rgba(196,30,58,0.35)',
                     alignItems: 'center',
                     justifyContent: 'center',
                     shadowColor: isListening ? COLORS.red : '#000',
@@ -721,7 +1424,8 @@ export default function AIResearchScreen() {
                   backgroundColor: COLORS.surface,
                   borderRadius: 24,
                   borderWidth: 1,
-                  borderColor: inputText.length > 0 ? 'rgba(196,30,58,0.4)' : COLORS.border,
+                  borderColor:
+                    inputText.length > 0 ? 'rgba(196,30,58,0.4)' : COLORS.border,
                   paddingHorizontal: 16,
                   paddingTop: 12,
                   paddingBottom: 12,
@@ -749,7 +1453,7 @@ export default function AIResearchScreen() {
                 />
               </View>
 
-              {/* Send button */}
+              {/* Send */}
               <Pressable
                 testID="send-button"
                 onPress={handleSend}
@@ -787,14 +1491,14 @@ export default function AIResearchScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
 
-      {/* ── Toast notification ───────────────────────── */}
+      {/* ── Toast ─────────────────────────────────────────────────────── */}
       {toastVisible ? (
         <Animated.View
           entering={SlideInUp.springify().damping(22)}
           exiting={SlideOutDown.duration(200)}
           style={{
             position: 'absolute',
-            bottom: 100,
+            bottom: 110,
             left: 20,
             right: 20,
             backgroundColor: COLORS.surface,
@@ -814,14 +1518,40 @@ export default function AIResearchScreen() {
             shadowRadius: 12,
             elevation: 12,
           }}
-          testID="pin-toast"
+          testID="toast-notification"
         >
           <Pin size={16} color={COLORS.pin} strokeWidth={2.5} />
-          <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '600', flex: 1 }}>
+          <Text style={{ color: COLORS.textLight, fontSize: 13, fontWeight: '600', flex: 1 }}>
             {toastMessage}
           </Text>
+          <Pressable onPress={() => setToastVisible(false)}>
+            <ChevronDown size={16} color={COLORS.muted} strokeWidth={2} />
+          </Pressable>
         </Animated.View>
       ) : null}
+
+      {/* ── Modals ─────────────────────────────────────────────────────── */}
+      <HighlightSheet
+        visible={highlightSheetVisible}
+        onClose={() => {
+          setHighlightSheetVisible(false);
+          setTargetMessageId(null);
+        }}
+        onSelect={handleHighlightSelect}
+      />
+
+      <HighlightsPanel
+        visible={highlightsPanelVisible}
+        onClose={() => setHighlightsPanelVisible(false)}
+        highlighted={highlightedMessages}
+        onClearAll={handleClearAllHighlights}
+      />
+
+      <ConfirmNewConvoModal
+        visible={confirmNewConvoVisible}
+        onConfirm={handleConfirmNewConvo}
+        onCancel={() => setConfirmNewConvoVisible(false)}
+      />
     </View>
   );
 }
