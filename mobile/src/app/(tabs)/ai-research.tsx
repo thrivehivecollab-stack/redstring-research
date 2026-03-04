@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -24,8 +25,11 @@ import {
   Trash2,
   RotateCcw,
   ChevronDown,
+  Volume2,
+  VolumeX,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -87,6 +91,10 @@ interface Message {
 
 interface AIChatResponse {
   message: string;
+}
+
+interface TranscribeResponse {
+  text: string;
 }
 
 // ─── Quick actions ──────────────────────────────────────────────────────────
@@ -599,11 +607,15 @@ function MessageBubble({
   index,
   onPin,
   onLongPress,
+  onSpeak,
+  isSpeaking,
 }: {
   message: Message;
   index: number;
   onPin: (id: string) => void;
   onLongPress: (id: string) => void;
+  onSpeak: (text: string) => void;
+  isSpeaking: boolean;
 }) {
   const isUser = message.role === 'user';
   const timeStr = message.timestamp.toLocaleTimeString('en-US', {
@@ -611,6 +623,24 @@ function MessageBubble({
     minute: '2-digit',
     hour12: true,
   });
+
+  // Subtle pulse on avatar when speaking
+  const avatarScale = useSharedValue(1);
+  useEffect(() => {
+    if (isSpeaking) {
+      avatarScale.value = withRepeat(
+        withSequence(withTiming(1.15, { duration: 500 }), withTiming(0.92, { duration: 500 })),
+        -1,
+        true
+      );
+    } else {
+      avatarScale.value = withSpring(1);
+    }
+  }, [isSpeaking]);
+
+  const avatarAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: avatarScale.value }],
+  }));
 
   return (
     <Animated.View
@@ -625,21 +655,23 @@ function MessageBubble({
     >
       {/* AI avatar */}
       {!isUser ? (
-        <View
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 15,
-            backgroundColor: 'rgba(196,30,58,0.15)',
-            borderWidth: 1,
-            borderColor: 'rgba(196,30,58,0.35)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 2,
-          }}
-        >
-          <Brain size={14} color={COLORS.red} strokeWidth={2} />
-        </View>
+        <Animated.View style={avatarAnimStyle}>
+          <View
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: isSpeaking ? 'rgba(196,30,58,0.3)' : 'rgba(196,30,58,0.15)',
+              borderWidth: 1,
+              borderColor: isSpeaking ? 'rgba(196,30,58,0.7)' : 'rgba(196,30,58,0.35)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 2,
+            }}
+          >
+            <Brain size={14} color={COLORS.red} strokeWidth={2} />
+          </View>
+        </Animated.View>
       ) : null}
 
       {/* Bubble wrapper */}
@@ -758,7 +790,7 @@ function MessageBubble({
           </Text>
         ) : null}
 
-        {/* Auto-tag + Pin row for AI messages */}
+        {/* Auto-tag + Pin + Speak row for AI messages */}
         {!isUser ? (
           <View
             style={{
@@ -815,6 +847,30 @@ function MessageBubble({
                 {message.pinned ? 'Pinned' : 'Pin to Board'}
               </Text>
             </Pressable>
+            {/* Speak button per message */}
+            <Pressable
+              testID={`speak-message-${message.id}`}
+              onPress={() => onSpeak(message.text)}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: isSpeaking
+                  ? 'rgba(196,30,58,0.18)'
+                  : pressed
+                  ? 'rgba(196,30,58,0.12)'
+                  : 'rgba(196,30,58,0.06)',
+                borderRadius: 8,
+                paddingHorizontal: 9,
+                paddingVertical: 5,
+                borderWidth: 1,
+                borderColor: isSpeaking
+                  ? 'rgba(196,30,58,0.5)'
+                  : 'rgba(196,30,58,0.2)',
+              })}
+            >
+              <Volume2 size={12} color={COLORS.red} strokeWidth={2.5} />
+            </Pressable>
           </View>
         ) : null}
       </View>
@@ -842,6 +898,10 @@ export default function AIResearchScreen() {
   const [inputText, setInputText] = useState<string>('');
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
   // Modals
   const [highlightSheetVisible, setHighlightSheetVisible] = useState<boolean>(false);
@@ -855,7 +915,8 @@ export default function AIResearchScreen() {
 
   const flatListRef = useRef<FlatList<Message>>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const currentSoundRef = useRef<Audio.Sound | null>(null);
 
   // Mic animation
   const micPulse = useSharedValue(1);
@@ -893,6 +954,73 @@ export default function AIResearchScreen() {
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
   }, []);
+
+  // ─── Stop currently playing audio ─────────────────────────────────────
+  const stopCurrentAudio = useCallback(async () => {
+    if (currentSoundRef.current) {
+      try {
+        await currentSoundRef.current.stopAsync();
+        await currentSoundRef.current.unloadAsync();
+      } catch {
+        // ignore cleanup errors
+      }
+      currentSoundRef.current = null;
+    }
+    setIsSpeaking(false);
+    setSpeakingMessageId(null);
+  }, []);
+
+  // ─── TTS playback ──────────────────────────────────────────────────────
+  const speakText = useCallback(async (text: string, messageId?: string) => {
+    await stopCurrentAudio();
+
+    try {
+      setIsSpeaking(true);
+      if (messageId) setSpeakingMessageId(messageId);
+
+      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const response = await fetch(`${BACKEND_URL}/api/ai/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('TTS request failed');
+      }
+
+      const blob = await response.blob();
+
+      await new Promise<void>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const uri = reader.result as string;
+            const { sound } = await Audio.Sound.createAsync({ uri });
+            currentSoundRef.current = sound;
+            await sound.playAsync();
+            sound.setOnPlaybackStatusUpdate((status) => {
+              if (status.isLoaded && status.didJustFinish) {
+                sound.unloadAsync();
+                currentSoundRef.current = null;
+                setIsSpeaking(false);
+                setSpeakingMessageId(null);
+                resolve();
+              }
+            });
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(new Error('FileReader error'));
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+      showToast('Could not play voice response');
+    }
+  }, [stopCurrentAudio, showToast]);
 
   // Build the history array for the AI from messages (exclude welcome for brevity if large)
   const buildHistory = useCallback(
@@ -949,8 +1077,9 @@ export default function AIResearchScreen() {
               response?.message ??
               "I couldn't process that request. Please try again.";
 
+            const aiMsgId = `ai-${Date.now()}`;
             const aiMsg: Message = {
-              id: `ai-${Date.now()}`,
+              id: aiMsgId,
               role: 'ai',
               text: aiText,
               timestamp: new Date(),
@@ -960,6 +1089,11 @@ export default function AIResearchScreen() {
             setMessages((p) => [...p, aiMsg]);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             scrollToBottom();
+
+            // Auto-speak if voice is enabled
+            if (voiceEnabled) {
+              speakText(aiText, aiMsgId);
+            }
           } catch (err) {
             const errMsg: Message = {
               id: `ai-err-${Date.now()}`,
@@ -977,33 +1111,94 @@ export default function AIResearchScreen() {
         return prev;
       });
     },
-    [isThinking, scrollToBottom, buildHistory, activeInvestigation]
+    [isThinking, scrollToBottom, buildHistory, activeInvestigation, voiceEnabled, speakText]
   );
 
   const handleSend = useCallback(() => {
     sendMessage(inputText);
   }, [inputText, sendMessage]);
 
-  // ─── Mic ────────────────────────────────────────────────────────────────
-  const handleMicPress = useCallback(() => {
+  // ─── Mic: record + transcribe ────────────────────────────────────────
+  const handleMicPress = useCallback(async () => {
     if (isListening) {
+      // Stop recording
       setIsListening(false);
       stopMicAnimation();
-      if (listenTimerRef.current) clearTimeout(listenTimerRef.current);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setInputText('[Voice captured - transcription]');
-      showToast('Voice input requires microphone permission. Type your message above.');
+
+      if (!recordingRef.current) return;
+
+      setIsTranscribing(true);
+      try {
+        await recordingRef.current.stopAndUnloadAsync();
+        const uri = recordingRef.current.getURI();
+        recordingRef.current = null;
+
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+        if (!uri) {
+          showToast('Recording failed. Please try again.');
+          setIsTranscribing(false);
+          return;
+        }
+
+        const fetchResponse = await fetch(uri);
+        const blob = await fetchResponse.blob();
+        const filename = uri.split('/').pop() ?? 'recording.m4a';
+        const fd = new FormData();
+        fd.append('file', blob, filename);
+
+        const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+        const res = await fetch(`${BACKEND_URL}/api/ai/transcribe`, {
+          method: 'POST',
+          body: fd,
+        });
+
+        if (!res.ok) {
+          throw new Error('Transcription failed');
+        }
+
+        const json = await res.json();
+        const transcribedText: string = json.data?.text ?? '';
+
+        if (transcribedText.trim()) {
+          setInputText(transcribedText.trim());
+        } else {
+          showToast('Could not transcribe audio. Please try again.');
+        }
+      } catch {
+        showToast('Transcription failed. Please try again.');
+        recordingRef.current = null;
+      } finally {
+        setIsTranscribing(false);
+      }
     } else {
-      setIsListening(true);
-      startMicAnimation();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      showToast('Voice input requires microphone permission. Type your message above.');
-      listenTimerRef.current = setTimeout(() => {
-        setIsListening(false);
-        stopMicAnimation();
-        setInputText('[Voice captured - transcription]');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }, 3000);
+      // Request permissions and start recording
+      const { status } = await Audio.requestPermissionsAsync();
+
+      if (status !== 'granted') {
+        showToast('Microphone permission is required. Please enable it in Settings.');
+        return;
+      }
+
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+
+        recordingRef.current = recording;
+        setIsListening(true);
+        startMicAnimation();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      } catch {
+        showToast('Could not start recording. Please try again.');
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      }
     }
   }, [isListening, startMicAnimation, stopMicAnimation, showToast]);
 
@@ -1084,9 +1279,34 @@ export default function AIResearchScreen() {
   const handleConfirmNewConvo = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setConfirmNewConvoVisible(false);
+    stopCurrentAudio();
     setMessages([{ ...WELCOME, timestamp: new Date() }]);
     showToast('New conversation started');
-  }, [showToast]);
+  }, [showToast, stopCurrentAudio]);
+
+  // ─── Handle speak for a specific message ─────────────────────────────
+  const handleSpeakMessage = useCallback(
+    (text: string, messageId: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (isSpeaking && speakingMessageId === messageId) {
+        stopCurrentAudio();
+      } else {
+        speakText(text, messageId);
+      }
+    },
+    [isSpeaking, speakingMessageId, stopCurrentAudio, speakText]
+  );
+
+  // ─── Toggle voice output ──────────────────────────────────────────────
+  const handleToggleVoice = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setVoiceEnabled((prev) => {
+      const next = !prev;
+      if (!next) stopCurrentAudio();
+      showToast(next ? 'Voice responses enabled' : 'Voice responses disabled');
+      return next;
+    });
+  }, [stopCurrentAudio, showToast]);
 
   // ─── Render message ──────────────────────────────────────────────────
   const renderMessage = useCallback(
@@ -1096,9 +1316,11 @@ export default function AIResearchScreen() {
         index={index}
         onPin={handlePinMessage}
         onLongPress={handleLongPress}
+        onSpeak={(text) => handleSpeakMessage(text, item.id)}
+        isSpeaking={!!(isSpeaking && speakingMessageId === item.id)}
       />
     ),
-    [handlePinMessage, handleLongPress]
+    [handlePinMessage, handleLongPress, handleSpeakMessage, isSpeaking, speakingMessageId]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);
@@ -1164,6 +1386,34 @@ export default function AIResearchScreen() {
                 : 'ASSISTANT'}
             </Text>
           </View>
+
+          {/* Voice toggle button */}
+          <Pressable
+            testID="voice-toggle-button"
+            onPress={handleToggleVoice}
+            style={({ pressed }) => ({
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              backgroundColor: voiceEnabled
+                ? pressed
+                  ? 'rgba(196,30,58,0.25)'
+                  : 'rgba(196,30,58,0.15)'
+                : pressed
+                ? 'rgba(255,255,255,0.08)'
+                : 'rgba(255,255,255,0.04)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: voiceEnabled ? 'rgba(196,30,58,0.5)' : COLORS.border,
+            })}
+          >
+            {voiceEnabled ? (
+              <Volume2 size={15} color={COLORS.red} strokeWidth={2} />
+            ) : (
+              <VolumeX size={15} color={COLORS.muted} strokeWidth={2} />
+            )}
+          </Pressable>
 
           {/* Highlights button */}
           <Pressable
@@ -1375,6 +1625,32 @@ export default function AIResearchScreen() {
               </Animated.View>
             ) : null}
 
+            {/* Transcribing banner */}
+            {isTranscribing ? (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(200)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginHorizontal: 16,
+                  marginBottom: 10,
+                  backgroundColor: 'rgba(212,165,116,0.08)',
+                  borderRadius: 10,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  borderWidth: 1,
+                  borderColor: 'rgba(212,165,116,0.25)',
+                }}
+              >
+                <ActivityIndicator size="small" color={COLORS.pin} />
+                <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700', flex: 1 }}>
+                  Transcribing...
+                </Text>
+              </Animated.View>
+            ) : null}
+
             {/* Input row */}
             <View
               style={{
@@ -1389,17 +1665,24 @@ export default function AIResearchScreen() {
                 <Pressable
                   testID="mic-button"
                   onPress={handleMicPress}
+                  disabled={isTranscribing}
                   style={({ pressed }) => ({
                     width: 48,
                     height: 48,
                     borderRadius: 24,
                     backgroundColor: isListening
                       ? COLORS.red
+                      : isTranscribing
+                      ? 'rgba(212,165,116,0.15)'
                       : pressed
                       ? 'rgba(196,30,58,0.2)'
                       : COLORS.surface,
                     borderWidth: 2,
-                    borderColor: isListening ? COLORS.red : 'rgba(196,30,58,0.35)',
+                    borderColor: isListening
+                      ? COLORS.red
+                      : isTranscribing
+                      ? 'rgba(212,165,116,0.4)'
+                      : 'rgba(196,30,58,0.35)',
                     alignItems: 'center',
                     justifyContent: 'center',
                     shadowColor: isListening ? COLORS.red : '#000',
@@ -1409,11 +1692,15 @@ export default function AIResearchScreen() {
                     elevation: isListening ? 8 : 3,
                   })}
                 >
-                  <Mic
-                    size={20}
-                    color={isListening ? '#FFF' : COLORS.red}
-                    strokeWidth={2}
-                  />
+                  {isTranscribing ? (
+                    <ActivityIndicator size="small" color={COLORS.pin} />
+                  ) : (
+                    <Mic
+                      size={20}
+                      color={isListening ? '#FFF' : COLORS.red}
+                      strokeWidth={2}
+                    />
+                  )}
                 </Pressable>
               </Animated.View>
 

@@ -70,4 +70,77 @@ aiRouter.post(
   }
 );
 
+// ─── Transcribe audio ──────────────────────────────────────────────────────
+aiRouter.post("/transcribe", async (c) => {
+  if (!env.OPENAI_API_KEY) {
+    return c.json({ error: { message: "OpenAI API key not configured." } }, 500);
+  }
+
+  const formData = await c.req.formData();
+  const file = formData.get("file") as File | null;
+
+  if (!file) {
+    return c.json({ error: { message: "No audio file provided." } }, 400);
+  }
+
+  const apiForm = new FormData();
+  apiForm.append("file", file);
+  apiForm.append("model", "gpt-4o-mini-transcribe");
+  apiForm.append("response_format", "json");
+
+  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: apiForm,
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    return c.json({ error: { message: err } }, 500);
+  }
+
+  const result = (await response.json()) as { text: string };
+  return c.json({ data: { text: result.text } });
+});
+
+// ─── Text-to-speech ────────────────────────────────────────────────────────
+aiRouter.post(
+  "/tts",
+  zValidator("json", z.object({ text: z.string().min(1) })),
+  async (c) => {
+    const { text } = c.req.valid("json");
+
+    if (!env.ELEVENLABS_API_KEY) {
+      return c.json({ error: { message: "ElevenLabs API key not configured." } }, 500);
+    }
+
+    const voiceId = "21m00Tcm4TlvDq8ikWAM"; // Rachel
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": env.ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_flash_v2_5",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      return c.json({ error: { message: err } }, 500);
+    }
+
+    return new Response(response.body, {
+      headers: { "Content-Type": "audio/mpeg" },
+    });
+  }
+);
+
 export { aiRouter };

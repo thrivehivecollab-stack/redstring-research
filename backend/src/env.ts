@@ -19,6 +19,8 @@ const envSchema = z.object({
   TWILIO_PHONE_NUMBER: z.string().optional(),
   // OpenAI
   OPENAI_API_KEY: z.string().optional(),
+  // ElevenLabs
+  ELEVENLABS_API_KEY: z.string().optional(),
 });
 
 /**
