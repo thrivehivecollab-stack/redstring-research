@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Map as MapIcon, Inbox, Mail } from 'lucide-react-native';
+import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import useInvestigationStore from '@/lib/state/investigation-store';
@@ -24,6 +24,7 @@ import { authClient } from '@/lib/auth/auth-client';
 import CollabSheet from '@/components/CollabSheet';
 import TourOverlay from '@/components/TourOverlay';
 import WhatsNewModal, { shouldShowWhatsNew, markWhatsNewSeen } from '@/components/WhatsNewModal';
+import VideoOnboardingModal from '@/components/VideoOnboardingModal';
 import { createDemoInvestigation } from '@/lib/demoData';
 import type { Investigation } from '@/lib/types';
 import type { CollabSession } from '@/lib/state/collab-store';
@@ -350,8 +351,7 @@ export default function InvestigationsDashboard() {
   // Tour store
   const hasCompletedTour = useTourStore((s) => s.hasCompletedTour);
   const isDemoMode = useTourStore((s) => s.isDemoMode);
-  const isRunning = useTourStore((s) => s.isRunning);
-  const startTour = useTourStore((s) => s.startTour);
+  const completeTour = useTourStore((s) => s.completeTour);
   const startTourFromStep = useTourStore((s) => s.startTourFromStep);
   const startDemoMode = useTourStore((s) => s.startDemoMode);
   const exitDemoMode = useTourStore((s) => s.exitDemoMode);
@@ -363,6 +363,7 @@ export default function InvestigationsDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
   const [showHelpMenu, setShowHelpMenu] = useState<boolean>(false);
+  const [showVideoOnboarding, setShowVideoOnboarding] = useState<boolean>(false);
   const [showWhatsNew, setShowWhatsNew] = useState<boolean>(false);
   const [showExitDemoConfirm, setShowExitDemoConfirm] = useState<boolean>(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -375,7 +376,7 @@ export default function InvestigationsDashboard() {
   const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
   const [collabSheetVisible, setCollabSheetVisible] = useState<boolean>(false);
 
-  // Auto-start tour on first session
+  // Auto-show video onboarding on first session
   useEffect(() => {
     if (!session?.user) return;
     if (!sessionStartedAt) {
@@ -383,8 +384,8 @@ export default function InvestigationsDashboard() {
       return;
     }
     const secondsSinceStart = (Date.now() - sessionStartedAt) / 1000;
-    if (!hasCompletedTour && !isRunning && secondsSinceStart < 60) {
-      const timer = setTimeout(() => startTour(), 1200);
+    if (!hasCompletedTour && secondsSinceStart < 60) {
+      const timer = setTimeout(() => setShowVideoOnboarding(true), 1200);
       return () => clearTimeout(timer);
     }
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -589,7 +590,7 @@ export default function InvestigationsDashboard() {
                 testID="help-button"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowHelpMenu(true);
+                  setShowVideoOnboarding(true);
                 }}
                 style={({ pressed }) => ({
                   width: 32,
@@ -752,13 +753,13 @@ export default function InvestigationsDashboard() {
               </Text>
             </View>
 
-            {/* Take the Tour */}
+            {/* Watch Intro Video */}
             <Pressable
               testID="help-start-tour"
               onPress={() => {
                 setShowHelpMenu(false);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setTimeout(() => startTour(), 200);
+                setTimeout(() => setShowVideoOnboarding(true), 200);
               }}
               style={({ pressed }) => ({
                 flexDirection: 'row',
@@ -771,11 +772,11 @@ export default function InvestigationsDashboard() {
               })}
             >
               <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(196,30,58,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(196,30,58,0.25)' }}>
-                <MapIcon size={18} color={COLORS.red} strokeWidth={2} />
+                <Play size={18} color={COLORS.red} strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Take the Tour</Text>
-                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>18-step guided walkthrough</Text>
+                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Watch Intro Video</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>See how Red String works</Text>
               </View>
               {!hasCompletedTour ? (
                 <View style={{ backgroundColor: COLORS.red, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -1330,6 +1331,12 @@ export default function InvestigationsDashboard() {
 
       {/* Tour Overlay */}
       <TourOverlay />
+
+      {/* Video Onboarding Modal */}
+      <VideoOnboardingModal
+        visible={showVideoOnboarding}
+        onClose={() => { setShowVideoOnboarding(false); completeTour(); }}
+      />
 
       {/* What's New Modal */}
       <WhatsNewModal
