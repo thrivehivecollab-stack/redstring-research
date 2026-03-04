@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  username      String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  // Collaboration
+  sentInvites     CollabInvite[]      @relation("InviteSender")
+  receivedInvites CollabInvite[]      @relation("InviteReceiver")
+  collaborations  CollabMember[]
+  contributions   NodeContribution[]
+  auditLogs       AuditLog[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ============================================
+// COLLABORATION MODELS
+// ============================================
+
+// A collaboration session on an investigation
+model CollabSession {
+  id                String   @id @default(cuid())
+  investigationId   String   // local investigation ID from the app
+  ownerId           String   // Better Auth user ID of investigation owner
+  title             String
+  description       String?
+  // Serialized investigation snapshot (JSON)
+  originalSnapshot  String   // JSON snapshot of investigation at collab creation
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  members           CollabMember[]
+  invites           CollabInvite[]
+  pendingNodes      PendingNode[]
+  contributions     NodeContribution[]
+  auditLogs         AuditLog[]
+}
+
+// Permission levels for collaborators
+// viewer: read-only
+// annotator: can add sticky notes/highlights on their own overlay
+// contributor: can submit nodes to pending queue for owner approval
+// co_investigator: can work on designated sections
+model CollabMember {
+  id              String   @id @default(cuid())
+  collabSessionId String
+  userId          String
+  permission      String   @default("viewer") // viewer | annotator | contributor | co_investigator
+  invitedAt       DateTime @default(now())
+  joinedAt        DateTime?
+
+  collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([collabSessionId, userId])
+}
+
+// Invite links/codes
+model CollabInvite {
+  id              String   @id @default(cuid())
+  collabSessionId String
+  senderId        String
+  receiverId      String?  // null = open invite link
+  inviteCode      String   @unique @default(cuid())
+  permission      String   @default("viewer")
+  message         String?
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
+  sender          User          @relation("InviteSender", fields: [senderId], references: [id])
+  receiver        User?         @relation("InviteReceiver", fields: [receiverId], references: [id])
+}
+
+// Nodes submitted by collaborators awaiting owner approval
+model PendingNode {
+  id              String   @id @default(cuid())
+  collabSessionId String
+  contributorId   String
+  // Full node data as JSON
+  nodeData        String   // JSON CanvasNode
+  status          String   @default("pending") // pending | approved | rejected
+  reviewedAt      DateTime?
+  reviewNote      String?
+  createdAt       DateTime @default(now())
+
+  collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
+}
+
+// Attribution record for approved contributions
+model NodeContribution {
+  id              String   @id @default(cuid())
+  collabSessionId String
+  contributorId   String
+  nodeId          String   // The local node ID in the investigation
+  nodeTitle       String
+  contributedAt   DateTime @default(now())
+
+  collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
+  contributor     User          @relation(fields: [contributorId], references: [id])
+}
+
+// Full audit trail
+model AuditLog {
+  id              String   @id @default(cuid())
+  collabSessionId String
+  userId          String
+  action          String   // viewed | added_node | approved_node | rejected_node | invited | joined | exported
+  details         String?  // JSON details
+  createdAt       DateTime @default(now())
+
+  collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id])
+}

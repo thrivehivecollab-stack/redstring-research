@@ -11,12 +11,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock } from 'lucide-react-native';
+import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
+import useCollabStore from '@/lib/state/collab-store';
+import { useSession } from '@/lib/auth/use-session';
+import { useInvalidateSession } from '@/lib/auth/use-session';
+import { authClient } from '@/lib/auth/auth-client';
+import CollabSheet from '@/components/CollabSheet';
 import type { Investigation } from '@/lib/types';
+import type { CollabSession } from '@/lib/state/collab-store';
 
 // Color constants
 const COLORS = {
@@ -46,16 +52,21 @@ function formatDate(timestamp: number): string {
 function InvestigationCard({
   investigation,
   index,
+  collabSession,
   onPress,
   onLongPress,
+  onCollabPress,
 }: {
   investigation: Investigation;
   index: number;
+  collabSession: CollabSession | null;
   onPress: () => void;
   onLongPress: () => void;
+  onCollabPress: () => void;
 }) {
   const nodeCount = investigation.nodes.length;
   const stringCount = investigation.strings.length;
+  const memberCount = collabSession?.members.length ?? 0;
 
   return (
     <Animated.View
@@ -139,6 +150,34 @@ function InvestigationCard({
             </Text>
           </View>
           <View style={{ flex: 1 }} />
+
+          {/* Collab badge */}
+          {collabSession ? (
+            <Pressable
+              testID={`collab-badge-${investigation.id}`}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onCollabPress();
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
+                borderRadius: 8,
+                paddingHorizontal: 7,
+                paddingVertical: 3,
+                borderWidth: 1,
+                borderColor: 'rgba(196,30,58,0.3)',
+              })}
+            >
+              <Users size={11} color={COLORS.red} strokeWidth={2.5} />
+              <Text style={{ color: COLORS.red, fontSize: 10, fontWeight: '700' }}>
+                {memberCount}
+              </Text>
+            </Pressable>
+          ) : null}
+
           <Text className="text-xs" style={{ color: COLORS.muted }}>
             {formatDate(investigation.updatedAt)}
           </Text>
@@ -191,19 +230,39 @@ export default function InvestigationsDashboard() {
   const maxInvestigations = useSubscriptionStore((s) => s.maxInvestigations);
   const maxInvestigationsCount = maxInvestigations();
 
+  const sessions = useCollabStore((s) => s.sessions);
+
+  const { data: session } = useSession();
+  const invalidateSession = useInvalidateSession();
+
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetTitle, setDeleteTargetTitle] = useState<string>('');
   const [newTitle, setNewTitle] = useState<string>('');
   const [newDescription, setNewDescription] = useState<string>('');
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
+
+  // Collab sheet state
+  const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
+  const [collabSheetVisible, setCollabSheetVisible] = useState<boolean>(false);
 
   // Sort investigations by most recently updated
   const sortedInvestigations = React.useMemo(
     () => [...investigations].sort((a, b) => b.updatedAt - a.updatedAt),
     [investigations]
   );
+
+  // Map investigation id -> collab session
+  const collabSessionMap = React.useMemo(() => {
+    const map = new Map<string, CollabSession>();
+    for (const s of sessions) {
+      map.set(s.investigationId, s);
+    }
+    return map;
+  }, [sessions]);
 
   const handleCreate = useCallback(() => {
     const trimmedTitle = newTitle.trim();
@@ -255,22 +314,46 @@ export default function InvestigationsDashboard() {
     setShowDeleteModal(false);
   }, [deleteTargetId, deleteInvestigation]);
 
+  const handleCollabPress = useCallback((investigationId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCollabSheetInvestigationId(investigationId);
+    setCollabSheetVisible(true);
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    setIsSigningOut(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await authClient.signOut();
+      await invalidateSession();
+      setShowAccountModal(false);
+    } finally {
+      setIsSigningOut(false);
+    }
+  }, [invalidateSession]);
+
   const renderItem = useCallback(
     ({ item, index }: { item: Investigation; index: number }) => (
       <InvestigationCard
         investigation={item}
         index={index}
+        collabSession={collabSessionMap.get(item.id) ?? null}
         onPress={() => handleCardPress(item.id)}
         onLongPress={() => handleCardLongPress(item.id, item.title)}
+        onCollabPress={() => handleCollabPress(item.id)}
       />
     ),
-    [handleCardPress, handleCardLongPress]
+    [handleCardPress, handleCardLongPress, handleCollabPress, collabSessionMap]
   );
 
   const keyExtractor = useCallback((item: Investigation) => item.id, []);
 
   const tierLabel = tier === 'free' ? 'FREE' : tier === 'pro' ? 'PRO' : 'PLUS';
   const tierColor = tier === 'free' ? COLORS.muted : tier === 'pro' ? COLORS.pin : '#F0C060';
+
+  const activeCollabSession = collabSheetInvestigationId
+    ? (collabSessionMap.get(collabSheetInvestigationId) ?? null)
+    : null;
 
   return (
     <View className="flex-1" style={{ backgroundColor: COLORS.background }} testID="investigations-screen">
@@ -286,29 +369,52 @@ export default function InvestigationsDashboard() {
                 RED STRING
               </Text>
             </View>
-            {/* Plan badge */}
-            <Pressable
-              testID="plan-badge"
-              onPress={() => router.push('/paywall')}
-              style={{
-                backgroundColor: tierColor + '22',
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: tierColor + '55',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <Text style={{ color: tierColor, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>
-                {tierLabel}
-              </Text>
-              {tier === 'free' ? (
-                <Lock size={10} color={tierColor} strokeWidth={2.5} />
-              ) : null}
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* Account button */}
+              <Pressable
+                testID="account-button"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowAccountModal(true);
+                }}
+                style={({ pressed }) => ({
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <User size={15} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+
+              {/* Plan badge */}
+              <Pressable
+                testID="plan-badge"
+                onPress={() => router.push('/paywall')}
+                style={{
+                  backgroundColor: tierColor + '22',
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderWidth: 1,
+                  borderColor: tierColor + '55',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <Text style={{ color: tierColor, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>
+                  {tierLabel}
+                </Text>
+                {tier === 'free' ? (
+                  <Lock size={10} color={tierColor} strokeWidth={2.5} />
+                ) : null}
+              </Pressable>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text
@@ -367,6 +473,119 @@ export default function InvestigationsDashboard() {
           />
         )}
       </SafeAreaView>
+
+      {/* Account Modal */}
+      <Modal
+        visible={showAccountModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAccountModal(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowAccountModal(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              backgroundColor: COLORS.surface,
+              borderRadius: 20,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            {/* Avatar */}
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: 'rgba(196,30,58,0.15)',
+                  borderWidth: 2,
+                  borderColor: 'rgba(196,30,58,0.3)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <User size={28} color={COLORS.red} strokeWidth={1.5} />
+              </View>
+              <Text style={{ color: COLORS.textLight, fontSize: 16, fontWeight: '700' }}>
+                {session?.user?.name || 'Investigator'}
+              </Text>
+              <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
+                {session?.user?.email || ''}
+              </Text>
+            </View>
+
+            {/* Plan badge */}
+            <View
+              style={{
+                backgroundColor: tierColor + '15',
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: tierColor + '33',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: tierColor, fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>
+                {tierLabel} PLAN
+              </Text>
+              {tier !== 'free' ? null : (
+                <Pressable
+                  onPress={() => {
+                    setShowAccountModal(false);
+                    router.push('/paywall');
+                  }}
+                >
+                  <Text style={{ color: COLORS.red, fontSize: 12, fontWeight: '600' }}>
+                    Upgrade
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Sign out */}
+            <Pressable
+              testID="sign-out-button"
+              onPress={handleSignOut}
+              disabled={isSigningOut}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingVertical: 14,
+                borderRadius: 12,
+                backgroundColor: pressed ? 'rgba(196,30,58,0.15)' : 'rgba(196,30,58,0.08)',
+                borderWidth: 1,
+                borderColor: 'rgba(196,30,58,0.25)',
+                opacity: isSigningOut ? 0.7 : 1,
+              })}
+            >
+              <LogOut size={16} color={COLORS.red} strokeWidth={2} />
+              <Text style={{ color: COLORS.red, fontSize: 15, fontWeight: '700' }}>
+                {isSigningOut ? 'Signing out...' : 'Sign Out'}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Create Investigation Modal */}
       <Modal
@@ -684,6 +903,15 @@ export default function InvestigationsDashboard() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Collab Sheet */}
+      <CollabSheet
+        investigationId={collabSheetInvestigationId ?? ''}
+        session={activeCollabSession}
+        visible={collabSheetVisible}
+        onClose={() => setCollabSheetVisible(false)}
+        currentUserId={session?.user?.id}
+      />
     </View>
   );
 }

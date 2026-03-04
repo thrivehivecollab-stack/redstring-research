@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   Modal,
+  AppState,
   useWindowDimensions,
   StyleSheet,
 } from 'react-native';
@@ -13,8 +14,11 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSequence,
   runOnJS,
   Easing,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, {
@@ -446,6 +450,21 @@ export default function InvestigationCanvas() {
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
   const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
   const [selectedStringId, setSelectedStringId] = useState<string | null>(null);
+
+  // ---- Screenshot / background protection ----
+  const [showPrivacyOverlay, setShowPrivacyOverlay] = useState<boolean>(false);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'inactive' || nextState === 'background') {
+        setShowPrivacyOverlay(true);
+      } else if (nextState === 'active') {
+        // Keep overlay visible for 2 seconds after returning, then fade
+        const t = setTimeout(() => setShowPrivacyOverlay(false), 2000);
+        return () => clearTimeout(t);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Bottom sheet
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -1310,6 +1329,70 @@ export default function InvestigationCanvas() {
           ) : null}
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {/* ---- PRIVACY OVERLAY (screenshot / background protection) ---- */}
+      {showPrivacyOverlay ? (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(400)}
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: C.bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: C.surface,
+              borderWidth: 1,
+              borderColor: C.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 20,
+              shadowColor: C.red,
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.25,
+              shadowRadius: 16,
+              elevation: 12,
+            }}
+          >
+            <Svg width={40} height={40} viewBox="0 0 64 64">
+              <SvgCircle cx={32} cy={14} r={4} fill={C.red} opacity={0.9} />
+              <SvgCircle cx={50} cy={44} r={4} fill={C.red} opacity={0.9} />
+              <SvgCircle cx={14} cy={44} r={4} fill={C.red} opacity={0.9} />
+              <Path d="M32 14 L50 44" stroke={C.red} strokeWidth={1.5} fill="none" opacity={0.7} />
+              <Path d="M50 44 L14 44" stroke={C.red} strokeWidth={1.5} fill="none" opacity={0.7} />
+              <Path d="M14 44 L32 14" stroke={C.red} strokeWidth={1.5} fill="none" opacity={0.7} />
+            </Svg>
+          </View>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '900',
+              color: C.red,
+              letterSpacing: 3,
+              marginBottom: 4,
+            }}
+          >
+            RED STRING
+          </Text>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: C.pin,
+              letterSpacing: 5,
+            }}
+          >
+            RESEARCH
+          </Text>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }

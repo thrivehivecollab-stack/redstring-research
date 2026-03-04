@@ -1,4 +1,5 @@
 import { fetch } from "expo/fetch";
+import { authClient } from "../auth/auth-client";
 
 // Response envelope type - all app routes return { data: T }
 interface ApiResponse<T> {
@@ -11,9 +12,20 @@ const request = async <T>(
   url: string,
   options: { method?: string; body?: string } = {}
 ): Promise<T> => {
+  const headers: Record<string, string> = {};
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+  // Attach auth cookie for authenticated requests
+  const cookie = authClient.getCookie();
+  if (cookie) {
+    headers["Cookie"] = cookie;
+  }
+
   const response = await fetch(`${baseUrl}${url}`, {
     ...options,
-    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    credentials: "include",
+    headers,
   });
 
   // 1. Handle 204 No Content

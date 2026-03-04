@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect } from 'react';
 import useSubscriptionStore from '@/lib/state/subscription-store';
+import { useSession } from '@/lib/auth/use-session';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -29,24 +30,50 @@ const CorkboardTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayoutNav() {
   const checkSubscription = useSubscriptionStore((s) => s.checkSubscription);
+  const { data: session, isLoading } = useSession();
 
   useEffect(() => {
     checkSubscription();
   }, [checkSubscription]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+
+  // Keep splash screen visible while loading session
+  if (isLoading) {
+    return null;
+  }
+
+  const isAuthenticated = !!session?.user;
+
+  return (
+    <ThemeProvider value={CorkboardTheme}>
+      <Stack>
+        <Stack.Protected guard={isAuthenticated}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="paywall" options={{ presentation: 'modal', headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!isAuthenticated}>
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+          <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
+        </Stack.Protected>
+      </Stack>
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <StatusBar style="light" />
-          <ThemeProvider value={CorkboardTheme}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="paywall" options={{ presentation: 'modal', headerShown: false }} />
-            </Stack>
-          </ThemeProvider>
+          <RootLayoutNav />
         </KeyboardProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
