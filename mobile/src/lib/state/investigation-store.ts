@@ -63,6 +63,9 @@ interface InvestigationStore {
   // Demo
   addDemoInvestigation: (investigation: Investigation) => void;
   removeDemoInvestigation: () => void;
+
+  // Undo
+  restoreInvestigation: (investigation: Investigation) => void;
 }
 
 const useInvestigationStore = create<InvestigationStore>()(
@@ -438,6 +441,12 @@ const useInvestigationStore = create<InvestigationStore>()(
             state.investigations.find((inv) => inv.id === state.activeInvestigationId)?.isDemo
               ? null
               : state.activeInvestigationId,
+        }));
+      },
+
+      restoreInvestigation: (investigation) => {
+        set((state) => ({
+          investigations: [...state.investigations, investigation],
         }));
       },
     }),

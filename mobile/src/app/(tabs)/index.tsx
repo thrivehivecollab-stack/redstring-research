@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+  SlideInDown,
+  SlideOutDown,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import useCollabStore from '@/lib/state/collab-store';
@@ -42,6 +54,8 @@ const COLORS = {
   cardText: '#2C1810',
 } as const;
 
+const SWIPE_THRESHOLD = 120;
+
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
   const now = new Date();
@@ -61,6 +75,7 @@ function InvestigationCard({
   onPress,
   onLongPress,
   onCollabPress,
+  onDelete,
 }: {
   investigation: Investigation;
   index: number;
@@ -68,127 +83,204 @@ function InvestigationCard({
   onPress: () => void;
   onLongPress: () => void;
   onCollabPress: () => void;
+  onDelete: () => void;
 }) {
   const nodeCount = investigation.nodes.length;
   const stringCount = investigation.strings.length;
   const memberCount = collabSession?.members.length ?? 0;
 
+  const translateX = useSharedValue(0);
+  const isDeletingRef = useRef(false);
+
+  const triggerDelete = useCallback(() => {
+    if (!isDeletingRef.current) {
+      isDeletingRef.current = true;
+      onDelete();
+    }
+  }, [onDelete]);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-15, 15])
+    .onUpdate((e) => {
+      if (e.translationX < 0) {
+        translateX.value = e.translationX;
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationX < -SWIPE_THRESHOLD) {
+        translateX.value = withTiming(-500, { duration: 250 }, () => {
+          runOnJS(triggerDelete)();
+        });
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+      }
+    });
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const trashRevealStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [-SWIPE_THRESHOLD, -40, 0],
+      [1, 0.6, 0],
+      Extrapolation.CLAMP
+    );
+    const scale = interpolate(
+      translateX.value,
+      [-SWIPE_THRESHOLD, -40, 0],
+      [1, 0.8, 0.6],
+      Extrapolation.CLAMP
+    );
+    return { opacity, transform: [{ scale }] };
+  });
+
   return (
-    <Animated.View
-      entering={FadeInDown.delay(index * 80).duration(400).springify()}
+    <View
       style={{
         marginHorizontal: 20,
         marginBottom: 16,
       }}
     >
-      <Pressable
-        testID={`investigation-card-${investigation.id}`}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        style={({ pressed }) => ({
-          backgroundColor: COLORS.card,
+      {/* Trash reveal behind card */}
+      <View
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: 80,
           borderRadius: 12,
-          padding: 16,
-          opacity: pressed ? 0.92 : 1,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          elevation: 6,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-        })}
+          backgroundColor: 'rgba(196,30,58,0.15)',
+          borderWidth: 1,
+          borderColor: 'rgba(196,30,58,0.3)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        {/* Pushpin accent */}
-        <View
-          style={{
-            position: 'absolute',
-            top: -6,
-            left: 24,
-            width: 12,
-            height: 12,
-            borderRadius: 6,
-            backgroundColor: COLORS.pin,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 2,
-            elevation: 4,
-            zIndex: 1,
-          }}
-        />
+        <Animated.View style={trashRevealStyle}>
+          <Trash2 size={24} color={COLORS.red} strokeWidth={2} />
+        </Animated.View>
+      </View>
 
-        {/* Card content */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text
-              className="text-lg font-bold"
-              style={{ color: COLORS.cardText, marginBottom: 4 }}
-              numberOfLines={1}
-            >
-              {investigation.title}
-            </Text>
-            {investigation.description ? (
-              <Text
-                className="text-sm"
-                style={{ color: COLORS.muted, lineHeight: 20 }}
-                numberOfLines={2}
-              >
-                {investigation.description}
-              </Text>
-            ) : null}
-          </View>
-          <ChevronRight size={20} color={COLORS.muted} strokeWidth={2} />
-        </View>
-
-        {/* Stats row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <FileText size={14} color={COLORS.muted} strokeWidth={2} />
-            <Text className="text-xs font-medium" style={{ color: COLORS.muted }}>
-              {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Cable size={14} color={COLORS.red} strokeWidth={2} />
-            <Text className="text-xs font-medium" style={{ color: COLORS.muted }}>
-              {stringCount} {stringCount === 1 ? 'string' : 'strings'}
-            </Text>
-          </View>
-          <View style={{ flex: 1 }} />
-
-          {/* Collab badge */}
-          {collabSession ? (
-            <Pressable
-              testID={`collab-badge-${investigation.id}`}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                onCollabPress();
+      {/* Swipeable card */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          entering={FadeInDown.delay(index * 80).duration(400).springify()}
+          style={cardAnimStyle}
+        >
+          <Pressable
+            testID={`investigation-card-${investigation.id}`}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={({ pressed }) => ({
+              backgroundColor: COLORS.card,
+              borderRadius: 12,
+              padding: 16,
+              opacity: pressed ? 0.92 : 1,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 6,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            })}
+          >
+            {/* Pushpin accent */}
+            <View
+              style={{
+                position: 'absolute',
+                top: -6,
+                left: 24,
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: COLORS.pin,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 2,
+                elevation: 4,
+                zIndex: 1,
               }}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
-                borderRadius: 8,
-                paddingHorizontal: 7,
-                paddingVertical: 3,
-                borderWidth: 1,
-                borderColor: 'rgba(196,30,58,0.3)',
-              })}
-            >
-              <Users size={11} color={COLORS.red} strokeWidth={2.5} />
-              <Text style={{ color: COLORS.red, fontSize: 10, fontWeight: '700' }}>
-                {memberCount}
-              </Text>
-            </Pressable>
-          ) : null}
+            />
 
-          <Text className="text-xs" style={{ color: COLORS.muted }}>
-            {formatDate(investigation.updatedAt)}
-          </Text>
-        </View>
-      </Pressable>
-    </Animated.View>
+            {/* Card content */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text
+                  className="text-lg font-bold"
+                  style={{ color: COLORS.cardText, marginBottom: 4 }}
+                  numberOfLines={1}
+                >
+                  {investigation.title}
+                </Text>
+                {investigation.description ? (
+                  <Text
+                    className="text-sm"
+                    style={{ color: COLORS.muted, lineHeight: 20 }}
+                    numberOfLines={2}
+                  >
+                    {investigation.description}
+                  </Text>
+                ) : null}
+              </View>
+              <ChevronRight size={20} color={COLORS.muted} strokeWidth={2} />
+            </View>
+
+            {/* Stats row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <FileText size={14} color={COLORS.muted} strokeWidth={2} />
+                <Text className="text-xs font-medium" style={{ color: COLORS.muted }}>
+                  {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Cable size={14} color={COLORS.red} strokeWidth={2} />
+                <Text className="text-xs font-medium" style={{ color: COLORS.muted }}>
+                  {stringCount} {stringCount === 1 ? 'string' : 'strings'}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }} />
+
+              {/* Collab badge */}
+              {collabSession ? (
+                <Pressable
+                  testID={`collab-badge-${investigation.id}`}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    onCollabPress();
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
+                    borderRadius: 8,
+                    paddingHorizontal: 7,
+                    paddingVertical: 3,
+                    borderWidth: 1,
+                    borderColor: 'rgba(196,30,58,0.3)',
+                  })}
+                >
+                  <Users size={11} color={COLORS.red} strokeWidth={2.5} />
+                  <Text style={{ color: COLORS.red, fontSize: 10, fontWeight: '700' }}>
+                    {memberCount}
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Text className="text-xs" style={{ color: COLORS.muted }}>
+                {formatDate(investigation.updatedAt)}
+              </Text>
+            </View>
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
+    </View>
   );
 }
 
@@ -335,6 +427,7 @@ export default function InvestigationsDashboard() {
   const investigations = useInvestigationStore((s) => s.investigations);
   const createInvestigation = useInvestigationStore((s) => s.createInvestigation);
   const deleteInvestigation = useInvestigationStore((s) => s.deleteInvestigation);
+  const restoreInvestigation = useInvestigationStore((s) => s.restoreInvestigation);
   const setActiveInvestigation = useInvestigationStore((s) => s.setActiveInvestigation);
   const addDemoInvestigation = useInvestigationStore((s) => s.addDemoInvestigation);
   const removeDemoInvestigation = useInvestigationStore((s) => s.removeDemoInvestigation);
@@ -372,6 +465,11 @@ export default function InvestigationsDashboard() {
   const [newTitle, setNewTitle] = useState<string>('');
   const [newDescription, setNewDescription] = useState<string>('');
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
+
+  // Undo toast state
+  const [undoItem, setUndoItem] = useState<Investigation | null>(null);
+  const [showUndoToast, setShowUndoToast] = useState<boolean>(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Collab sheet state
   const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
@@ -470,6 +568,33 @@ export default function InvestigationsDashboard() {
     setShowDeleteModal(false);
   }, [deleteTargetId, deleteInvestigation]);
 
+  const handleSwipeDelete = useCallback((investigation: Investigation) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    deleteInvestigation(investigation.id);
+    setUndoItem(investigation);
+    setShowUndoToast(true);
+    // Clear any existing timer
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+    }
+    undoTimerRef.current = setTimeout(() => {
+      setShowUndoToast(false);
+      setUndoItem(null);
+    }, 4000);
+  }, [deleteInvestigation]);
+
+  const handleUndo = useCallback(() => {
+    if (undoItem) {
+      restoreInvestigation(undoItem);
+      setUndoItem(null);
+      setShowUndoToast(false);
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [undoItem, restoreInvestigation]);
+
   const handleCollabPress = useCallback((investigationId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCollabSheetInvestigationId(investigationId);
@@ -515,9 +640,10 @@ export default function InvestigationsDashboard() {
         onPress={() => handleCardPress(item.id)}
         onLongPress={() => handleCardLongPress(item.id, item.title)}
         onCollabPress={() => handleCollabPress(item.id)}
+        onDelete={() => handleSwipeDelete(item)}
       />
     ),
-    [handleCardPress, handleCardLongPress, handleCollabPress, collabSessionMap]
+    [handleCardPress, handleCardLongPress, handleCollabPress, handleSwipeDelete, collabSessionMap]
   );
 
   const keyExtractor = useCallback((item: Investigation) => item.id, []);
@@ -724,6 +850,65 @@ export default function InvestigationsDashboard() {
           ListEmptyComponent={<EmptyState />}
         />
       </SafeAreaView>
+
+      {/* Undo Toast */}
+      {showUndoToast ? (
+        <Animated.View
+          entering={SlideInDown.springify().damping(20)}
+          exiting={SlideOutDown.duration(200)}
+          style={{
+            position: 'absolute',
+            bottom: 90,
+            left: 16,
+            right: 16,
+            backgroundColor: COLORS.surface,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderLeftWidth: 4,
+            borderLeftColor: COLORS.red,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.35,
+            shadowRadius: 12,
+            elevation: 12,
+          }}
+          testID="undo-toast"
+        >
+          <Trash2 size={18} color={COLORS.red} strokeWidth={2} />
+          <Text
+            style={{
+              flex: 1,
+              color: COLORS.textLight,
+              fontSize: 14,
+              fontWeight: '600',
+              marginLeft: 10,
+            }}
+          >
+            Investigation deleted
+          </Text>
+          <Pressable
+            testID="undo-button"
+            onPress={handleUndo}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? 'rgba(212,165,116,0.2)' : 'rgba(212,165,116,0.12)',
+              borderRadius: 8,
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderWidth: 1,
+              borderColor: 'rgba(212,165,116,0.35)',
+            })}
+          >
+            <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700' }}>
+              Undo
+            </Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
 
       {/* Help Menu Modal */}
       <Modal

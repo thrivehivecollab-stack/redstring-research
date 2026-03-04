@@ -19,6 +19,8 @@ import Animated, {
   Easing,
   FadeIn,
   FadeOut,
+  SlideInDown,
+  SlideOutDown,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, {
@@ -57,7 +59,7 @@ import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import useTourStore from '@/lib/state/tour-store';
-import type { CanvasNode, NodeType, TagColor, Timeline } from '@/lib/types';
+import type { CanvasNode, NodeType, TagColor, Timeline, RedString } from '@/lib/types';
 import TimelinePanel from '@/components/TimelinePanel';
 import MindMapCanvas from '@/components/MindMapCanvas';
 import ColorLegend from '@/components/ColorLegend';
@@ -185,6 +187,9 @@ function NodeCard({
   connectingFromId,
   onTap,
   onDragEnd,
+  onDragStart,
+  onDragMove,
+  onDragEndPosition,
 }: {
   node: CanvasNode;
   scaleVal: Animated.SharedValue<number>;
@@ -194,6 +199,9 @@ function NodeCard({
   connectingFromId: string | null;
   onTap: (id: string) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
+  onDragStart: (id: string) => void;
+  onDragMove: (id: string, screenY: number) => void;
+  onDragEndPosition: (id: string, screenX: number, screenY: number) => void;
 }) {
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
@@ -205,20 +213,23 @@ function NodeCard({
         .enabled(!connectMode)
         .onStart(() => {
           isDragging.value = true;
+          runOnJS(onDragStart)(node.id);
         })
         .onUpdate((e) => {
           offsetX.value = e.translationX / scaleVal.value;
           offsetY.value = e.translationY / scaleVal.value;
+          runOnJS(onDragMove)(node.id, e.absoluteY);
         })
-        .onEnd(() => {
+        .onEnd((e) => {
           isDragging.value = false;
           const finalX = node.position.x + offsetX.value;
           const finalY = node.position.y + offsetY.value;
           offsetX.value = 0;
           offsetY.value = 0;
+          runOnJS(onDragEndPosition)(node.id, e.absoluteX, e.absoluteY);
           runOnJS(onDragEnd)(node.id, finalX, finalY);
         }),
-    [connectMode, node.id, node.position.x, node.position.y, scaleVal, onDragEnd, offsetX, offsetY, isDragging]
+    [connectMode, node.id, node.position.x, node.position.y, scaleVal, onDragEnd, onDragStart, onDragMove, onDragEndPosition, offsetX, offsetY, isDragging]
   );
 
   const tapGesture = useMemo(
@@ -423,6 +434,61 @@ function StringsLayer({
   );
 }
 
+// ---- Trash Zone component ----
+function TrashZone({
+  visible,
+  isActive,
+}: {
+  visible: Animated.SharedValue<boolean>;
+  isActive: Animated.SharedValue<boolean>;
+}) {
+  const style = useAnimatedStyle(() => ({
+    opacity: withTiming(visible.value ? 1 : 0, { duration: 200 }),
+    transform: [{ translateY: withTiming(visible.value ? 0 : 80, { duration: 200 }) }],
+  }));
+  const innerStyle = useAnimatedStyle(() => ({
+    backgroundColor: isActive.value ? 'rgba(196,30,58,0.35)' : 'rgba(196,30,58,0.12)',
+    borderColor: isActive.value ? '#C41E3A' : 'rgba(196,30,58,0.4)',
+    transform: [{ scale: withTiming(isActive.value ? 1.06 : 1, { duration: 150 }) }],
+  }));
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          bottom: 100,
+          left: 0,
+          right: 0,
+          alignItems: 'center',
+          zIndex: 999,
+          pointerEvents: 'none',
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 24,
+            paddingVertical: 14,
+            borderRadius: 40,
+            borderWidth: 1.5,
+          },
+          innerStyle,
+        ]}
+      >
+        <Trash2 size={18} color="#C41E3A" strokeWidth={2} />
+        <Text style={{ color: '#C41E3A', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
+          Drop to delete
+        </Text>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
 // ---- Main Canvas Screen ----
 export default function InvestigationCanvas() {
   const router = useRouter();
@@ -478,6 +544,15 @@ export default function InvestigationCanvas() {
   const [showSuggestionSheet, setShowSuggestionSheet] = useState<boolean>(false);
   const [colorToast, setColorToast] = useState<string | null>(null);
   const colorToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Undo state for drag-to-trash
+  const [undoNode, setUndoNode] = useState<{ node: CanvasNode; strings: RedString[] } | null>(null);
+  const [showUndoToast, setShowUndoToast] = useState<boolean>(false);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Shared values for trash zone
+  const nodeIsDragging = useSharedValue(false);
+  const nodeIsOverTrash = useSharedValue(false);
 
   // ---- Screenshot / background protection ----
   const [showPrivacyOverlay, setShowPrivacyOverlay] = useState<boolean>(false);
@@ -590,6 +665,59 @@ export default function InvestigationCanvas() {
     },
     [activeId, storeMoveNode]
   );
+
+  // Trash zone threshold — trash zone starts 180px above screen bottom
+  const TRASH_ZONE_TOP = screenH - 180;
+
+  const handleNodeDragStart = useCallback((_nodeId: string) => {
+    nodeIsDragging.value = true;
+  }, [nodeIsDragging]);
+
+  const handleNodeDragMove = useCallback((_nodeId: string, screenY: number) => {
+    nodeIsOverTrash.value = screenY > TRASH_ZONE_TOP;
+  }, [nodeIsOverTrash, TRASH_ZONE_TOP]);
+
+  const handleNodeDragEndPosition = useCallback((nodeId: string, _screenX: number, screenY: number) => {
+    nodeIsDragging.value = false;
+    const overTrash = screenY > TRASH_ZONE_TOP;
+    nodeIsOverTrash.value = false;
+    if (overTrash && activeId) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      const nodeToDelete = nodes.find((n) => n.id === nodeId);
+      const stringsToDelete = strings.filter((s) => s.fromNodeId === nodeId || s.toNodeId === nodeId);
+      if (nodeToDelete) {
+        storeDeleteNode(activeId, nodeId);
+        if (undoTimer.current) clearTimeout(undoTimer.current);
+        setUndoNode({ node: nodeToDelete, strings: stringsToDelete });
+        setShowUndoToast(true);
+        undoTimer.current = setTimeout(() => {
+          setShowUndoToast(false);
+          setUndoNode(null);
+        }, 4000);
+      }
+    }
+  }, [activeId, nodes, strings, storeDeleteNode, nodeIsDragging, nodeIsOverTrash, TRASH_ZONE_TOP]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!undoNode || !activeId) return;
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    // Restore the node at its original position with all its properties
+    storeAddNode(activeId, undoNode.node.type, undoNode.node.title, undoNode.node.position, {
+      id: undoNode.node.id,
+      content: undoNode.node.content,
+      description: undoNode.node.description,
+      color: undoNode.node.color,
+      tags: undoNode.node.tags,
+      size: undoNode.node.size,
+      createdAt: undoNode.node.createdAt,
+    });
+    // Restore connected strings
+    undoNode.strings.forEach((s) => {
+      storeAddString(activeId, s.fromNodeId, s.toNodeId, s.label, s.color);
+    });
+    setShowUndoToast(false);
+    setUndoNode(null);
+  }, [undoNode, activeId, storeAddNode, storeAddString]);
 
   // Add node
   const handleAddNode = useCallback(
@@ -795,6 +923,9 @@ export default function InvestigationCanvas() {
                   connectingFromId={connectingFromId}
                   onTap={handleNodeTap}
                   onDragEnd={handleNodeDragEnd}
+                  onDragStart={handleNodeDragStart}
+                  onDragMove={handleNodeDragMove}
+                  onDragEndPosition={handleNodeDragEndPosition}
                 />
               ))}
             </View>
@@ -818,6 +949,59 @@ export default function InvestigationCanvas() {
           />
         )}
       </View>
+
+      {/* ---- TRASH ZONE (appears while dragging a node) ---- */}
+      <TrashZone visible={nodeIsDragging} isActive={nodeIsOverTrash} />
+
+      {/* ---- UNDO TOAST (after drag-to-trash delete) ---- */}
+      {showUndoToast && undoNode ? (
+        <Animated.View
+          entering={SlideInDown.duration(250)}
+          exiting={SlideOutDown.duration(200)}
+          style={{
+            position: 'absolute',
+            bottom: bottomOffset + 16,
+            left: 16,
+            right: 16,
+            backgroundColor: C.surface,
+            borderRadius: 14,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderWidth: 1,
+            borderColor: C.border,
+            zIndex: 1000,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 10,
+            elevation: 8,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '600' }}>
+              "{undoNode.node.title}" deleted
+            </Text>
+            <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+              Tap Undo to restore
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleUndoDelete}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? '#A3162E' : C.red,
+              borderRadius: 8,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              marginLeft: 12,
+            })}
+          >
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Undo</Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
 
       {/* ---- TIMELINE PANEL — sits above tab bar ---- */}
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: bottomOffset }}>
