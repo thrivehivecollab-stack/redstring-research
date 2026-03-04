@@ -103,18 +103,32 @@ aiRouter.post("/transcribe", async (c) => {
   return c.json({ data: { text: result.text } });
 });
 
+// ─── Available voices ──────────────────────────────────────────────────────
+const AVAILABLE_VOICES = [
+  { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', description: 'Calm, clear female' },
+  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', description: 'Deep, authoritative male' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella', description: 'Soft, expressive female' },
+  { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold', description: 'Crisp, confident male' },
+  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', description: 'Smooth, well-rounded male' },
+  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', description: 'Energetic, young female' },
+];
+
+aiRouter.get('/voices', (c) => {
+  return c.json({ data: AVAILABLE_VOICES });
+});
+
 // ─── Text-to-speech ────────────────────────────────────────────────────────
 aiRouter.post(
   "/tts",
-  zValidator("json", z.object({ text: z.string().min(1) })),
+  zValidator("json", z.object({ text: z.string().min(1), voice_id: z.string().optional() })),
   async (c) => {
-    const { text } = c.req.valid("json");
+    const { text, voice_id } = c.req.valid("json");
 
     if (!env.ELEVENLABS_API_KEY) {
       return c.json({ error: { message: "ElevenLabs API key not configured." } }, 500);
     }
 
-    const voiceId = "21m00Tcm4TlvDq8ikWAM"; // Rachel
+    const voiceId = voice_id || "21m00Tcm4TlvDq8ikWAM"; // Default: Rachel
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,

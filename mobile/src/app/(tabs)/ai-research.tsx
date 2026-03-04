@@ -27,6 +27,8 @@ import {
   ChevronDown,
   Volume2,
   VolumeX,
+  Headphones,
+  Check,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -72,6 +74,13 @@ const HIGHLIGHT_CATEGORIES: HighlightCategory[] = [
   { id: 'suspect', color: '#A855F7', name: 'Suspect/Person' },
   { id: 'timeline', color: '#F97316', name: 'Timeline Event' },
 ];
+
+// ─── Voice types ────────────────────────────────────────────────────────────
+interface Voice {
+  id: string;
+  name: string;
+  description: string;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface ChatMessage {
@@ -601,6 +610,233 @@ function ConfirmNewConvoModal({
   );
 }
 
+// ─── Voice Picker Modal ─────────────────────────────────────────────────────
+function VoicePickerModal({
+  visible,
+  onClose,
+  voices,
+  selectedVoiceId,
+  onSelectVoice,
+  onPreviewVoice,
+  previewingVoiceId,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  voices: Voice[];
+  selectedVoiceId: string;
+  onSelectVoice: (voice: Voice) => void;
+  onPreviewVoice: (voice: Voice) => void;
+  previewingVoiceId: string | null;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
+        onPress={onClose}
+      >
+        <Pressable onPress={() => null}>
+          <View
+            style={{
+              backgroundColor: COLORS.surface,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderTopWidth: 1,
+              borderTopColor: COLORS.border,
+              paddingTop: 8,
+              paddingBottom: 36,
+            }}
+          >
+            {/* Grabber */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: COLORS.border,
+                alignSelf: 'center',
+                marginBottom: 16,
+                marginTop: 4,
+              }}
+            />
+
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                marginBottom: 18,
+                gap: 8,
+              }}
+            >
+              <Volume2 size={18} color={COLORS.red} strokeWidth={2} />
+              <Text
+                style={{
+                  color: COLORS.textLight,
+                  fontSize: 16,
+                  fontWeight: '800',
+                  letterSpacing: 1,
+                  flex: 1,
+                }}
+              >
+                CHOOSE VOICE
+              </Text>
+              <Pressable onPress={onClose} style={{ padding: 4 }}>
+                <X size={18} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            {/* Voice list */}
+            <View style={{ paddingHorizontal: 16, gap: 10 }}>
+              {voices.map((voice) => {
+                const isSelected = voice.id === selectedVoiceId;
+                const isPreviewing = previewingVoiceId === voice.id;
+                return (
+                  <Pressable
+                    key={voice.id}
+                    testID={`voice-option-${voice.id}`}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      onSelectVoice(voice);
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      backgroundColor: isSelected
+                        ? 'rgba(196,30,58,0.15)'
+                        : pressed
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(255,255,255,0.02)',
+                      borderRadius: 14,
+                      paddingHorizontal: 16,
+                      paddingVertical: 13,
+                      borderWidth: 1,
+                      borderColor: isSelected ? 'rgba(196,30,58,0.5)' : COLORS.border,
+                      borderLeftWidth: isSelected ? 4 : 1,
+                      borderLeftColor: isSelected ? COLORS.red : COLORS.border,
+                    })}
+                  >
+                    {/* Voice avatar */}
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        backgroundColor: isSelected
+                          ? 'rgba(196,30,58,0.2)'
+                          : 'rgba(255,255,255,0.06)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: isSelected
+                          ? 'rgba(196,30,58,0.4)'
+                          : COLORS.border,
+                      }}
+                    >
+                      <Volume2
+                        size={16}
+                        color={isSelected ? COLORS.red : COLORS.muted}
+                        strokeWidth={2}
+                      />
+                    </View>
+
+                    {/* Name + description */}
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          color: isSelected ? COLORS.textLight : COLORS.textLight,
+                          fontSize: 15,
+                          fontWeight: '700',
+                        }}
+                      >
+                        {voice.name}
+                      </Text>
+                      <Text
+                        style={{
+                          color: COLORS.muted,
+                          fontSize: 12,
+                          marginTop: 2,
+                        }}
+                      >
+                        {voice.description}
+                      </Text>
+                    </View>
+
+                    {/* Preview button */}
+                    <Pressable
+                      testID={`preview-voice-${voice.id}`}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        onPreviewVoice(voice);
+                      }}
+                      style={({ pressed }) => ({
+                        backgroundColor: isPreviewing
+                          ? 'rgba(196,30,58,0.2)'
+                          : pressed
+                          ? 'rgba(196,30,58,0.15)'
+                          : 'rgba(196,30,58,0.08)',
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderWidth: 1,
+                        borderColor: isPreviewing
+                          ? 'rgba(196,30,58,0.5)'
+                          : 'rgba(196,30,58,0.25)',
+                      })}
+                    >
+                      {isPreviewing ? (
+                        <ActivityIndicator size="small" color={COLORS.red} />
+                      ) : (
+                        <Text
+                          style={{
+                            color: COLORS.red,
+                            fontSize: 11,
+                            fontWeight: '700',
+                          }}
+                        >
+                          Preview
+                        </Text>
+                      )}
+                    </Pressable>
+
+                    {/* Checkmark */}
+                    {isSelected ? (
+                      <Check size={16} color={COLORS.red} strokeWidth={2.5} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Done button */}
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => ({
+                marginHorizontal: 16,
+                marginTop: 16,
+                backgroundColor: pressed ? '#A3162E' : COLORS.red,
+                borderRadius: 14,
+                paddingVertical: 14,
+                alignItems: 'center',
+              })}
+            >
+              <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800' }}>Done</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── MessageBubble ──────────────────────────────────────────────────────────
 function MessageBubble({
   message,
@@ -903,6 +1139,17 @@ export default function AIResearchScreen() {
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
+  // Voice picker state
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('21m00Tcm4TlvDq8ikWAM');
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('Rachel');
+  const [voicePickerVisible, setVoicePickerVisible] = useState<boolean>(false);
+  const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
+  const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
+
+  // Hands-free mode
+  const [handsFreeActive, setHandsFreeActive] = useState<boolean>(false);
+  const handsFreeRef = useRef<boolean>(false);
+
   // Modals
   const [highlightSheetVisible, setHighlightSheetVisible] = useState<boolean>(false);
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
@@ -925,6 +1172,21 @@ export default function AIResearchScreen() {
     transform: [{ scale: micPulse.value }],
     opacity: micOpacity.value,
   }));
+
+  // Hands-free pulsing dot animation
+  const hfDotOpacity = useSharedValue(1);
+  useEffect(() => {
+    if (handsFreeActive) {
+      hfDotOpacity.value = withRepeat(
+        withSequence(withTiming(0.2, { duration: 600 }), withTiming(1, { duration: 600 })),
+        -1,
+        true
+      );
+    } else {
+      hfDotOpacity.value = withTiming(1);
+    }
+  }, [handsFreeActive]);
+  const hfDotStyle = useAnimatedStyle(() => ({ opacity: hfDotOpacity.value }));
 
   const startMicAnimation = useCallback(() => {
     micPulse.value = withRepeat(
@@ -970,57 +1232,117 @@ export default function AIResearchScreen() {
     setSpeakingMessageId(null);
   }, []);
 
-  // ─── TTS playback ──────────────────────────────────────────────────────
-  const speakText = useCallback(async (text: string, messageId?: string) => {
-    await stopCurrentAudio();
+  // ─── Load voices on mount ──────────────────────────────────────────────
+  useEffect(() => {
+    const loadVoices = async () => {
+      try {
+        const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+        const res = await fetch(`${BACKEND_URL}/api/ai/voices`);
+        if (res.ok) {
+          const json = await res.json();
+          const voices: Voice[] = json.data ?? [];
+          setAvailableVoices(voices);
+        }
+      } catch {
+        // silently fail, voices will be empty
+      }
+    };
+    loadVoices();
+  }, []);
+
+  // ─── TTS playback (returns a promise that resolves when done) ──────────
+  const speakTextInternal = useCallback(
+    async (text: string, messageId?: string, voiceIdOverride?: string): Promise<void> => {
+      await stopCurrentAudio();
+
+      try {
+        setIsSpeaking(true);
+        if (messageId) setSpeakingMessageId(messageId);
+
+        const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+        const response = await fetch(`${BACKEND_URL}/api/ai/tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            voice_id: voiceIdOverride ?? selectedVoiceId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('TTS request failed');
+        }
+
+        const blob = await response.blob();
+
+        await new Promise<void>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            try {
+              const uri = reader.result as string;
+              const { sound } = await Audio.Sound.createAsync({ uri });
+              currentSoundRef.current = sound;
+              await sound.playAsync();
+              sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                  sound.unloadAsync();
+                  currentSoundRef.current = null;
+                  setIsSpeaking(false);
+                  setSpeakingMessageId(null);
+                  resolve();
+                }
+              });
+            } catch (err) {
+              reject(err);
+            }
+          };
+          reader.onerror = () => reject(new Error('FileReader error'));
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        setIsSpeaking(false);
+        setSpeakingMessageId(null);
+        showToast('Could not play voice response');
+      }
+    },
+    [stopCurrentAudio, showToast, selectedVoiceId]
+  );
+
+  const speakText = useCallback(
+    (text: string, messageId?: string) => speakTextInternal(text, messageId),
+    [speakTextInternal]
+  );
+
+  // ─── Hands-free: start recording cycle ───────────────────────────────
+  const startHandsFreeRecording = useCallback(async () => {
+    if (!handsFreeRef.current) return;
+
+    const { status } = await Audio.requestPermissionsAsync();
+    if (status !== 'granted') {
+      showToast('Microphone permission required for hands-free mode.');
+      setHandsFreeActive(false);
+      handsFreeRef.current = false;
+      return;
+    }
 
     try {
-      setIsSpeaking(true);
-      if (messageId) setSpeakingMessageId(messageId);
-
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/ai/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
       });
 
-      if (!response.ok) {
-        throw new Error('TTS request failed');
-      }
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
 
-      const blob = await response.blob();
-
-      await new Promise<void>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          try {
-            const uri = reader.result as string;
-            const { sound } = await Audio.Sound.createAsync({ uri });
-            currentSoundRef.current = sound;
-            await sound.playAsync();
-            sound.setOnPlaybackStatusUpdate((status) => {
-              if (status.isLoaded && status.didJustFinish) {
-                sound.unloadAsync();
-                currentSoundRef.current = null;
-                setIsSpeaking(false);
-                setSpeakingMessageId(null);
-                resolve();
-              }
-            });
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = () => reject(new Error('FileReader error'));
-        reader.readAsDataURL(blob);
-      });
+      recordingRef.current = recording;
+      setIsListening(true);
+      startMicAnimation();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch {
-      setIsSpeaking(false);
-      setSpeakingMessageId(null);
-      showToast('Could not play voice response');
+      showToast('Could not start recording in hands-free mode.');
     }
-  }, [stopCurrentAudio, showToast]);
+  }, [showToast, startMicAnimation]);
 
   // Build the history array for the AI from messages (exclude welcome for brevity if large)
   const buildHistory = useCallback(
@@ -1092,7 +1414,14 @@ export default function AIResearchScreen() {
 
             // Auto-speak if voice is enabled
             if (voiceEnabled) {
-              speakText(aiText, aiMsgId);
+              await speakTextInternal(aiText, aiMsgId);
+              // After speaking, if hands-free still active, restart recording
+              if (handsFreeRef.current) {
+                startHandsFreeRecording();
+              }
+            } else if (handsFreeRef.current) {
+              // Hands-free without voice: restart recording immediately
+              startHandsFreeRecording();
             }
           } catch (err) {
             const errMsg: Message = {
@@ -1104,6 +1433,10 @@ export default function AIResearchScreen() {
             setIsThinking(false);
             setMessages((p) => [...p, errMsg]);
             scrollToBottom();
+            // In hands-free, still try to restart
+            if (handsFreeRef.current) {
+              startHandsFreeRecording();
+            }
           }
         };
 
@@ -1111,7 +1444,7 @@ export default function AIResearchScreen() {
         return prev;
       });
     },
-    [isThinking, scrollToBottom, buildHistory, activeInvestigation, voiceEnabled, speakText]
+    [isThinking, scrollToBottom, buildHistory, activeInvestigation, voiceEnabled, speakTextInternal, startHandsFreeRecording]
   );
 
   const handleSend = useCallback(() => {
@@ -1163,12 +1496,23 @@ export default function AIResearchScreen() {
 
         if (transcribedText.trim()) {
           setInputText(transcribedText.trim());
+          // In hands-free mode, auto-send immediately
+          if (handsFreeRef.current) {
+            sendMessage(transcribedText.trim());
+          }
         } else {
           showToast('Could not transcribe audio. Please try again.');
+          // In hands-free, try recording again
+          if (handsFreeRef.current) {
+            startHandsFreeRecording();
+          }
         }
       } catch {
         showToast('Transcription failed. Please try again.');
         recordingRef.current = null;
+        if (handsFreeRef.current) {
+          startHandsFreeRecording();
+        }
       } finally {
         setIsTranscribing(false);
       }
@@ -1200,7 +1544,7 @@ export default function AIResearchScreen() {
         await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
       }
     }
-  }, [isListening, startMicAnimation, stopMicAnimation, showToast]);
+  }, [isListening, startMicAnimation, stopMicAnimation, showToast, sendMessage, startHandsFreeRecording]);
 
   // ─── Quick actions ───────────────────────────────────────────────────────
   const handleQuickAction = useCallback(
@@ -1308,6 +1652,69 @@ export default function AIResearchScreen() {
     });
   }, [stopCurrentAudio, showToast]);
 
+  // ─── Long-press voice button: open voice picker ───────────────────────
+  const handleVoiceButtonLongPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setVoicePickerVisible(true);
+  }, []);
+
+  // ─── Voice picker: select voice ───────────────────────────────────────
+  const handleSelectVoice = useCallback((voice: Voice) => {
+    setSelectedVoiceId(voice.id);
+    setSelectedVoiceName(voice.name);
+  }, []);
+
+  // ─── Voice picker: preview voice ──────────────────────────────────────
+  const handlePreviewVoice = useCallback(
+    async (voice: Voice) => {
+      if (previewingVoiceId === voice.id) return;
+      setPreviewingVoiceId(voice.id);
+      try {
+        await speakTextInternal(
+          'Ready to investigate. I\'m your AI research assistant.',
+          undefined,
+          voice.id
+        );
+      } finally {
+        setPreviewingVoiceId(null);
+      }
+    },
+    [previewingVoiceId, speakTextInternal]
+  );
+
+  // ─── Toggle hands-free mode ────────────────────────────────────────────
+  const handleToggleHandsFree = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (handsFreeActive) {
+      // Turn off
+      handsFreeRef.current = false;
+      setHandsFreeActive(false);
+      // Stop any recording/speaking
+      if (isListening) {
+        setIsListening(false);
+        stopMicAnimation();
+        if (recordingRef.current) {
+          try {
+            await recordingRef.current.stopAndUnloadAsync();
+          } catch {
+            // ignore
+          }
+          recordingRef.current = null;
+          await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        }
+      }
+      stopCurrentAudio();
+      showToast('Hands-free mode OFF');
+    } else {
+      // Turn on
+      handsFreeRef.current = true;
+      setHandsFreeActive(true);
+      showToast('Hands-free mode ON — speak to begin');
+      // Start the first recording
+      await startHandsFreeRecording();
+    }
+  }, [handsFreeActive, isListening, stopMicAnimation, stopCurrentAudio, showToast, startHandsFreeRecording]);
+
   // ─── Render message ──────────────────────────────────────────────────
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => (
@@ -1387,13 +1794,43 @@ export default function AIResearchScreen() {
             </Text>
           </View>
 
-          {/* Voice toggle button */}
+          {/* Hands-free toggle */}
           <Pressable
-            testID="voice-toggle-button"
-            onPress={handleToggleVoice}
+            testID="hands-free-toggle"
+            onPress={handleToggleHandsFree}
             style={({ pressed }) => ({
               width: 34,
               height: 34,
+              borderRadius: 10,
+              backgroundColor: handsFreeActive
+                ? pressed
+                  ? 'rgba(196,30,58,0.35)'
+                  : 'rgba(196,30,58,0.2)'
+                : pressed
+                ? 'rgba(255,255,255,0.08)'
+                : 'rgba(255,255,255,0.04)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: handsFreeActive ? 'rgba(196,30,58,0.6)' : COLORS.border,
+            })}
+          >
+            <Headphones
+              size={15}
+              color={handsFreeActive ? COLORS.red : COLORS.muted}
+              strokeWidth={2}
+            />
+          </Pressable>
+
+          {/* Voice toggle button (long-press opens picker) */}
+          <Pressable
+            testID="voice-toggle-button"
+            onPress={handleToggleVoice}
+            onLongPress={handleVoiceButtonLongPress}
+            delayLongPress={400}
+            style={({ pressed }) => ({
+              width: 34,
+              height: voiceEnabled ? 44 : 34,
               borderRadius: 10,
               backgroundColor: voiceEnabled
                 ? pressed
@@ -1413,6 +1850,20 @@ export default function AIResearchScreen() {
             ) : (
               <VolumeX size={15} color={COLORS.muted} strokeWidth={2} />
             )}
+            {voiceEnabled ? (
+              <Text
+                style={{
+                  color: COLORS.red,
+                  fontSize: 7,
+                  fontWeight: '800',
+                  letterSpacing: 0.3,
+                  marginTop: 1,
+                }}
+                numberOfLines={1}
+              >
+                {selectedVoiceName.toUpperCase()}
+              </Text>
+            ) : null}
           </Pressable>
 
           {/* Highlights button */}
@@ -1484,6 +1935,54 @@ export default function AIResearchScreen() {
             contentContainerStyle={{ paddingTop: 20, paddingBottom: 12 }}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollToBottom}
+            ListHeaderComponent={
+              handsFreeActive ? (
+                <Animated.View
+                  entering={FadeIn.duration(200)}
+                  exiting={FadeOut.duration(200)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginHorizontal: 16,
+                    marginBottom: 14,
+                    backgroundColor: 'rgba(196,30,58,0.12)',
+                    borderRadius: 10,
+                    paddingHorizontal: 14,
+                    paddingVertical: 9,
+                    borderWidth: 1,
+                    borderColor: 'rgba(196,30,58,0.4)',
+                  }}
+                >
+                  <Animated.View
+                    style={[
+                      {
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: COLORS.red,
+                      },
+                      hfDotStyle,
+                    ]}
+                  />
+                  <Headphones size={13} color={COLORS.red} strokeWidth={2.2} />
+                  <Text
+                    style={{
+                      color: COLORS.red,
+                      fontSize: 12,
+                      fontWeight: '800',
+                      letterSpacing: 1.5,
+                      flex: 1,
+                    }}
+                  >
+                    HANDS-FREE
+                  </Text>
+                  <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '600' }}>
+                    Speak to respond
+                  </Text>
+                </Animated.View>
+              ) : null
+            }
             ListFooterComponent={
               isThinking ? (
                 <Animated.View
@@ -1838,6 +2337,16 @@ export default function AIResearchScreen() {
         visible={confirmNewConvoVisible}
         onConfirm={handleConfirmNewConvo}
         onCancel={() => setConfirmNewConvoVisible(false)}
+      />
+
+      <VoicePickerModal
+        visible={voicePickerVisible}
+        onClose={() => setVoicePickerVisible(false)}
+        voices={availableVoices}
+        selectedVoiceId={selectedVoiceId}
+        onSelectVoice={handleSelectVoice}
+        onPreviewVoice={handlePreviewVoice}
+        previewingVoiceId={previewingVoiceId}
       />
     </View>
   );
