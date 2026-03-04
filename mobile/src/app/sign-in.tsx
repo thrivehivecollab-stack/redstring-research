@@ -14,10 +14,8 @@ import { useRouter } from "expo-router";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withRepeat,
   withTiming,
   withSequence,
-  Easing,
   FadeInDown,
   FadeIn,
 } from "react-native-reanimated";
@@ -155,9 +153,21 @@ function RedStringLogo() {
   );
 }
 
+function formatPhone(input: string): string {
+  // Strip everything except digits and leading +
+  const digits = input.replace(/\D/g, "");
+  // If user typed a + at the start, preserve it
+  const hasPlus = input.trimStart().startsWith("+");
+  if (hasPlus) {
+    return "+" + digits;
+  }
+  // Default to US +1
+  return "+1" + digits;
+}
+
 export default function SignInScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -167,15 +177,14 @@ export default function SignInScreen() {
   }));
 
   const handleSendCode = async () => {
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setError("Please enter your email address.");
+    const trimmed = phone.trim();
+    const digits = trimmed.replace(/\D/g, "");
+    if (!trimmed || digits.length < 10) {
+      setError("Please enter a valid phone number (at least 10 digits).");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
+
+    const formattedPhone = formatPhone(trimmed);
 
     setError(null);
     setIsLoading(true);
@@ -188,16 +197,15 @@ export default function SignInScreen() {
     );
 
     try {
-      const result = await authClient.emailOtp.sendVerificationOtp({
-        email: trimmed,
-        type: "sign-in",
+      const result = await authClient.phoneNumber.sendOtp({
+        phoneNumber: formattedPhone,
       });
       if (result.error) {
         setError(result.error.message ?? "Failed to send code. Please try again.");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.push({ pathname: "/verify-otp", params: { email: trimmed } });
+        router.push({ pathname: "/verify-otp", params: { phone: formattedPhone } });
       }
     } catch {
       setError("Network error. Please check your connection.");
@@ -207,7 +215,7 @@ export default function SignInScreen() {
     }
   };
 
-  const isValidEmail = email.trim().length > 0;
+  const isValidPhone = phone.trim().replace(/\D/g, "").length >= 10;
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -345,10 +353,10 @@ export default function SignInScreen() {
                     lineHeight: 18,
                   }}
                 >
-                  Enter your email and we'll send a verification code.
+                  Enter your phone number and we'll send a verification code via SMS.
                 </Text>
 
-                {/* Email input */}
+                {/* Phone input */}
                 <Text
                   style={{
                     fontSize: 11,
@@ -358,21 +366,21 @@ export default function SignInScreen() {
                     marginBottom: 8,
                   }}
                 >
-                  EMAIL ADDRESS
+                  PHONE NUMBER
                 </Text>
                 <TextInput
-                  testID="email-input"
-                  value={email}
+                  testID="phone-input"
+                  value={phone}
                   onChangeText={(t) => {
-                    setEmail(t);
+                    setPhone(t);
                     if (error) setError(null);
                   }}
-                  placeholder="detective@example.com"
+                  placeholder="+1 (555) 000-0000"
                   placeholderTextColor={COLORS.muted}
-                  keyboardType="email-address"
+                  keyboardType="phone-pad"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  autoComplete="email"
+                  autoComplete="tel"
                   returnKeyType="send"
                   onSubmitEditing={handleSendCode}
                   style={{
@@ -407,7 +415,7 @@ export default function SignInScreen() {
                     testID="send-code-button"
                     onPress={handleSendCode}
                     disabled={isLoading}
-                    style={({ pressed }) => ({
+                    style={() => ({
                       borderRadius: 12,
                       overflow: "hidden",
                       opacity: isLoading ? 0.8 : 1,
@@ -415,7 +423,7 @@ export default function SignInScreen() {
                   >
                     <LinearGradient
                       colors={
-                        isValidEmail
+                        isValidPhone
                           ? ["#D42240", "#C41E3A", "#A3162E"]
                           : [COLORS.border, COLORS.border]
                       }
@@ -428,7 +436,7 @@ export default function SignInScreen() {
                         borderRadius: 12,
                         shadowColor: COLORS.red,
                         shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: isValidEmail ? 0.4 : 0,
+                        shadowOpacity: isValidPhone ? 0.4 : 0,
                         shadowRadius: 8,
                       }}
                     >
@@ -436,7 +444,7 @@ export default function SignInScreen() {
                         style={{
                           fontSize: 16,
                           fontWeight: "800",
-                          color: isValidEmail ? "#FFFFFF" : COLORS.muted,
+                          color: isValidPhone ? "#FFFFFF" : COLORS.muted,
                           letterSpacing: 0.5,
                         }}
                       >
@@ -461,7 +469,7 @@ export default function SignInScreen() {
                   lineHeight: 18,
                 }}
               >
-                No password needed. We keep your investigations secure{"\n"}with one-time access codes.
+                No password needed. We keep your investigations secure{"\n"}with one-time SMS codes.
               </Text>
             </Animated.View>
           </View>

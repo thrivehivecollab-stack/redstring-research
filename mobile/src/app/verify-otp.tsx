@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ const COLORS = {
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { phone } = useLocalSearchParams<{ phone: string }>();
   const invalidateSession = useInvalidateSession();
 
   const [otp, setOtp] = useState<string>("");
@@ -40,25 +40,23 @@ export default function VerifyOtpScreen() {
   const [resendSuccess, setResendSuccess] = useState<boolean>(false);
 
   const handleVerify = async (code: string) => {
-    const trimmedEmail = (email ?? "").trim();
-    if (!trimmedEmail || code.length < 6) return;
+    const trimmedPhone = (phone ?? "").trim();
+    if (!trimmedPhone || code.length < 6) return;
 
     setError(null);
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // CRITICAL: use signIn.emailOtp, not emailOtp.verifyEmail
-      const result = await authClient.signIn.emailOtp({
-        email: trimmedEmail,
-        otp: code,
+      const result = await authClient.phoneNumber.verify({
+        phoneNumber: trimmedPhone,
+        code,
       });
       if (result.error) {
         setError(result.error.message ?? "Invalid code. Please try again.");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Stack.Protected handles navigation automatically after session invalidation
         await invalidateSession();
       }
     } catch {
@@ -70,17 +68,16 @@ export default function VerifyOtpScreen() {
   };
 
   const handleResend = async () => {
-    const trimmedEmail = (email ?? "").trim();
-    if (!trimmedEmail || isResending) return;
+    const trimmedPhone = (phone ?? "").trim();
+    if (!trimmedPhone || isResending) return;
 
     setIsResending(true);
     setError(null);
     setResendSuccess(false);
 
     try {
-      const result = await authClient.emailOtp.sendVerificationOtp({
-        email: trimmedEmail,
-        type: "sign-in",
+      const result = await authClient.phoneNumber.sendOtp({
+        phoneNumber: trimmedPhone,
       });
       if (result.error) {
         setError(result.error.message ?? "Failed to resend. Please try again.");
@@ -178,7 +175,7 @@ export default function VerifyOtpScreen() {
             >
               Code sent to{" "}
               <Text style={{ color: COLORS.amber, fontWeight: "600" }}>
-                {email}
+                {phone}
               </Text>
             </Text>
           </Animated.View>
@@ -186,7 +183,7 @@ export default function VerifyOtpScreen() {
           {/* OTP Input */}
           <Animated.View
             entering={FadeInDown.delay(150).duration(500).springify()}
-            style={{ marginBottom: 32 }}
+            style={{ marginBottom: 12 }}
           >
             <View testID="otp-input">
               <OtpInput
@@ -226,6 +223,21 @@ export default function VerifyOtpScreen() {
                 }}
               />
             </View>
+
+            {/* Dev mode hint */}
+            {__DEV__ ? (
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: COLORS.muted,
+                  textAlign: "center",
+                  marginTop: 10,
+                  fontStyle: "italic",
+                }}
+              >
+                In dev mode, check server logs for the code
+              </Text>
+            ) : null}
           </Animated.View>
 
           {/* Error message */}
