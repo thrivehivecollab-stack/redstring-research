@@ -210,6 +210,11 @@ export default function InvestigationCanvas() {
   const storeAddString = useInvestigationStore((s) => s.addString);
   const storeDeleteString = useInvestigationStore((s) => s.deleteString);
 
+  // Subscription store
+  const maxNodesPerInvestigation = useSubscriptionStore((s) => s.maxNodesPerInvestigation);
+  const tier = useSubscriptionStore((s) => s.tier);
+  const maxNodes = maxNodesPerInvestigation();
+
   // Derive active investigation
   const investigation = useMemo(
     () => investigations.find((inv) => inv.id === activeId),
@@ -222,6 +227,7 @@ export default function InvestigationCanvas() {
   // Local UI state
   const [connectMode, setConnectMode] = useState<boolean>(false);
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
+  const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
 
   // Bottom sheet
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -307,10 +313,16 @@ export default function InvestigationCanvas() {
     [activeId, storeMoveNode]
   );
 
-  // Add node
+  // Add node — with limit check
   const handleAddNode = useCallback(
     (type: NodeType) => {
       if (!activeId) return;
+      if (nodes.length >= maxNodes) {
+        setShowAddMenu(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setShowNodeLimitModal(true);
+        return;
+      }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const centerX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
       const centerY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
@@ -325,7 +337,7 @@ export default function InvestigationCanvas() {
       storeAddNode(activeId, type, typeLabels[type], { x: centerX, y: centerY });
       setShowAddMenu(false);
     },
-    [activeId, tX, tY, scaleVal, screenW, screenH, storeAddNode]
+    [activeId, nodes.length, maxNodes, tX, tY, scaleVal, screenW, screenH, storeAddNode]
   );
 
   // Toggle connect mode
@@ -392,6 +404,8 @@ export default function InvestigationCanvas() {
         : [],
     [selectedNodeId, strings]
   );
+
+  const isAtNodeLimit = maxNodes !== Infinity && nodes.length >= maxNodes;
 
   // ---- No active investigation ----
   if (!investigation) {
@@ -552,6 +566,10 @@ export default function InvestigationCanvas() {
               <Text className="text-xs" style={{ color: C.redLight }}>
                 {connectingFromId ? 'Tap second node' : 'Tap first node'}
               </Text>
+            ) : maxNodes !== Infinity ? (
+              <Text className="text-xs" style={{ color: isAtNodeLimit ? C.red : C.muted }}>
+                {nodes.length}/{maxNodes} nodes{isAtNodeLimit ? ' — limit reached' : null}
+              </Text>
             ) : null}
           </View>
 
@@ -577,6 +595,11 @@ export default function InvestigationCanvas() {
           <Pressable
             testID="add-node-button"
             onPress={() => {
+              if (isAtNodeLimit) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                setShowNodeLimitModal(true);
+                return;
+              }
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowAddMenu(true);
             }}
@@ -584,12 +607,16 @@ export default function InvestigationCanvas() {
               width: 36,
               height: 36,
               borderRadius: 18,
-              backgroundColor: pressed ? '#A3162E' : C.red,
+              backgroundColor: isAtNodeLimit ? C.border : pressed ? '#A3162E' : C.red,
               alignItems: 'center',
               justifyContent: 'center',
             })}
           >
-            <Plus size={18} color="#FFF" strokeWidth={2.5} />
+            {isAtNodeLimit ? (
+              <Lock size={16} color={C.muted} strokeWidth={2} />
+            ) : (
+              <Plus size={18} color="#FFF" strokeWidth={2.5} />
+            )}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -656,6 +683,95 @@ export default function InvestigationCanvas() {
                 </Text>
               </Pressable>
             ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ---- NODE LIMIT MODAL ---- */}
+      <Modal
+        visible={showNodeLimitModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNodeLimitModal(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowNodeLimitModal(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: '100%',
+              maxWidth: 400,
+              backgroundColor: C.surface,
+              borderRadius: 20,
+              padding: 28,
+              borderWidth: 1,
+              borderColor: C.border,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: 'rgba(196, 30, 58, 0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Lock size={24} color={C.red} strokeWidth={2} />
+            </View>
+            <Text className="text-xl font-bold" style={{ color: C.text, marginBottom: 8, textAlign: 'center' }}>
+              Node Limit Reached
+            </Text>
+            <Text className="text-sm" style={{ color: C.muted, lineHeight: 20, marginBottom: 24, textAlign: 'center' }}>
+              {tier === 'free'
+                ? `Free accounts are limited to ${maxNodes} nodes per investigation. Upgrade to Pro for up to 200, or Plus for unlimited.`
+                : `You've reached the ${maxNodes} node limit for your plan. Upgrade to Plus for unlimited nodes.`}
+            </Text>
+            <Pressable
+              testID="upgrade-from-node-limit-button"
+              onPress={() => {
+                setShowNodeLimitModal(false);
+                router.push('/paywall');
+              }}
+              style={({ pressed }) => ({
+                width: '100%',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                backgroundColor: pressed ? '#A3162E' : C.red,
+                marginBottom: 12,
+                shadowColor: C.red,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              })}
+            >
+              <Text className="text-base font-bold" style={{ color: '#FFF' }}>
+                Upgrade Now
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="dismiss-node-limit-button"
+              onPress={() => setShowNodeLimitModal(false)}
+              style={({ pressed }) => ({
+                paddingVertical: 10,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ color: C.muted, fontSize: 14 }}>Not now</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
