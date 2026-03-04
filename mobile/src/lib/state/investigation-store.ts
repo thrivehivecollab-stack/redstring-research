@@ -218,7 +218,17 @@ const useInvestigationStore = create<InvestigationStore>()(
         api.post('/api/sources', {
           investigationId,
           nodeId,
-          source: newSource,
+          sourceType: newSource.sourceType,
+          sourceName: newSource.sourceName,
+          sourceHandle: newSource.sourceHandle,
+          sourceUrl: newSource.sourceUrl,
+          sourceProfileUrl: newSource.sourceProfileUrl,
+          platform: newSource.platform,
+          contentType: newSource.contentType,
+          contentSummary: newSource.contentSummary,
+          secondarySourceName: newSource.secondarySourceName,
+          secondarySourceUrl: newSource.secondarySourceUrl,
+          credibility: newSource.credibility,
         }).catch(() => {/* ignore errors */});
       },
 

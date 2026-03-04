@@ -23,7 +23,7 @@ collabRouter.post(
     investigationId: z.string(),
     title: z.string().min(1),
     description: z.string().optional(),
-    originalSnapshot: z.string(),
+    originalSnapshot: z.string().optional().default("{}"),
   })),
   async (c) => {
     const user = c.get("user");
