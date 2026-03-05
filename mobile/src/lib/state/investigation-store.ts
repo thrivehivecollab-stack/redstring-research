@@ -339,7 +339,7 @@ const useInvestigationStore = create<InvestigationStore>()(
         const currentYear = new Date().getFullYear();
         set((state) => {
           const inv = state.investigations.find((i) => i.id === investigationId);
-          const existingCount = inv?.timelines.length ?? 0;
+          const existingCount = (inv?.timelines ?? []).length;
           const color = TIMELINE_COLORS[existingCount % TIMELINE_COLORS.length];
           const timeline: Timeline = {
             id: timelineId,
@@ -353,7 +353,7 @@ const useInvestigationStore = create<InvestigationStore>()(
           return {
             investigations: state.investigations.map((i) =>
               i.id === investigationId
-                ? { ...i, timelines: [...i.timelines, timeline], updatedAt: now }
+                ? { ...i, timelines: [...(i.timelines ?? []), timeline], updatedAt: now }
                 : i
             ),
           };
@@ -367,7 +367,7 @@ const useInvestigationStore = create<InvestigationStore>()(
             inv.id === investigationId
               ? {
                   ...inv,
-                  timelines: inv.timelines.map((t) =>
+                  timelines: (inv.timelines ?? []).map((t) =>
                     t.id === timelineId ? { ...t, ...updates } : t
                   ),
                 }
@@ -382,7 +382,7 @@ const useInvestigationStore = create<InvestigationStore>()(
             inv.id === investigationId
               ? {
                   ...inv,
-                  timelines: inv.timelines.filter((t) => t.id !== timelineId),
+                  timelines: (inv.timelines ?? []).filter((t) => t.id !== timelineId),
                 }
               : inv
           ),
@@ -395,7 +395,7 @@ const useInvestigationStore = create<InvestigationStore>()(
             inv.id === investigationId
               ? {
                   ...inv,
-                  timelines: inv.timelines.map((t) =>
+                  timelines: (inv.timelines ?? []).map((t) =>
                     t.id === timelineId ? { ...t, isMinimized: !t.isMinimized } : t
                   ),
                 }
