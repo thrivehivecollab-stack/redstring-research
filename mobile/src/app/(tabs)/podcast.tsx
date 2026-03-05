@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -102,34 +103,35 @@ interface Episode {
   pubDate: string;
   duration: string;
   isNew?: boolean;
+  url?: string;
 }
 
 const ALL_EPISODES: Episode[] = [
   // Casefile
-  { id: 'cf1', showId: 'casefile', title: 'Case 301: The Beaumont Children', description: "On Australia Day 1966, three children vanished from Glenelg Beach. The Beaumont children case remains one of Australia's most haunting unsolved disappearances.", pubDate: '2024-12-15', duration: '58:22', isNew: true },
-  { id: 'cf2', showId: 'casefile', title: 'Case 299: The Grimes Sisters', description: "Two Chicago teenagers disappeared on New Year's Eve 1956. Their bodies were found weeks later under mysterious circumstances.", pubDate: '2024-12-01', duration: '51:44', isNew: true },
-  { id: 'cf3', showId: 'casefile', title: 'Case 297: Operation Yewtree', description: "A landmark investigation into institutional abuse by British celebrities and public figures that changed the landscape of UK justice.", pubDate: '2024-11-15', duration: '1:04:11' },
-  { id: 'cf4', showId: 'casefile', title: 'Case 295: The Suffolk Strangler', description: "In late 2006, five women were found murdered near Ipswich, England. Police raced to catch a killer before more lives were lost.", pubDate: '2024-11-01', duration: '47:38' },
+  { id: 'cf1', showId: 'casefile', title: 'Case 301: The Beaumont Children', description: "On Australia Day 1966, three children vanished from Glenelg Beach. The Beaumont children case remains one of Australia's most haunting unsolved disappearances.", pubDate: '2024-12-15', duration: '58:22', isNew: true, url: 'https://casefile.com.au/episodes' },
+  { id: 'cf2', showId: 'casefile', title: 'Case 299: The Grimes Sisters', description: "Two Chicago teenagers disappeared on New Year's Eve 1956. Their bodies were found weeks later under mysterious circumstances.", pubDate: '2024-12-01', duration: '51:44', isNew: true, url: 'https://casefile.com.au/episodes' },
+  { id: 'cf3', showId: 'casefile', title: 'Case 297: Operation Yewtree', description: "A landmark investigation into institutional abuse by British celebrities and public figures that changed the landscape of UK justice.", pubDate: '2024-11-15', duration: '1:04:11', url: 'https://casefile.com.au/episodes' },
+  { id: 'cf4', showId: 'casefile', title: 'Case 295: The Suffolk Strangler', description: "In late 2006, five women were found murdered near Ipswich, England. Police raced to catch a killer before more lives were lost.", pubDate: '2024-11-01', duration: '47:38', url: 'https://casefile.com.au/episodes' },
   // Crime Junkie
-  { id: 'cj1', showId: 'crimejunkie', title: 'MURDERED: Alissa Turney', description: "For years, Michael Turney maintained his stepdaughter ran away. The truth was far darker — and it took her sister two decades to prove it.", pubDate: '2024-12-16', duration: '42:18', isNew: true },
-  { id: 'cj2', showId: 'crimejunkie', title: 'MISSING: The Sodder Children', description: "On Christmas Eve 1945, five of the Sodder children disappeared during a house fire. Their parents never believed they died.", pubDate: '2024-12-09', duration: '38:55', isNew: true },
-  { id: 'cj3', showId: 'crimejunkie', title: 'CONSPIRACY: The Zodiac Cipher', description: "New forensic analysis of the 340 cipher has researchers questioning everything we thought we knew about the Zodiac Killer's identity.", pubDate: '2024-12-02', duration: '44:07' },
-  { id: 'cj4', showId: 'crimejunkie', title: 'MURDERED: Hae Min Lee', description: "The case that captivated millions via Serial podcast — but what do the documents say that the podcast left out?", pubDate: '2024-11-25', duration: '51:02' },
+  { id: 'cj1', showId: 'crimejunkie', title: 'MURDERED: Alissa Turney', description: "For years, Michael Turney maintained his stepdaughter ran away. The truth was far darker — and it took her sister two decades to prove it.", pubDate: '2024-12-16', duration: '42:18', isNew: true, url: 'https://www.crimejunkiepodcast.com' },
+  { id: 'cj2', showId: 'crimejunkie', title: 'MISSING: The Sodder Children', description: "On Christmas Eve 1945, five of the Sodder children disappeared during a house fire. Their parents never believed they died.", pubDate: '2024-12-09', duration: '38:55', isNew: true, url: 'https://www.crimejunkiepodcast.com' },
+  { id: 'cj3', showId: 'crimejunkie', title: 'CONSPIRACY: The Zodiac Cipher', description: "New forensic analysis of the 340 cipher has researchers questioning everything we thought we knew about the Zodiac Killer's identity.", pubDate: '2024-12-02', duration: '44:07', url: 'https://www.crimejunkiepodcast.com' },
+  { id: 'cj4', showId: 'crimejunkie', title: 'MURDERED: Hae Min Lee', description: "The case that captivated millions via Serial podcast — but what do the documents say that the podcast left out?", pubDate: '2024-11-25', duration: '51:02', url: 'https://www.crimejunkiepodcast.com' },
   // Intercepted
-  { id: 'in1', showId: 'intercepted', title: "The NSA's Secret Surveillance Network", description: "New documents reveal a domestic surveillance apparatus far broader than what Edward Snowden exposed in 2013. Investigative reporter James Risen joins.", pubDate: '2024-12-18', duration: '1:02:44', isNew: true },
-  { id: 'in2', showId: 'intercepted', title: 'Pentagon Black Budgets Exposed', description: "A leaked spreadsheet reveals $52 billion in classified programs the public has never heard of. What are they funding?", pubDate: '2024-12-11', duration: '55:30', isNew: true },
-  { id: 'in3', showId: 'intercepted', title: "The CIA's Media Infiltration", description: "Operation Mockingbird never ended — it evolved. Former intelligence officers speak on the record about ongoing media relationships.", pubDate: '2024-12-04', duration: '48:22' },
-  { id: 'in4', showId: 'intercepted', title: 'Whistleblower Protection Is a Myth', description: "Daniel Ellsberg, Tom Drake, and John Kiriakou all faced prosecution. The system is designed to punish, not protect.", pubDate: '2024-11-27', duration: '1:08:15' },
+  { id: 'in1', showId: 'intercepted', title: "The NSA's Secret Surveillance Network", description: "New documents reveal a domestic surveillance apparatus far broader than what Edward Snowden exposed in 2013. Investigative reporter James Risen joins.", pubDate: '2024-12-18', duration: '1:02:44', isNew: true, url: 'https://theintercept.com/podcasts/intercepted' },
+  { id: 'in2', showId: 'intercepted', title: 'Pentagon Black Budgets Exposed', description: "A leaked spreadsheet reveals $52 billion in classified programs the public has never heard of. What are they funding?", pubDate: '2024-12-11', duration: '55:30', isNew: true, url: 'https://theintercept.com/podcasts/intercepted' },
+  { id: 'in3', showId: 'intercepted', title: "The CIA's Media Infiltration", description: "Operation Mockingbird never ended — it evolved. Former intelligence officers speak on the record about ongoing media relationships.", pubDate: '2024-12-04', duration: '48:22', url: 'https://theintercept.com/podcasts/intercepted' },
+  { id: 'in4', showId: 'intercepted', title: 'Whistleblower Protection Is a Myth', description: "Daniel Ellsberg, Tom Drake, and John Kiriakou all faced prosecution. The system is designed to punish, not protect.", pubDate: '2024-11-27', duration: '1:08:15', url: 'https://theintercept.com/podcasts/intercepted' },
   // Conspirituality
-  { id: 'co1', showId: 'conspirituality', title: 'The "Med Bed" Grift Targeting Veterans', description: "QAnon-adjacent wellness influencers are selling fake healing technology to desperate veterans. We trace the money.", pubDate: '2024-12-17', duration: '1:22:08', isNew: true },
-  { id: 'co2', showId: 'conspirituality', title: 'How Big Pharma Created Anti-Vax Culture', description: "The evidence is clear: the modern anti-vaccine movement has corporate fingerprints all over it. Follow the funding.", pubDate: '2024-12-10', duration: '1:15:44', isNew: true },
-  { id: 'co3', showId: 'conspirituality', title: 'Inside the MAHA-Industrial Complex', description: "Make America Healthy Again sounds good. But the movement's funding sources reveal a different agenda.", pubDate: '2024-12-03', duration: '1:18:22' },
-  { id: 'co4', showId: 'conspirituality', title: "The Supplement Industry's Hidden Crimes", description: "Unregulated, often dangerous, and wildly profitable. The $50 billion supplement industry operates in a legal grey zone.", pubDate: '2024-11-26', duration: '58:50' },
+  { id: 'co1', showId: 'conspirituality', title: 'The "Med Bed" Grift Targeting Veterans', description: "QAnon-adjacent wellness influencers are selling fake healing technology to desperate veterans. We trace the money.", pubDate: '2024-12-17', duration: '1:22:08', isNew: true, url: 'https://conspirituality.net' },
+  { id: 'co2', showId: 'conspirituality', title: 'How Big Pharma Created Anti-Vax Culture', description: "The evidence is clear: the modern anti-vaccine movement has corporate fingerprints all over it. Follow the funding.", pubDate: '2024-12-10', duration: '1:15:44', isNew: true, url: 'https://conspirituality.net' },
+  { id: 'co3', showId: 'conspirituality', title: 'Inside the MAHA-Industrial Complex', description: "Make America Healthy Again sounds good. But the movement's funding sources reveal a different agenda.", pubDate: '2024-12-03', duration: '1:18:22', url: 'https://conspirituality.net' },
+  { id: 'co4', showId: 'conspirituality', title: "The Supplement Industry's Hidden Crimes", description: "Unregulated, often dangerous, and wildly profitable. The $50 billion supplement industry operates in a legal grey zone.", pubDate: '2024-11-26', duration: '58:50', url: 'https://conspirituality.net' },
   // Your Own Backyard
-  { id: 'yb1', showId: 'backyard', title: 'Season 3 Ep 8: The Phone Call', description: "A newly discovered witness account changes the timeline of Kristin's last known movements. Was there a second vehicle?", pubDate: '2024-12-14', duration: '1:11:33', isNew: true },
-  { id: 'yb2', showId: 'backyard', title: 'Season 3 Ep 7: Campus Security Records', description: "Records obtained via FOIA reveal significant gaps in Cal Poly's security coverage on the night Kristin disappeared.", pubDate: '2024-11-30', duration: '1:04:22' },
-  { id: 'yb3', showId: 'backyard', title: "Season 3 Ep 6: The Neighbor's Story", description: "A neighbor who has never spoken publicly comes forward with information that contradicts Paul Flores' alibi.", pubDate: '2024-11-16', duration: '58:44' },
-  { id: 'yb4', showId: 'backyard', title: 'Season 3 Ep 5: DNA Evidence Revisited', description: "Independent forensic analysts review the DNA evidence that convicted Paul Flores. Their findings are disturbing.", pubDate: '2024-11-02', duration: '1:16:08' },
+  { id: 'yb1', showId: 'backyard', title: 'Season 3 Ep 8: The Phone Call', description: "A newly discovered witness account changes the timeline of Kristin's last known movements. Was there a second vehicle?", pubDate: '2024-12-14', duration: '1:11:33', isNew: true, url: 'https://www.yourowbackyardpodcast.com' },
+  { id: 'yb2', showId: 'backyard', title: 'Season 3 Ep 7: Campus Security Records', description: "Records obtained via FOIA reveal significant gaps in Cal Poly's security coverage on the night Kristin disappeared.", pubDate: '2024-11-30', duration: '1:04:22', url: 'https://www.yourowbackyardpodcast.com' },
+  { id: 'yb3', showId: 'backyard', title: "Season 3 Ep 6: The Neighbor's Story", description: "A neighbor who has never spoken publicly comes forward with information that contradicts Paul Flores' alibi.", pubDate: '2024-11-16', duration: '58:44', url: 'https://www.yourowbackyardpodcast.com' },
+  { id: 'yb4', showId: 'backyard', title: 'Season 3 Ep 5: DNA Evidence Revisited', description: "Independent forensic analysts review the DNA evidence that convicted Paul Flores. Their findings are disturbing.", pubDate: '2024-11-02', duration: '1:16:08', url: 'https://www.yourowbackyardpodcast.com' },
 ];
 
 interface LiveItem {
@@ -140,6 +142,7 @@ interface LiveItem {
   scheduledTime?: string;
   viewers?: string;
   topic: string;
+  url?: string;
 }
 
 interface Keyword {
@@ -148,16 +151,16 @@ interface Keyword {
 }
 
 const LIVE_NOW: LiveItem[] = [
-  { id: 'l1', title: 'Congressional Hearing — AI Surveillance & Civil Liberties', channel: 'C-SPAN', isLive: true, viewers: '14.2K', topic: 'Surveillance' },
-  { id: 'l2', title: 'Press Conference: Classified Documents Release', channel: 'Reuters Live', isLive: true, viewers: '8.7K', topic: 'Intelligence' },
-  { id: 'l3', title: 'Breaking: FBI Director Senate Confirmation Hearing', channel: 'CSPAN2', isLive: true, viewers: '22.1K', topic: 'Justice' },
+  { id: 'l1', title: 'Congressional Hearing — AI Surveillance & Civil Liberties', channel: 'C-SPAN', isLive: true, viewers: '14.2K', topic: 'Surveillance', url: 'https://www.c-span.org/networks/' },
+  { id: 'l2', title: 'Press Conference: Classified Documents Release', channel: 'Reuters Live', isLive: true, viewers: '8.7K', topic: 'Intelligence', url: 'https://www.reuters.com/video/' },
+  { id: 'l3', title: 'Breaking: FBI Director Senate Confirmation Hearing', channel: 'CSPAN2', isLive: true, viewers: '22.1K', topic: 'Justice', url: 'https://www.c-span.org/networks/' },
 ];
 
 const SCHEDULED: LiveItem[] = [
-  { id: 's1', title: 'Senate Intelligence Committee Briefing', channel: 'C-SPAN 2', isLive: false, scheduledTime: 'Today 3:00 PM', topic: 'Intel' },
-  { id: 's2', title: 'Independent Journalist Panel: Leaks & Ethics', channel: 'Democracy Now', isLive: false, scheduledTime: 'Today 5:30 PM', topic: 'Media' },
-  { id: 's3', title: 'Whistleblower Protection Act Review', channel: 'PBS NewsHour', isLive: false, scheduledTime: 'Tomorrow 7:00 PM', topic: 'Law' },
-  { id: 's4', title: 'FOIA Transparency Summit — Panel Discussion', channel: 'Lawfare', isLive: false, scheduledTime: 'Tomorrow 9:00 AM', topic: 'FOIA' },
+  { id: 's1', title: 'Senate Intelligence Committee Briefing', channel: 'C-SPAN 2', isLive: false, scheduledTime: 'Today 3:00 PM', topic: 'Intel', url: 'https://www.c-span.org/networks/' },
+  { id: 's2', title: 'Independent Journalist Panel: Leaks & Ethics', channel: 'Democracy Now', isLive: false, scheduledTime: 'Today 5:30 PM', topic: 'Media', url: 'https://www.democracynow.org/live' },
+  { id: 's3', title: 'Whistleblower Protection Act Review', channel: 'PBS NewsHour', isLive: false, scheduledTime: 'Tomorrow 7:00 PM', topic: 'Law', url: 'https://www.pbs.org/newshour/live' },
+  { id: 's4', title: 'FOIA Transparency Summit — Panel Discussion', channel: 'Lawfare', isLive: false, scheduledTime: 'Tomorrow 9:00 AM', topic: 'FOIA', url: 'https://www.lawfaremedia.org' },
 ];
 
 const INITIAL_KEYWORDS: Keyword[] = [
@@ -414,8 +417,15 @@ function LiveCard({
   onPin: (id: string) => void;
   pinned: boolean;
 }) {
+  const handleOpen = () => {
+    if (item.url) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Linking.openURL(item.url);
+    }
+  };
+
   return (
-    <View style={[styles.liveCard, item.isLive ? styles.liveCardActive : null]}>
+    <Pressable onPress={handleOpen} style={[styles.liveCard, item.isLive ? styles.liveCardActive : null]}>
       {item.isLive ? <View style={styles.liveCardGlow} /> : null}
       <View style={styles.liveCardContent}>
         <View style={styles.liveCardLeft}>
@@ -457,7 +467,7 @@ function LiveCard({
           )}
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -567,12 +577,22 @@ export default function PodcastScreen() {
 
   const handleShare = useCallback((ep: Episode) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    showToast('Share link copied');
+    if (ep.url) {
+      import('react-native').then(({ Share }) => {
+        Share.share({ message: `${ep.title} - ${ep.url}`, url: ep.url });
+      });
+    } else {
+      showToast('Share link copied');
+    }
   }, [showToast]);
 
   const handlePlay = useCallback((ep: Episode) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    showToast(`Playing: ${ep.title}`);
+    if (ep.url) {
+      Linking.openURL(ep.url);
+    } else {
+      showToast(`Playing: ${ep.title}`);
+    }
   }, [showToast]);
 
   const handlePinLive = useCallback((id: string) => {
