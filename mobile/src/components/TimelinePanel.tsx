@@ -69,15 +69,30 @@ function TimelineRow({
   const [labelText, setLabelText] = useState<string>(timeline.label);
   const scrollRef = useRef<ScrollView>(null);
 
-  const years = useMemo(
-    () => getYears(timeline.startYear, timeline.endYear),
-    [timeline.startYear, timeline.endYear]
-  );
-
   // Nodes that have timestamps
   const timedNodes = useMemo(
     () => nodes.filter((n) => n.timestamp != null),
     [nodes]
+  );
+
+  // Auto-derive effective start/end from node timestamps, with padding
+  const { effectiveStart, effectiveEnd } = useMemo(() => {
+    if (timedNodes.length === 0) {
+      return { effectiveStart: timeline.startYear, effectiveEnd: timeline.endYear };
+    }
+    const years = timedNodes.map((n) => new Date(n.timestamp!).getFullYear());
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+    // 5-year padding on each side, at least a 10-year span
+    const padded = Math.max(10, maxYear - minYear + 10);
+    const start = minYear - 5;
+    const end = Math.max(maxYear + 5, CURRENT_YEAR);
+    return { effectiveStart: start, effectiveEnd: end };
+  }, [timedNodes, timeline.startYear, timeline.endYear]);
+
+  const years = useMemo(
+    () => getYears(effectiveStart, effectiveEnd),
+    [effectiveStart, effectiveEnd]
   );
 
   const YEAR_WIDTH = 60;
@@ -149,14 +164,14 @@ function TimelineRow({
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ height: 44 }}
+          style={{ height: 56 }}
           contentContainerStyle={{ width: totalScrollWidth, position: 'relative' }}
         >
           {/* Track line */}
           <View
             style={{
               position: 'absolute',
-              top: 20,
+              top: 32,
               left: 0,
               width: totalScrollWidth,
               height: 2,
@@ -184,7 +199,7 @@ function TimelineRow({
                   height: 10,
                   backgroundColor: timeline.color,
                   opacity: 0.6,
-                  marginTop: 14,
+                  marginTop: 26,
                 }}
               />
               <Text
@@ -205,27 +220,37 @@ function TimelineRow({
             if (!node.timestamp) return null;
             const xPos = getTimelinePosition(
               node.timestamp,
-              timeline.startYear,
-              timeline.endYear,
+              effectiveStart,
+              effectiveEnd,
               totalScrollWidth
             );
             const dotColor = '#F59E0B'; // amber for evidence dots
+            const label = node.title.length > 10 ? node.title.slice(0, 10) + '…' : node.title;
             return (
               <View
                 key={node.id}
                 style={{
                   position: 'absolute',
                   left: xPos - 4,
-                  top: 13,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: dotColor,
-                  borderWidth: 1.5,
-                  borderColor: C.bg,
+                  top: 4,
+                  alignItems: 'center',
                   zIndex: 2,
                 }}
-              />
+              >
+                <Text style={{ color: dotColor, fontSize: 7, fontWeight: '700', marginBottom: 2, width: 50, textAlign: 'center' }} numberOfLines={1}>
+                  {label}
+                </Text>
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: dotColor,
+                    borderWidth: 1.5,
+                    borderColor: C.bg,
+                  }}
+                />
+              </View>
             );
           })}
         </ScrollView>

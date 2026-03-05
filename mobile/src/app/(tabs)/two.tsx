@@ -54,6 +54,7 @@ import {
   LayoutGrid,
   Network,
   BookOpen,
+  Calendar,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
@@ -587,6 +588,7 @@ export default function InvestigationCanvas() {
   const snapPoints = useMemo(() => ['45%', '80%'], []);
   const [editTitle, setEditTitle] = useState<string>('');
   const [editContent, setEditContent] = useState<string>('');
+  const [editDate, setEditDate] = useState<string>(''); // "YYYY-MM-DD" or free text like "Nov 1963"
 
   // Canvas shared values
   const tX = useSharedValue(0);
@@ -649,6 +651,16 @@ export default function InvestigationCanvas() {
         if (nd) {
           setEditTitle(nd.title);
           setEditContent(nd.content ?? nd.description ?? '');
+          // Populate date field from existing timestamp
+          if (nd.timestamp) {
+            const d = new Date(nd.timestamp);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            setEditDate(`${yyyy}-${mm}-${dd}`);
+          } else {
+            setEditDate('');
+          }
         }
         setSelectedNode(nodeId);
         bottomSheetRef.current?.snapToIndex(0);
@@ -765,14 +777,23 @@ export default function InvestigationCanvas() {
   const handleSaveNode = useCallback(() => {
     if (!activeId || !selectedNodeId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Parse date string into unix timestamp
+    let timestamp: number | undefined = undefined;
+    if (editDate.trim()) {
+      const parsed = new Date(editDate.trim());
+      if (!isNaN(parsed.getTime())) {
+        timestamp = parsed.getTime();
+      }
+    }
     storeUpdateNode(activeId, selectedNodeId, {
       title: editTitle,
       content: editContent,
       description: editContent,
+      timestamp,
     });
     bottomSheetRef.current?.close();
     setSelectedNode(null);
-  }, [activeId, selectedNodeId, editTitle, editContent, storeUpdateNode, setSelectedNode]);
+  }, [activeId, selectedNodeId, editTitle, editContent, editDate, storeUpdateNode, setSelectedNode]);
 
   // Delete node
   const handleDeleteNode = useCallback(() => {
@@ -1466,6 +1487,41 @@ export default function InvestigationCanvas() {
                 multiline
                 style={[styles.sheetInput, { minHeight: 100, textAlignVertical: 'top' }]}
               />
+
+              {/* Date field */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 6, gap: 6 }}>
+                <Calendar size={12} color={C.muted} strokeWidth={2} />
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: C.muted, letterSpacing: 1 }}
+                >
+                  DATE (for timeline)
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <BottomSheetTextInput
+                  value={editDate}
+                  onChangeText={setEditDate}
+                  placeholder="e.g. 1963-11-22 or Nov 1963"
+                  placeholderTextColor={C.muted}
+                  style={[styles.sheetInput, { flex: 1 }]}
+                />
+                {editDate.trim() ? (
+                  <Pressable
+                    onPress={() => setEditDate('')}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: C.border,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <X size={13} color={C.muted} strokeWidth={2} />
+                  </Pressable>
+                ) : null}
+              </View>
 
               {/* Tags */}
               {selectedNode.tags.length > 0 ? (
