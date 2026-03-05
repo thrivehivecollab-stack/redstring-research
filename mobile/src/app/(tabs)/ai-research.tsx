@@ -29,6 +29,8 @@ import {
   VolumeX,
   Headphones,
   Check,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -108,16 +110,13 @@ interface TranscribeResponse {
 
 // ─── Quick actions ──────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { label: 'Analyze Evidence', icon: Zap, immediate: true, text: 'Analyze Evidence' },
-  { label: 'Find Connections', icon: Brain, immediate: true, text: 'Find Connections' },
-  { label: 'Research Topic', icon: BookOpen, immediate: false, text: 'Research this topic: ' },
-  {
-    label: 'Summarize Case',
-    icon: MessageCircle,
-    immediate: true,
-    text: 'Give me a case summary based on our conversation so far',
-  },
-] as const;
+  { label: 'Analyze Evidence', icon: Zap, immediate: true, text: 'Analyze Evidence', isVerify: false },
+  { label: 'Find Connections', icon: Brain, immediate: true, text: 'Find Connections', isVerify: false },
+  { label: 'Verify Info', icon: ShieldCheck, immediate: false, text: 'Verify this claim: ', isVerify: true },
+  { label: 'Debunk This', icon: AlertTriangle, immediate: false, text: 'Debunk this claim: ', isVerify: true },
+  { label: 'Research Topic', icon: BookOpen, immediate: false, text: 'Research this topic: ', isVerify: false },
+  { label: 'Summarize Case', icon: MessageCircle, immediate: true, text: 'Give me a case summary based on our conversation so far', isVerify: false },
+];
 
 // ─── ThinkingDots ───────────────────────────────────────────────────────────
 function ThinkingDots() {
@@ -1114,6 +1113,91 @@ function MessageBubble({
   );
 }
 
+// ─── Verify Modal ────────────────────────────────────────────────────────────
+function VerifyModal({
+  visible,
+  loading,
+  result,
+  onClose,
+}: {
+  visible: boolean;
+  loading: boolean;
+  result: { analysis: string; verdict: string; confidence: number } | null;
+  onClose: () => void;
+}) {
+  const verdictColor = result?.verdict === 'LIKELY TRUE' ? '#22C55E'
+    : result?.verdict === 'LIKELY FALSE' ? '#C41E3A'
+    : result?.verdict === 'MISLEADING' ? '#F59E0B'
+    : result?.verdict === 'DISPUTED' ? '#A855F7'
+    : '#6B5B4F';
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' }} onPress={onClose}>
+        <Pressable onPress={() => null}>
+          <View style={{
+            backgroundColor: '#231F1C',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderTopWidth: 1,
+            borderTopColor: '#3D332C',
+            paddingTop: 8,
+            paddingBottom: 36,
+            maxHeight: 600,
+          }}>
+            {/* Grabber */}
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#3D332C', alignSelf: 'center', marginBottom: 16, marginTop: 4 }} />
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 16, gap: 10 }}>
+              <ShieldCheck size={20} color={verdictColor} strokeWidth={2} />
+              <Text style={{ color: '#E8DCC8', fontSize: 16, fontWeight: '800', letterSpacing: 1, flex: 1 }}>FACT CHECK</Text>
+              <Pressable onPress={onClose} style={{ padding: 4 }}>
+                <X size={18} color="#6B5B4F" strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            {loading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 48, gap: 14 }}>
+                <ActivityIndicator size="large" color="#C41E3A" />
+                <Text style={{ color: '#6B5B4F', fontSize: 14, fontWeight: '600' }}>Analyzing claim...</Text>
+              </View>
+            ) : result ? (
+              <ScrollView style={{ maxHeight: 480 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
+                {/* Verdict badge */}
+                <View style={{
+                  backgroundColor: `${verdictColor}18`,
+                  borderRadius: 14,
+                  borderWidth: 2,
+                  borderColor: `${verdictColor}55`,
+                  padding: 16,
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                  <Text style={{ color: verdictColor, fontSize: 20, fontWeight: '900', letterSpacing: 1.5 }}>
+                    {result.verdict}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' }}>
+                    <View style={{ flex: 1, height: 6, backgroundColor: '#3D332C', borderRadius: 3, overflow: 'hidden' }}>
+                      <View style={{ width: `${result.confidence}%`, height: '100%', backgroundColor: verdictColor, borderRadius: 3 }} />
+                    </View>
+                    <Text style={{ color: verdictColor, fontSize: 12, fontWeight: '800' }}>{result.confidence}%</Text>
+                  </View>
+                </View>
+
+                {/* Full analysis */}
+                <Text style={{ color: '#E8DCC8', fontSize: 13, lineHeight: 21 }}>
+                  {result.analysis}
+                </Text>
+              </ScrollView>
+            ) : null}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Main screen ────────────────────────────────────────────────────────────
 export default function AIResearchScreen() {
   // Investigation context
@@ -1155,6 +1239,11 @@ export default function AIResearchScreen() {
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
   const [highlightsPanelVisible, setHighlightsPanelVisible] = useState<boolean>(false);
   const [confirmNewConvoVisible, setConfirmNewConvoVisible] = useState<boolean>(false);
+
+  // Verify modal state
+  const [verifyResult, setVerifyResult] = useState<{ analysis: string; verdict: string; confidence: number } | null>(null);
+  const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
+  const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
 
   // Toast
   const [toastVisible, setToastVisible] = useState<boolean>(false);
@@ -1212,6 +1301,56 @@ export default function AIResearchScreen() {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToastVisible(false), 2600);
   }, []);
+
+  // ─── Build rich investigation context ─────────────────────────────────
+  const buildInvestigationContext = useCallback(() => {
+    if (!activeInvestigation) return undefined;
+    const nodesSummary = activeInvestigation.nodes
+      .map((n) => {
+        const parts = [`[${n.type.toUpperCase()}] ${n.title}`];
+        if (n.content) parts.push(`Content: ${n.content.slice(0, 300)}`);
+        if (n.description) parts.push(`Notes: ${n.description.slice(0, 200)}`);
+        if (n.timestamp) parts.push(`Date: ${new Date(n.timestamp).toLocaleDateString()}`);
+        return parts.join(' | ');
+      })
+      .join('\n');
+    const stringsSummary = activeInvestigation.strings.length > 0
+      ? `\nConnections: ${activeInvestigation.strings.map((s) => {
+          const from = activeInvestigation.nodes.find((n) => n.id === s.fromNodeId)?.title ?? '?';
+          const to = activeInvestigation.nodes.find((n) => n.id === s.toNodeId)?.title ?? '?';
+          return `${from} → ${to}${s.label ? ` (${s.label})` : ''}`;
+        }).join(', ')}`
+      : '';
+    return `Investigation: "${activeInvestigation.title}"\n\nEvidence Board:\n${nodesSummary}${stringsSummary}`;
+  }, [activeInvestigation]);
+
+  // ─── Handle verify / fact-check a claim ───────────────────────────────
+  const handleVerifyClaim = useCallback(async (claim: string) => {
+    if (!claim.trim()) return;
+    setVerifyLoading(true);
+    setShowVerifyModal(true);
+    setVerifyResult(null);
+    try {
+      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const res = await fetch(`${BACKEND_URL}/api/ai/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claim,
+          context: buildInvestigationContext(),
+        }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        setVerifyResult(json.data);
+      }
+    } catch {
+      showToast('Verification failed. Please try again.');
+      setShowVerifyModal(false);
+    } finally {
+      setVerifyLoading(false);
+    }
+  }, [buildInvestigationContext, showToast]);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
@@ -1376,6 +1515,14 @@ export default function AIResearchScreen() {
         timestamp: new Date(),
       };
 
+      // If this looks like a verify/debunk request, also run structured verification
+      if (trimmed.toLowerCase().startsWith('verify this claim:') || trimmed.toLowerCase().startsWith('debunk this claim:')) {
+        const claimText = trimmed.replace(/^(verify this claim:|debunk this claim:)\s*/i, '');
+        if (claimText.trim()) {
+          handleVerifyClaim(claimText.trim());
+        }
+      }
+
       setMessages((prev) => {
         const next = [...prev, userMsg];
         return next;
@@ -1395,7 +1542,7 @@ export default function AIResearchScreen() {
                 ...hist,
                 { role: 'user', content: trimmed },
               ],
-              investigationContext: activeInvestigation?.title,
+              investigationContext: buildInvestigationContext(),
             });
 
             const aiText =
@@ -1447,7 +1594,7 @@ export default function AIResearchScreen() {
         return prev;
       });
     },
-    [isThinking, scrollToBottom, buildHistory, activeInvestigation, voiceEnabled, speakTextInternal, startHandsFreeRecording]
+    [isThinking, scrollToBottom, buildHistory, buildInvestigationContext, handleVerifyClaim, voiceEnabled, speakTextInternal, startHandsFreeRecording]
   );
 
   const handleSend = useCallback(() => {
@@ -2352,6 +2499,13 @@ export default function AIResearchScreen() {
         onSelectVoice={handleSelectVoice}
         onPreviewVoice={handlePreviewVoice}
         previewingVoiceId={previewingVoiceId}
+      />
+
+      <VerifyModal
+        visible={showVerifyModal}
+        loading={verifyLoading}
+        result={verifyResult}
+        onClose={() => { setShowVerifyModal(false); setVerifyResult(null); }}
       />
     </View>
   );

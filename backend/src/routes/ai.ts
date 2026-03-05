@@ -333,5 +333,89 @@ aiRouter.get('/podcast-image', async (c) => {
   }
 });
 
+// ─── Verify / fact-check a claim ───────────────────────────────────────────
+
+const verifySchema = z.object({
+  claim: z.string().min(1),
+  context: z.string().optional(),
+  nodeTitle: z.string().optional(),
+});
+
+const VERIFY_SYSTEM_PROMPT = `You are a rigorous fact-checker and verification specialist for Red String Research. Your job is to critically analyze claims, evidence, and information provided by investigators.
+
+For each claim or piece of information you receive, structure your response EXACTLY as follows:
+
+**VERDICT: [LIKELY TRUE / LIKELY FALSE / UNVERIFIED / MISLEADING / DISPUTED]**
+**CONFIDENCE: [0-100]%**
+
+**REASONING:**
+[2-4 sentences explaining your verdict]
+
+**RED FLAGS:**
+[List any logical fallacies, inconsistencies, or suspicious elements. Write "None detected" if none]
+
+**SUPPORTING EVIDENCE:**
+[Publicly known facts that support this claim, or "None identified"]
+
+**CONTRADICTING EVIDENCE:**
+[Publicly known facts that contradict this claim, or "None identified"]
+
+**SUGGESTED FOLLOW-UP:**
+[2-3 specific investigative actions to verify this further]
+
+Be direct, analytical, and objective. If you lack knowledge about something, say so clearly. Focus on facts, logic, and publicly available information.`;
+
+aiRouter.post(
+  "/verify",
+  zValidator("json", verifySchema),
+  async (c) => {
+    const { claim, context, nodeTitle } = c.req.valid("json");
+
+    if (!env.OPENAI_API_KEY) {
+      return c.json({ error: { message: "OpenAI API key is not configured." } }, 500);
+    }
+
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+
+    const userContent = nodeTitle
+      ? `Verify the following claim from node "${nodeTitle}":\n\n${claim}${context ? `\n\nAdditional context: ${context}` : ''}`
+      : `Verify the following claim:\n\n${claim}${context ? `\n\nAdditional context: ${context}` : ''}`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: VERIFY_SYSTEM_PROMPT },
+          { role: "user", content: userContent },
+        ],
+      });
+
+      const analysis = completion.choices[0]?.message?.content ?? "";
+
+      // Parse verdict
+      let verdict = "UNVERIFIED";
+      if (analysis.includes("LIKELY TRUE")) verdict = "LIKELY TRUE";
+      else if (analysis.includes("LIKELY FALSE")) verdict = "LIKELY FALSE";
+      else if (analysis.includes("MISLEADING")) verdict = "MISLEADING";
+      else if (analysis.includes("DISPUTED")) verdict = "DISPUTED";
+      else if (analysis.includes("UNVERIFIED")) verdict = "UNVERIFIED";
+
+      // Parse confidence
+      let confidence = 50;
+      const confMatch = analysis.match(/CONFIDENCE[:\s]*(\d+)%/i);
+      if (confMatch && confMatch[1]) {
+        confidence = Math.min(100, Math.max(0, parseInt(confMatch[1], 10)));
+      }
+
+      return c.json({
+        data: { analysis, verdict, confidence },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error calling OpenAI";
+      return c.json({ error: { message } }, 500);
+    }
+  }
+);
+
 export { aiRouter };
 
