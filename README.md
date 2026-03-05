@@ -17,8 +17,9 @@ A visual investigation canvas app for mapping relationships, evidence, and conne
 - Pannable and zoomable corkboard canvas
 - Draggable pushpin-style node cards with drag-to-trash
 - Multiple node types: Note, Link, Image, Folder, Dataset
-- Bezier red string connections with custom colors and labels
-- Connect mode for creating connections
+- Bezier red string connections with custom colors and labels (fixed SVG re-render on pan/zoom)
+- Connect mode for creating connections (fixed stale closure bug)
+- Automation engine: auto-tags nodes by keyword, auto-connects related nodes
 - Mind map view alternative
 - Timeline panel for chronological events
 - Color legend for node categorization

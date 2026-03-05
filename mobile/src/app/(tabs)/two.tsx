@@ -66,6 +66,7 @@ import MindMapCanvas from '@/components/MindMapCanvas';
 import ColorLegend from '@/components/ColorLegend';
 import ColorSuggestionSheet from '@/components/ColorSuggestionSheet';
 import TourOverlay from '@/components/TourOverlay';
+import { useAutomationEngine } from '@/components/AutomationEngine';
 
 // ---- Color constants ----
 const C = {
@@ -332,6 +333,7 @@ function StringsLayer({
   tX,
   tY,
   selectedStringId,
+  canvasVersion,
 }: {
   strings: Array<{ id: string; fromNodeId: string; toNodeId: string; label?: string; color: string; thickness?: number; style?: 'solid' | 'dashed' | 'dotted' }>;
   nodeMap: Map<string, CanvasNode>;
@@ -339,6 +341,7 @@ function StringsLayer({
   tX: Animated.SharedValue<number>;
   tY: Animated.SharedValue<number>;
   selectedStringId: string | null;
+  canvasVersion: number;
 }) {
   // We need to read shared values synchronously on the JS thread for SVG rendering.
   // Since SVG is not Animated.View, we use a state-based approach by listening to
@@ -527,6 +530,13 @@ export default function InvestigationCanvas() {
   // Tour/demo store
   const isDemoMode = useTourStore((s) => s.isDemoMode);
 
+  // Canvas version counter — increments on every pan/zoom to force StringsLayer re-render
+  const [canvasVersion, setCanvasVersion] = useState<number>(0);
+  const bumpCanvas = useCallback(() => setCanvasVersion((v) => v + 1), []);
+
+  // Automation engine — auto-tags and auto-connects nodes on save
+  useAutomationEngine(activeId);
+
   // Derive active investigation
   const investigation = useMemo(
     () => investigations.find((inv) => inv.id === activeId),
@@ -610,8 +620,9 @@ export default function InvestigationCanvas() {
         .onUpdate((e) => {
           tX.value = savedTX.value + e.translationX;
           tY.value = savedTY.value + e.translationY;
+          runOnJS(bumpCanvas)();
         }),
-    [tX, tY, savedTX, savedTY]
+    [tX, tY, savedTX, savedTY, bumpCanvas]
   );
 
   const canvasPinch = useMemo(
@@ -623,8 +634,9 @@ export default function InvestigationCanvas() {
         .onUpdate((e) => {
           const next = savedScale.value * e.scale;
           scaleVal.value = Math.min(Math.max(next, 0.3), 3.0);
+          runOnJS(bumpCanvas)();
         }),
-    [scaleVal, savedScale]
+    [scaleVal, savedScale, bumpCanvas]
   );
 
   const canvasGesture = useMemo(
@@ -638,10 +650,12 @@ export default function InvestigationCanvas() {
       if (!activeId) return;
       if (connectMode) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (!connectingFromId) {
+        // Read fresh from store to avoid stale closure
+        const freshConnectingFrom = useInvestigationStore.getState().connectingFromId;
+        if (!freshConnectingFrom) {
           setConnectingFrom(nodeId);
-        } else if (connectingFromId !== nodeId) {
-          storeAddString(activeId, connectingFromId, nodeId);
+        } else if (freshConnectingFrom !== nodeId) {
+          storeAddString(activeId, freshConnectingFrom, nodeId);
           setConnectingFrom(null);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -666,7 +680,7 @@ export default function InvestigationCanvas() {
         bottomSheetRef.current?.snapToIndex(0);
       }
     },
-    [activeId, connectMode, connectingFromId, setConnectingFrom, storeAddString, nodes, setSelectedNode]
+    [activeId, connectMode, storeAddString, nodes, setSelectedNode, setConnectingFrom]
   );
 
   // Node drag handler
@@ -930,6 +944,7 @@ export default function InvestigationCanvas() {
                 tX={tX}
                 tY={tY}
                 selectedStringId={selectedStringId}
+                canvasVersion={canvasVersion}
               />
 
               {/* Node cards */}
