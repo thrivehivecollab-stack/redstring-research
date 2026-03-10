@@ -1314,8 +1314,8 @@ export default function AIResearchScreen() {
         return parts.join(' | ');
       })
       .join('\n');
-    const stringsSummary = activeInvestigation.strings.length > 0
-      ? `\nConnections: ${activeInvestigation.strings.map((s) => {
+    const stringsSummary = (activeInvestigation.strings ?? []).length > 0
+      ? `\nConnections: ${(activeInvestigation.strings ?? []).map((s) => {
           const from = activeInvestigation.nodes.find((n) => n.id === s.fromNodeId)?.title ?? '?';
           const to = activeInvestigation.nodes.find((n) => n.id === s.toNodeId)?.title ?? '?';
           return `${from} → ${to}${s.label ? ` (${s.label})` : ''}`;

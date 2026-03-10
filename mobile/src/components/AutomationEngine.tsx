@@ -77,7 +77,7 @@ export function useAutomationEngine(investigationId: string | null) {
 
       // Get existing string pairs to avoid duplicates
       const existingPairs = new Set(
-        inv.strings.map((s) => `${s.fromNodeId}:${s.toNodeId}`)
+        (inv.strings ?? []).map((s) => `${s.fromNodeId}:${s.toNodeId}`)
       );
 
       for (const other of inv.nodes) {

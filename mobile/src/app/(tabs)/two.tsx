@@ -343,31 +343,24 @@ function StringsLayer({
   selectedStringId: string | null;
   canvasVersion: number;
 }) {
-  // We need to read shared values synchronously on the JS thread for SVG rendering.
-  // Since SVG is not Animated.View, we use a state-based approach by listening to
-  // canvas pan/zoom changes.
   const [canvasState, setCanvasState] = useState<{ scale: number; tx: number; ty: number }>({
     scale: 1,
     tx: 0,
     ty: 0,
   });
 
-  // Track updates via a JS-thread listener
-  const updateCanvasState = useCallback(() => {
+  // Sync canvas transform whenever canvasVersion bumps (pan/zoom) or strings change
+  useEffect(() => {
     setCanvasState({
       scale: scaleVal.value,
       tx: tX.value,
       ty: tY.value,
     });
-  }, [scaleVal, tX, tY]);
+  }, [canvasVersion, strings, scaleVal, tX, tY]);
 
-  // Reattach whenever scale/pan changes (driven by gesture callbacks)
-  // We'll pass setCanvasState down to the parent and call it on gesture updates
-  // For now, use a polling approach via the parent's gesture onUpdate calling this
-  // Actually, let's just use the direct .value read — it's synchronous on the JS thread
-  const curScale = scaleVal.value;
-  const curTX = tX.value;
-  const curTY = tY.value;
+  const curScale = canvasState.scale;
+  const curTX = canvasState.tx;
+  const curTY = canvasState.ty;
 
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">

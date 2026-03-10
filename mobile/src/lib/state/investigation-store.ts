@@ -168,7 +168,7 @@ const useInvestigationStore = create<InvestigationStore>()(
               ? {
                   ...inv,
                   nodes: inv.nodes.filter((n) => n.id !== nodeId),
-                  strings: inv.strings.filter(
+                  strings: (inv.strings ?? []).filter(
                     (s) => s.fromNodeId !== nodeId && s.toNodeId !== nodeId
                   ),
                   updatedAt: now,
@@ -297,7 +297,7 @@ const useInvestigationStore = create<InvestigationStore>()(
         set((state) => ({
           investigations: state.investigations.map((inv) =>
             inv.id === investigationId
-              ? { ...inv, strings: [...inv.strings, newString], updatedAt: now }
+              ? { ...inv, strings: [...(inv.strings ?? []), newString], updatedAt: now }
               : inv
           ),
           connectingFromId: null,
@@ -311,7 +311,7 @@ const useInvestigationStore = create<InvestigationStore>()(
             inv.id === investigationId
               ? {
                   ...inv,
-                  strings: inv.strings.map((s) =>
+                  strings: (inv.strings ?? []).map((s) =>
                     s.id === stringId ? { ...s, ...updates } : s
                   ),
                 }
@@ -326,7 +326,7 @@ const useInvestigationStore = create<InvestigationStore>()(
             inv.id === investigationId
               ? {
                   ...inv,
-                  strings: inv.strings.filter((s) => s.id !== stringId),
+                  strings: (inv.strings ?? []).filter((s) => s.id !== stringId),
                 }
               : inv
           ),

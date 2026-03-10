@@ -86,7 +86,7 @@ function InvestigationCard({
   onDelete: () => void;
 }) {
   const nodeCount = investigation.nodes.length;
-  const stringCount = investigation.strings.length;
+  const stringCount = (investigation.strings ?? []).length;
   const memberCount = collabSession?.members.length ?? 0;
 
   const translateX = useSharedValue(0);
