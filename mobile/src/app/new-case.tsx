@@ -436,44 +436,41 @@ function TimelinePreview() {
 }
 
 // ─── Case File Preview ────────────────────────────────────────────
-// 4 horizontal colored bars, each with a left-side dot, varying widths.
+// 4 rows: small colored dot on left, then full-width dark gray bar
 function CaseFilePreview() {
-  const bars: { color: string; pct: number }[] = [
-    { color: '#C41E3A', pct: 1.0 },
-    { color: '#3B82F6', pct: 0.85 },
-    { color: '#F59E0B', pct: 0.65 },
-    { color: '#22C55E', pct: 0.78 },
+  const bars: { color: string }[] = [
+    { color: '#C41E3A' },
+    { color: '#3B82F6' },
+    { color: '#F59E0B' },
+    { color: '#22C55E' },
   ];
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 14, gap: 8 }}>
+    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 14, gap: 10 }}>
       {bars.map((bar, i) => (
         <View
           key={i}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
         >
-          {/* Left dot */}
+          {/* Colored dot */}
           <View
             style={{
-              width: 10,
-              height: 10,
-              borderRadius: 5,
+              width: 8,
+              height: 8,
+              borderRadius: 4,
               backgroundColor: bar.color,
               flexShrink: 0,
             }}
           />
-          {/* Bar — flex-based width relative to remaining space */}
-          <View style={{ flex: 1 }}>
-            <View
-              style={{
-                height: 8,
-                width: `${bar.pct * 100}%`,
-                backgroundColor: bar.color,
-                borderRadius: 4,
-                opacity: 0.9,
-              }}
-            />
-          </View>
+          {/* Full-width dark gray bar */}
+          <View
+            style={{
+              flex: 1,
+              height: 12,
+              backgroundColor: '#2A2520',
+              borderRadius: 4,
+            }}
+          />
         </View>
       ))}
     </View>
@@ -567,39 +564,39 @@ export default function NewCaseScreen() {
               paddingHorizontal: 16,
               paddingTop: 8,
               paddingBottom: 4,
+              gap: 12,
             }}
           >
-            {/* Back arrow */}
+            {/* Back button — dark rounded square */}
             <Pressable
               testID="new-case-back-button"
               onPress={() => router.back()}
               style={({ pressed }) => ({
                 width: 40,
                 height: 40,
+                borderRadius: 12,
+                backgroundColor: pressed ? '#3D332C' : '#231F1C',
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: pressed ? 0.6 : 1,
+                borderWidth: 1,
+                borderColor: '#3D332C',
+                flexShrink: 0,
               })}
             >
-              <Text style={{ color: '#E8DCC8', fontSize: 22, fontWeight: '300' }}>{'←'}</Text>
+              <Text style={{ color: '#E8DCC8', fontSize: 20, lineHeight: 22, fontWeight: '300' }}>{'←'}</Text>
             </Pressable>
 
-            {/* Title centered */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text
-                style={{
-                  fontFamily: fontsLoaded ? 'BebasNeue_400Regular' : undefined,
-                  fontSize: 26,
-                  letterSpacing: 4,
-                  color: '#E8DCC8',
-                }}
-              >
-                NEW CASE
-              </Text>
-            </View>
-
-            {/* Right spacer to balance layout */}
-            <View style={{ width: 40 }} />
+            {/* Title left-aligned */}
+            <Text
+              style={{
+                fontFamily: fontsLoaded ? 'BebasNeue_400Regular' : undefined,
+                fontSize: 28,
+                letterSpacing: 4,
+                color: '#E8DCC8',
+              }}
+            >
+              NEW CASE
+            </Text>
           </View>
 
           {/* ── Subtitle ── */}
@@ -674,7 +671,7 @@ export default function NewCaseScreen() {
                     {/* Visual preview area */}
                     <View
                       style={{
-                        height: 120,
+                        height: 150,
                         backgroundColor: '#1A1614',
                         borderBottomWidth: 1,
                         borderBottomColor: '#3D332C',

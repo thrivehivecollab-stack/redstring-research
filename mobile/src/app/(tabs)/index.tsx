@@ -113,26 +113,26 @@ function getBoardColor(inv: Investigation): string {
 }
 
 // ──────────────────────────────────────────────
-// TAPE STRIP ACCENT (decorative header on hero)
+// RED LINE ACCENT (thin top border on hero card)
 // ──────────────────────────────────────────────
-function TapeStrip() {
-  const segments = 20;
+function RedTopLine() {
   return (
-    <View style={{ height: 3, flexDirection: 'row', overflow: 'hidden', borderRadius: 2 }}>
-      {Array.from({ length: segments }).map((_, i) => (
-        <View
-          key={i}
-          style={{
-            flex: 1,
-            backgroundColor: i % 2 === 0 ? COLORS.red : COLORS.gold,
-            marginHorizontal: 0.5,
-          }}
-        />
-      ))}
-    </View>
+    <View
+      style={{
+        height: 3,
+        backgroundColor: COLORS.red,
+        shadowColor: COLORS.red,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.7,
+        shadowRadius: 6,
+        elevation: 4,
+      }}
+    />
   );
 }
 
+// ──────────────────────────────────────────────
+// HERO CARD — most recently updated non-demo inv
 // ──────────────────────────────────────────────
 // HERO CARD — most recently updated non-demo inv
 // ──────────────────────────────────────────────
@@ -168,105 +168,90 @@ function HeroCard({
           overflow: 'hidden',
           opacity: pressed ? 0.95 : 1,
           transform: [{ scale: pressed ? 0.985 : 1 }],
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.45,
-          shadowRadius: 18,
+          shadowColor: COLORS.red,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 16,
           elevation: 8,
           borderWidth: 1,
           borderColor: COLORS.border,
         })}
       >
-        {/* Tape strip accent */}
-        <TapeStrip />
+        {/* Thin red glow line at very top */}
+        <RedTopLine />
 
         <View style={{ padding: 16 }}>
-          {/* Row 1: icon + badges */}
+          {/* Row 1: icon + ACTIVE badge + arrow */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-            {/* Investigation icon */}
-            <View style={{ position: 'relative', marginRight: 12 }}>
-              {/* Pushpin dot */}
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -5,
-                  left: '50%',
-                  marginLeft: -5,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: COLORS.pin,
-                  zIndex: 2,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.4,
-                  shadowRadius: 2,
-                  elevation: 3,
-                }}
-              />
-              <View
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 12,
-                  backgroundColor: tint + '22',
-                  borderWidth: 1.5,
-                  borderColor: tint + '55',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 26 }}>{icon || '🔍'}</Text>
-              </View>
+            {/* Investigation icon — no pushpin on hero card */}
+            <View
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 12,
+                backgroundColor: tint + '22',
+                borderWidth: 1.5,
+                borderColor: tint + '55',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 12,
+              }}
+            >
+              <Text style={{ fontSize: 26 }}>{icon || '🔍'}</Text>
             </View>
 
-            {/* Badges */}
-            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 4 }}>
+            {/* ACTIVE badge — pill style */}
+            <View style={{ flex: 1, justifyContent: 'center', paddingTop: 6 }}>
               <View
                 style={{
-                  backgroundColor: 'rgba(196,30,58,0.15)',
-                  borderRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderWidth: 1,
-                  borderColor: 'rgba(196,30,58,0.35)',
+                  alignSelf: 'flex-start',
+                  backgroundColor: COLORS.red,
+                  borderRadius: 20,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
                 }}
               >
-                <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>
+                <Text style={{ color: '#FFF', fontSize: 10, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1.5 }}>
                   ACTIVE
                 </Text>
               </View>
-              {tipCount > 0 ? (
-                <View
-                  style={{
-                    backgroundColor: 'rgba(34,197,94,0.12)',
-                    borderRadius: 6,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderWidth: 1,
-                    borderColor: 'rgba(34,197,94,0.3)',
-                  }}
-                >
-                  <Text style={{ color: COLORS.green, fontSize: 10, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>
-                    {tipCount} TIPS
-                  </Text>
-                </View>
-              ) : null}
             </View>
 
-            {/* Chevron */}
-            <ChevronRight size={18} color={COLORS.muted} strokeWidth={2} />
+            {/* Collab badge if active */}
+            {collabSession ? (
+              <Pressable
+                onPress={(e) => { e.stopPropagation?.(); onCollabPress(); }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
+                  borderRadius: 20,
+                  paddingHorizontal: 9,
+                  paddingVertical: 5,
+                  borderWidth: 1,
+                  borderColor: 'rgba(196,30,58,0.3)',
+                  marginRight: 6,
+                })}
+              >
+                <Users size={12} color={COLORS.red} strokeWidth={2.5} />
+                <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_700Bold' }}>
+                  {collabSession.members.length}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
-          {/* Title */}
+          {/* Title — large display font */}
           <Text
-            numberOfLines={1}
+            numberOfLines={2}
             style={{
               color: COLORS.textLight,
-              fontSize: 21,
+              fontSize: 26,
               fontFamily: heroFontFamily,
               letterSpacing: 1,
-              marginBottom: 4,
+              lineHeight: 30,
+              marginBottom: 6,
             }}
           >
             {inv.title}
@@ -278,76 +263,89 @@ function HeroCard({
               numberOfLines={2}
               style={{
                 color: COLORS.muted,
-                fontSize: 11,
+                fontSize: 12,
                 fontFamily: 'CourierPrime_400Regular',
-                lineHeight: 16,
-                marginBottom: 12,
+                lineHeight: 17,
+                marginBottom: 14,
               }}
             >
               {inv.description}
             </Text>
-          ) : <View style={{ height: 12 }} />}
+          ) : <View style={{ height: 14 }} />}
 
-          {/* Stats row */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          {/* Stats row: pills + arrow button */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Nodes pill */}
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
-                backgroundColor: 'rgba(212,165,116,0.1)',
-                borderRadius: 6,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: 'rgba(212,165,116,0.2)',
-              }}
-            >
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.pin }} />
-              <Text style={{ color: COLORS.pin, fontSize: 10, fontFamily: 'CourierPrime_400Regular' }}>
-                {nodeCount} nodes
-              </Text>
-            </View>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: 'rgba(196,30,58,0.08)',
-                borderRadius: 6,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: 'rgba(196,30,58,0.2)',
+                gap: 5,
+                backgroundColor: 'rgba(196,30,58,0.1)',
+                borderRadius: 20,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
               }}
             >
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.red }} />
-              <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_400Regular' }}>
+              <Text style={{ color: COLORS.textLight, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                {nodeCount} nodes
+              </Text>
+            </View>
+
+            {/* Strings pill */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                backgroundColor: 'rgba(59,130,246,0.1)',
+                borderRadius: 20,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+              }}
+            >
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.blue }} />
+              <Text style={{ color: COLORS.textLight, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
                 {stringCount} strings
               </Text>
             </View>
+
+            {/* Tips pill */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                backgroundColor: 'rgba(34,197,94,0.1)',
+                borderRadius: 20,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+              }}
+            >
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.green }} />
+              <Text style={{ color: COLORS.textLight, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                {tipCount} new tips
+              </Text>
+            </View>
+
             <View style={{ flex: 1 }} />
-            {collabSession ? (
-              <Pressable
-                onPress={(e) => { e.stopPropagation?.(); onCollabPress(); }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
-                  borderRadius: 6,
-                  paddingHorizontal: 7,
-                  paddingVertical: 4,
-                  borderWidth: 1,
-                  borderColor: 'rgba(196,30,58,0.3)',
-                })}
-              >
-                <Users size={12} color={COLORS.red} strokeWidth={2.5} />
-                <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_700Bold' }}>
-                  {collabSession.members.length}
-                </Text>
-              </Pressable>
-            ) : null}
+
+            {/* Arrow button — circular dark */}
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: COLORS.surface2,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ChevronRight size={16} color={COLORS.textLight} strokeWidth={2.5} />
+            </View>
           </View>
         </View>
       </Pressable>
@@ -503,7 +501,7 @@ function AddCaseCell({ onPress }: { onPress: () => void }) {
 }
 
 // ──────────────────────────────────────────────
-// HAMBURGER MENU — full-screen slide-in overlay
+// COMMAND PANEL — bottom-sheet slide-up overlay
 // ──────────────────────────────────────────────
 function HamburgerMenu({
   visible,
@@ -530,284 +528,244 @@ function HamburgerMenu({
   setCollabSheetVisible: (v: boolean) => void;
   router: any;
 }) {
-  const translateX = useSharedValue(visible ? 0 : -SCREEN_WIDTH);
-
-  useEffect(() => {
-    translateX.value = withTiming(visible ? 0 : -SCREEN_WIDTH, { duration: 280 });
-  }, [visible]);
-
-  const slideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
   if (!visible) return null;
 
-  const emailPrefix = session?.user?.email?.split('@')[0] ?? 'investigator';
-  const displayName = session?.user?.name || emailPrefix;
-  const avatarLetter = (session?.user?.email?.[0] ?? 'R').toUpperCase();
+  const emailPrefix = session?.user?.email?.split('@')[0] ?? 'investigator_1';
+  const displayName = session?.user?.name || 'Anonymous Sleuth';
+  const avatarLetter = (session?.user?.email?.[0] ?? 'A').toUpperCase();
 
-  const podcastRows = [
-    { icon: '🔴', title: 'Tucker Carlson Network', subtitle: 'LIVE', isLive: true },
-    { icon: '🎙️', title: 'Candace Owens', subtitle: 'Latest episode' },
-    { icon: '🎙️', title: 'Baron Coleman', subtitle: 'Investigative reporting' },
-    { icon: '🏋️', title: 'Coach Colin', subtitle: 'Health & freedom' },
-    { icon: '🎯', title: 'Ian Carroll', subtitle: 'Deep research' },
-    { icon: '📺', title: 'Megyn Kelly', subtitle: 'The Megyn Kelly Show' },
-    { icon: '🎙️', title: 'The Charlie Kirk Show', subtitle: 'Daily commentary' },
-    { icon: '🏛️', title: 'The White House', subtitle: 'Official briefings' },
-    { icon: '📰', title: 'Major News Outlets', subtitle: 'CNN · Fox · NBC · ABC · CBS' },
-    { icon: '➕', title: 'Add Podcast or Channel', subtitle: 'RSS feed, YouTube, or search', isAdd: true },
+  const watchingNowRows = [
+    { icon: <Radio size={16} color="#C41E3A" strokeWidth={2} />, iconBg: '#2A1010', title: 'Tucker Carlson Network', subtitle: 'Live now · 14k watching', isLive: true },
+    { icon: <Mic size={16} color="#E8DCC8" strokeWidth={2} />, iconBg: '#201C19', title: 'The Charlie Kirk Show', subtitle: 'New episode · 2h ago', isLive: false },
+    { icon: <Tv size={16} color="#E8DCC8" strokeWidth={2} />, iconBg: '#201C19', title: 'Megyn Kelly', subtitle: 'New episode · 4h ago', isLive: false },
+    { icon: <Mic size={16} color="#E8DCC8" strokeWidth={2} />, iconBg: '#201C19', title: 'Candace Owens', subtitle: 'New episode · 1d ago', isLive: false },
+    { icon: <Activity size={16} color="#E8DCC8" strokeWidth={2} />, iconBg: '#201C19', title: 'The White House', subtitle: 'Official briefings', isLive: false },
+    { icon: <Rss size={16} color="#6B5B4F" strokeWidth={2} />, iconBg: '#1E1B18', title: 'Add Podcast or Channel', subtitle: 'RSS feed, YouTube, or search', isAdd: true },
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       {/* Backdrop */}
       <Pressable
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.72)' }}
         onPress={onClose}
       />
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: SCREEN_WIDTH * 0.85,
-            backgroundColor: COLORS.surface,
-            zIndex: 100,
-            shadowColor: '#000',
-            shadowOffset: { width: 6, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 20,
-            elevation: 20,
-          },
-          slideStyle,
-        ]}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#1A1614',
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          maxHeight: '92%',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -8 },
+          shadowOpacity: 0.6,
+          shadowRadius: 24,
+          elevation: 30,
+        }}
       >
-        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            {/* Header row */}
+        <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
+          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+            {/* ── Header ── */}
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 paddingHorizontal: 20,
-                paddingTop: 16,
+                paddingTop: 24,
                 paddingBottom: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: COLORS.border,
               }}
             >
-              <Text style={{ fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 3, color: COLORS.textLight }}>
-                RED{' '}
-                <Text style={{ color: COLORS.red }}>STRING</Text>
+              <Text style={{ fontFamily: 'BebasNeue_400Regular', fontSize: 36, letterSpacing: 4, color: '#E8DCC8' }}>
+                COMMAND
               </Text>
               <Pressable
                 onPress={onClose}
                 style={({ pressed }) => ({
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   borderRadius: 10,
-                  backgroundColor: pressed ? COLORS.border : COLORS.background,
+                  backgroundColor: pressed ? '#3D332C' : '#2A2520',
                   alignItems: 'center',
                   justifyContent: 'center',
                 })}
               >
-                <X size={18} color={COLORS.muted} strokeWidth={2} />
+                <Text style={{ color: '#E8DCC8', fontSize: 20, lineHeight: 22, fontWeight: '300' }}>×</Text>
               </Pressable>
             </View>
 
-            {/* Profile strip */}
+            {/* ── User profile card ── */}
             <View
               style={{
+                marginHorizontal: 16,
+                marginBottom: 20,
+                backgroundColor: '#231F1C',
+                borderRadius: 14,
+                padding: 14,
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingHorizontal: 20,
-                paddingVertical: 16,
                 gap: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: COLORS.border,
+                borderWidth: 1,
+                borderColor: '#3D332C',
               }}
             >
-              <LinearGradient
-                colors={[COLORS.red, COLORS.redDark]}
+              {/* Red avatar circle */}
+              <View
                 style={{
                   width: 44,
                   height: 44,
                   borderRadius: 22,
+                  backgroundColor: '#C41E3A',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
                 <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800' }}>{avatarLetter}</Text>
-              </LinearGradient>
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700', marginBottom: 2 }}>
+                <Text style={{ color: '#E8DCC8', fontSize: 15, fontWeight: '700', marginBottom: 2 }}>
                   {displayName}
                 </Text>
-                <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
-                  @{emailPrefix} · {tierLabel} · {nonDemoCount} cases
+                <Text style={{ color: '#6B5B4F', fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                  @{emailPrefix} · {tierLabel}
                 </Text>
               </View>
-              <Pressable
-                onPress={() => { onClose(); setShowAccountModal(true); }}
-                style={({ pressed }) => ({
-                  backgroundColor: pressed ? COLORS.border : COLORS.background,
+              {/* PRO badge */}
+              <View
+                style={{
+                  backgroundColor: 'rgba(34,197,94,0.15)',
                   borderRadius: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
+                  paddingHorizontal: 9,
+                  paddingVertical: 4,
                   borderWidth: 1,
-                  borderColor: COLORS.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                })}
+                  borderColor: 'rgba(34,197,94,0.3)',
+                }}
               >
-                <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
-                  Switch
-                </Text>
-                <ChevronDown size={12} color={COLORS.muted} strokeWidth={2} />
-              </Pressable>
+                <Text style={{ color: '#22C55E', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>{tierLabel}</Text>
+              </View>
             </View>
 
-            {/* Section: LIVE OPERATIONS */}
-            <MenuSection title="LIVE OPERATIONS">
-              <MenuRow
-                icon="📡"
-                iconBg="rgba(196,30,58,0.15)"
+            {/* ── LIVE section ── */}
+            <CommandSection title="LIVE">
+              <CommandRow
+                iconBg="#5A1020"
+                iconEl={<Radio size={18} color="#FF4466" strokeWidth={2} />}
                 title="Start a Broadcast"
-                subtitle="Go live with your investigation"
-                isLive
+                subtitle="Go live on your corkboard"
+                rightEl={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#C41E3A' }} />}
                 onPress={() => { onClose(); router.push('/live-broadcast'); }}
               />
-              <MenuRow
-                icon="👥"
-                iconBg="rgba(59,130,246,0.15)"
+              <CommandRow
+                iconBg="#1A2535"
+                iconEl={<Tv size={18} color="#3B82F6" strokeWidth={2} />}
                 title="War Room"
-                subtitle="Join or start a session"
+                subtitle="Video collaboration session"
+                rightEl={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#C41E3A' }} />}
                 onPress={() => { onClose(); router.push('/collab'); }}
               />
-              <MenuRow
-                icon="👥"
-                iconBg="rgba(212,165,116,0.15)"
+              <CommandRow
+                iconBg="#1A2535"
+                iconEl={<Users size={18} color="#60A5FA" strokeWidth={2} />}
                 title="Collaborations"
                 subtitle={`${sessions.length} active session${sessions.length !== 1 ? 's' : ''}`}
-                badge={sessions.length > 0 ? String(sessions.length) : undefined}
+                rightEl={
+                  sessions.length > 0 ? (
+                    <View style={{ backgroundColor: '#C41E3A', borderRadius: 6, minWidth: 22, height: 22, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
+                      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>{sessions.length}</Text>
+                    </View>
+                  ) : null
+                }
                 onPress={() => { onClose(); setCollabSheetVisible(true); }}
+                isLast
               />
-              <MenuRow
-                icon="📺"
-                iconBg="rgba(168,85,247,0.15)"
-                title="Current Live Streams"
-                subtitle="Who's live right now"
-                onPress={() => { onClose(); router.push('/live-streams'); }}
-              />
-            </MenuSection>
+            </CommandSection>
 
-            {/* Section: PODCASTS & CHANNELS */}
-            <MenuSection title="PODCASTS & CHANNELS">
-              {podcastRows.map((p, i) => (
-                <MenuRow
+            {/* ── WATCHING NOW section ── */}
+            <CommandSection title="WATCHING NOW">
+              {watchingNowRows.map((row, i) => (
+                <CommandRow
                   key={i}
-                  icon={p.icon}
-                  iconBg={p.isAdd ? 'rgba(212,165,116,0.1)' : 'rgba(196,30,58,0.1)'}
-                  title={p.title}
-                  subtitle={p.subtitle}
-                  isLive={p.isLive}
-                  isNew={i === 0}
+                  iconBg={row.iconBg}
+                  iconEl={row.icon}
+                  title={row.title}
+                  subtitle={row.subtitle}
+                  rightEl={
+                    row.isLive ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#C41E3A' }} />
+                        <Text style={{ color: '#C41E3A', fontSize: 9, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>LIVE</Text>
+                      </View>
+                    ) : null
+                  }
                   onPress={() => { onClose(); router.push('/podcast'); }}
+                  isLast={i === watchingNowRows.length - 1}
+                  muted={row.isAdd}
                 />
               ))}
-            </MenuSection>
+            </CommandSection>
 
-            {/* Section: ACCOUNT & SETTINGS */}
-            <MenuSection title="ACCOUNT & SETTINGS">
-              <MenuRow
-                icon="👤"
-                iconBg="rgba(212,165,116,0.12)"
-                title="Profiles"
-                subtitle="Manage your account"
-                badge="2"
-                onPress={() => { onClose(); setShowAccountModal(true); }}
-              />
-              <MenuRow
-                icon="🔔"
-                iconBg="rgba(59,130,246,0.12)"
-                title="Notifications"
-                subtitle="Alerts and updates"
-                onPress={() => {}}
-              />
-              <MenuRow
-                icon="🎨"
-                iconBg="rgba(168,85,247,0.12)"
-                title="Appearance"
-                subtitle="Themes and fonts"
-                onPress={() => { onClose(); router.push('/appearance'); }}
-              />
-              <MenuRow
-                icon="🔒"
-                iconBg="rgba(196,30,58,0.08)"
-                title="Privacy & Security"
-                subtitle="Data and permissions"
-                onPress={() => {}}
-              />
-              <MenuRow
-                icon="⭐"
-                iconBg="rgba(240,192,96,0.15)"
-                title="Subscription"
-                subtitle={`Current plan: ${tierLabel}`}
-                onPress={() => { onClose(); router.push('/paywall'); }}
-              />
-            </MenuSection>
-
-            <View style={{ height: 32 }} />
+            <View style={{ height: 24 }} />
           </ScrollView>
         </SafeAreaView>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
 
-function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
+function CommandSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={{ marginTop: 20 }}>
+    <View style={{ marginBottom: 8 }}>
       <Text
         style={{
-          color: COLORS.muted,
+          color: '#6B5B4F',
           fontSize: 9,
           fontFamily: 'CourierPrime_700Bold',
           letterSpacing: 2,
           paddingHorizontal: 20,
-          marginBottom: 8,
+          marginBottom: 4,
+          textTransform: 'uppercase',
         }}
       >
         {title}
       </Text>
-      {children}
+      <View
+        style={{
+          marginHorizontal: 16,
+          backgroundColor: '#231F1C',
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: '#3D332C',
+          overflow: 'hidden',
+        }}
+      >
+        {children}
+      </View>
     </View>
   );
 }
 
-function MenuRow({
-  icon,
+function CommandRow({
   iconBg,
+  iconEl,
   title,
   subtitle,
-  badge,
-  isLive,
-  isNew,
+  rightEl,
   onPress,
+  isLast,
+  muted,
 }: {
-  icon: string;
   iconBg: string;
+  iconEl: React.ReactNode;
   title: string;
   subtitle?: string;
-  badge?: string;
-  isLive?: boolean;
-  isNew?: boolean;
+  rightEl?: React.ReactNode;
   onPress: () => void;
+  isLast?: boolean;
+  muted?: boolean;
 }) {
   return (
     <Pressable
@@ -816,59 +774,37 @@ function MenuRow({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        paddingHorizontal: 20,
-        paddingVertical: 11,
-        backgroundColor: pressed ? COLORS.background : 'transparent',
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        backgroundColor: pressed ? '#2A2520' : 'transparent',
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomColor: '#3D332C',
       })}
     >
       <View
         style={{
-          width: 36,
-          height: 36,
+          width: 40,
+          height: 40,
           borderRadius: 10,
           backgroundColor: iconBg,
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
-        <Text style={{ fontSize: 18 }}>{icon}</Text>
+        {iconEl}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '600', marginBottom: 1 }}>
+        <Text style={{ color: muted ? '#6B5B4F' : '#E8DCC8', fontSize: 14, fontWeight: '600', marginBottom: 2 }}>
           {title}
         </Text>
         {subtitle ? (
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+          <Text style={{ color: '#6B5B4F', fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
             {subtitle}
           </Text>
         ) : null}
       </View>
-      {isLive ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.red }} />
-          <Text style={{ color: COLORS.red, fontSize: 9, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>LIVE</Text>
-        </View>
-      ) : null}
-      {badge ? (
-        <View
-          style={{
-            backgroundColor: COLORS.red,
-            borderRadius: 6,
-            minWidth: 20,
-            height: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: 5,
-          }}
-        >
-          <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{badge}</Text>
-        </View>
-      ) : null}
-      {isNew && !isLive ? (
-        <View style={{ backgroundColor: COLORS.red, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 }}>
-          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '700' }}>NEW</Text>
-        </View>
-      ) : null}
+      {rightEl ? rightEl : null}
     </Pressable>
   );
 }
@@ -1456,6 +1392,33 @@ export default function InvestigationsDashboard() {
           contentContainerStyle={{ paddingBottom: 30 }}
           ListHeaderComponent={
             <>
+              {/* MOST RECENT section header */}
+              {heroInv ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    marginBottom: 10,
+                    gap: 8,
+                  }}
+                >
+                  {/* Red horizontal line before label */}
+                  <View style={{ width: 18, height: 2, backgroundColor: COLORS.red, borderRadius: 1 }} />
+                  <Text
+                    style={{
+                      fontFamily: fontsLoaded ? 'CourierPrime_700Bold' : undefined,
+                      fontSize: 9,
+                      letterSpacing: 3,
+                      color: COLORS.muted,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Most Recent
+                  </Text>
+                </View>
+              ) : null}
+
               {/* Hero Card */}
               {heroInv ? (
                 <HeroCard
@@ -1470,7 +1433,7 @@ export default function InvestigationsDashboard() {
                 <DemoCard onLaunch={handleLaunchDemo} />
               ) : null}
 
-              {/* ALL CASES section header */}
+              {/* ALL INVESTIGATIONS section header — count badge on the RIGHT */}
               {sortedInvestigations.length > 0 ? (
                 <View
                   style={{
@@ -1487,25 +1450,27 @@ export default function InvestigationsDashboard() {
                       fontSize: 9,
                       letterSpacing: 3,
                       color: COLORS.muted,
+                      textTransform: 'uppercase',
                     }}
                   >
-                    ALL CASES
+                    All Investigations
                   </Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+                  {/* Count badge on the far right */}
                   <View
                     style={{
                       backgroundColor: COLORS.surface2,
-                      borderRadius: 5,
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
+                      borderRadius: 6,
+                      paddingHorizontal: 7,
+                      paddingVertical: 3,
                       borderWidth: 1,
                       borderColor: COLORS.border,
                     }}
                   >
-                    <Text style={{ color: COLORS.muted, fontSize: 9, fontFamily: fontsLoaded ? 'CourierPrime_400Regular' : undefined }}>
+                    <Text style={{ color: COLORS.muted, fontSize: 9, fontFamily: fontsLoaded ? 'CourierPrime_700Bold' : undefined }}>
                       {nonDemoInvestigationCount}
                     </Text>
                   </View>
-                  <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
                 </View>
               ) : null}
 

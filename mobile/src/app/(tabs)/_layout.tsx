@@ -103,24 +103,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="tips"
+        name="podcast"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Tips" emoji="📬" />
+            <TabItem color={color} focused={focused} label="Live" emoji="📡" />
           ),
         }}
       />
       <Tabs.Screen
-        name="collab-tab"
+        name="scripts"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Collab" emoji="👥" />
+            <TabItem color={color} focused={focused} label="Pods" emoji="🎙️" />
           ),
         }}
       />
       {/* Hidden tabs - accessible via hamburger menu */}
-      <Tabs.Screen name="podcast" options={{ href: null }} />
-      <Tabs.Screen name="scripts" options={{ href: null }} />
+      <Tabs.Screen name="tips" options={{ href: null }} />
+      <Tabs.Screen name="collab-tab" options={{ href: null }} />
       <Tabs.Screen name="bookmarks" options={{ href: null }} />
       <Tabs.Screen name="prompt-history" options={{ href: null }} />
     </Tabs>
