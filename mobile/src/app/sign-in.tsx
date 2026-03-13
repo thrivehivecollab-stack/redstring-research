@@ -468,10 +468,14 @@ export default function SignInScreen() {
             <Animated.View entering={FadeInDown.delay(500).duration(500)} style={{ gap: 12 }}>
               {/* Google */}
               <Pressable
-                onPress={() => {
+                onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSocialMessage('Google Sign-In coming soon. Use phone number for now.');
-                  setTimeout(() => setSocialMessage(null), 3000);
+                  try {
+                    await (authClient as any).signIn.social({ provider: 'google', callbackURL: '/dashboard' });
+                  } catch {
+                    setSocialMessage('Google Sign-In is not configured yet. Use phone number for now.');
+                    setTimeout(() => setSocialMessage(null), 3000);
+                  }
                 }}
                 style={({ pressed }) => ({
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -489,10 +493,14 @@ export default function SignInScreen() {
 
               {/* Apple */}
               <Pressable
-                onPress={() => {
+                onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSocialMessage('Apple Sign-In coming soon. Use phone number for now.');
-                  setTimeout(() => setSocialMessage(null), 3000);
+                  try {
+                    await (authClient as any).signIn.social({ provider: 'apple', callbackURL: '/dashboard' });
+                  } catch {
+                    setSocialMessage('Apple Sign-In is not configured yet. Use phone number for now.');
+                    setTimeout(() => setSocialMessage(null), 3000);
+                  }
                 }}
                 style={({ pressed }) => ({
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,

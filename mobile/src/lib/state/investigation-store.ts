@@ -453,6 +453,19 @@ const useInvestigationStore = create<InvestigationStore>()(
     {
       name: 'investigation-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persistedState: any, _fromVersion: number) => {
+        const state = persistedState as any;
+        if (!state.investigations) state.investigations = [];
+        state.investigations = state.investigations.map((inv: any) => ({
+          ...inv,
+          nodes: Array.isArray(inv.nodes) ? inv.nodes : [],
+          strings: Array.isArray(inv.strings) ? inv.strings : [],
+          timelines: Array.isArray(inv.timelines) ? inv.timelines : [],
+          colorLegend: Array.isArray(inv.colorLegend) ? inv.colorLegend : [],
+        }));
+        return state;
+      },
     }
   )
 );

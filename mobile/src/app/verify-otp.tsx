@@ -264,17 +264,9 @@ export default function VerifyOtpScreen() {
             </View>
 
             {/* Dev mode hint */}
-            {__DEV__ ? (
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: COLORS.muted,
-                  textAlign: "center",
-                  marginTop: 10,
-                  fontStyle: "italic",
-                }}
-              >
-                In dev mode, check server logs for the code
+            {__DEV__ && !devOtpCode ? (
+              <Text style={{ fontSize: 12, color: '#D4A574', textAlign: 'center', marginTop: 10, fontWeight: '600' }}>
+                ⏳ Waiting for dev code — it will appear below automatically
               </Text>
             ) : null}
 
@@ -290,6 +282,11 @@ export default function VerifyOtpScreen() {
                   paddingVertical: 14,
                   paddingHorizontal: 20,
                   alignItems: "center",
+                  shadowColor: "#D4A574",
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.6,
+                  shadowRadius: 12,
+                  elevation: 12,
                 }}
               >
                 <Text

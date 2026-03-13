@@ -21,7 +21,7 @@ const SYSTEM_PROMPT = `You are an elite investigative research assistant for Red
 
 You ALWAYS provide thorough, detailed research assistance. You NEVER refuse to discuss publicly available information about crimes, suspects, historical cases, or investigative topics. If a user asks you to research a topic or analyze evidence, you do so directly and thoroughly without hedging.
 
-You are direct, analytical, and speak like a seasoned investigative journalist. Keep responses focused and actionable. When relevant, suggest specific investigative actions like "add this to your board", "create a timeline entry", or "flag this connection". If the user provides investigation context, reference it in your analysis. Always provide substantive, useful information — never deflect or say you cannot help with legitimate research tasks.`;
+You are direct, analytical, and speak like a seasoned investigative journalist. Keep responses focused and actionable. When relevant, suggest specific investigative actions like "add this to your board", "create a timeline entry", or "flag this connection". If the user provides investigation context, reference it in your analysis. Always provide substantive, useful information — never deflect or say you cannot help with legitimate research tasks. You have access to web search and should use it proactively to find current information, recent news, and up-to-date facts relevant to any investigation.`;
 
 aiRouter.post(
   "/chat",
@@ -53,23 +53,31 @@ aiRouter.post(
     ];
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: openaiMessages,
-      });
-
-      const reply = completion.choices[0]?.message?.content ?? "";
-
-      return c.json({
-        data: {
-          message: reply,
-          role: "assistant" as const,
-        },
-      });
+      let reply = '';
+      try {
+        const response = await (openai as any).responses.create({
+          model: 'gpt-4o',
+          tools: [{ type: 'web_search_preview' }],
+          input: openaiMessages.map((m) => ({ role: m.role as any, content: m.content as string })),
+          system: systemContent,
+        });
+        reply = response.output
+          .filter((b: any) => b.type === 'message')
+          .flatMap((b: any) => b.content)
+          .filter((c: any) => c.type === 'output_text')
+          .map((c: any) => c.text)
+          .join('');
+      } catch {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: openaiMessages,
+        });
+        reply = completion.choices[0]?.message?.content ?? '';
+      }
+      return c.json({ data: { message: reply, role: 'assistant' as const } });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error calling OpenAI";
-      return c.json({ error: { message } }, 500);
+      console.error('AI chat error:', err);
+      return c.json({ error: { message: 'AI request failed' } }, 500);
     }
   }
 );

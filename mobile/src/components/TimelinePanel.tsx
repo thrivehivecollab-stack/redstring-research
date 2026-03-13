@@ -35,6 +35,23 @@ function getYears(start: number, end: number): number[] {
   return years;
 }
 
+export function parseFlexibleDate(input: string | number): number | null {
+  if (typeof input === 'number') return input;
+  const s = input.trim();
+  const iso = new Date(s);
+  if (!isNaN(iso.getTime())) return iso.getTime();
+  const yearOnly = s.match(/^(\d{4})$/);
+  if (yearOnly) return new Date(parseInt(yearOnly[1]), 0, 1).getTime();
+  const monthYear = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (monthYear) {
+    const d = new Date(`${monthYear[1]} 1, ${monthYear[2]}`);
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+  const mmyyyy = s.match(/^(\d{1,2})\/(\d{4})$/);
+  if (mmyyyy) return new Date(parseInt(mmyyyy[2]), parseInt(mmyyyy[1]) - 1, 1).getTime();
+  return null;
+}
+
 function getTimelinePosition(
   timestamp: number,
   startYear: number,

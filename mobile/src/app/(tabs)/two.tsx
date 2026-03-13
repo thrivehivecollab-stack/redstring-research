@@ -273,7 +273,16 @@ function NodeCard({
         <View
           style={[
             styles.nodeCard,
-            isFrom ? { borderWidth: 2, borderColor: C.red } : undefined,
+            connectMode
+              ? {
+                  borderWidth: node.id === connectingFromId ? 2 : 1,
+                  borderColor: node.id === connectingFromId ? C.red : 'rgba(196,30,58,0.4)',
+                  shadowColor: node.id === connectingFromId ? C.red : 'transparent',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: node.id === connectingFromId ? 0.9 : 0,
+                  shadowRadius: node.id === connectingFromId ? 12 : 0,
+                }
+              : isFrom ? { borderWidth: 2, borderColor: C.red } : undefined,
           ]}
         >
           {/* Colored left category stripe */}
@@ -991,6 +1000,25 @@ export default function InvestigationCanvas() {
 
       {/* ---- TRASH ZONE (appears while dragging a node) ---- */}
       <TrashZone visible={nodeIsDragging} isActive={nodeIsOverTrash} />
+
+      {/* ---- CONNECT MODE BANNER ---- */}
+      {connectMode ? (
+        <Animated.View
+          entering={SlideInDown.springify().damping(18)}
+          exiting={SlideOutDown.duration(200)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 200, paddingTop: 8, paddingHorizontal: 12, pointerEvents: 'none' }}
+        >
+          <View style={{ backgroundColor: 'rgba(196,30,58,0.95)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF' }} />
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', flex: 1 }}>
+              {connectingFromId ? '✓ Node selected — tap another to connect' : 'String Mode — tap a node to start'}
+            </Text>
+            <Pressable onPress={() => { setConnectMode(false); setConnectingFrom(null); }} style={{ padding: 4, pointerEvents: 'auto' }}>
+              <X size={14} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />
+            </Pressable>
+          </View>
+        </Animated.View>
+      ) : null}
 
       {/* ---- UNDO TOAST (after drag-to-trash delete) ---- */}
       {showUndoToast && undoNode ? (
