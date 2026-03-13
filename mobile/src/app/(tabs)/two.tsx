@@ -572,6 +572,7 @@ export default function InvestigationCanvas() {
   // Local UI state
   const [connectMode, setConnectMode] = useState<boolean>(false);
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
+  const [showStylePicker, setShowStylePicker] = useState<boolean>(false);
   const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
   const [selectedStringId, setSelectedStringId] = useState<string | null>(null);
   const [showSuggestionSheet, setShowSuggestionSheet] = useState<boolean>(false);
@@ -1194,8 +1195,7 @@ export default function InvestigationCanvas() {
           {/* Title */}
           <View style={{ flex: 1 }} pointerEvents="none">
             <Text
-              className="text-base font-bold"
-              style={{ color: C.text }}
+              style={{ color: C.text, fontSize: 18, fontWeight: '700' }}
               numberOfLines={1}
             >
               {investigation.title}
@@ -1217,7 +1217,7 @@ export default function InvestigationCanvas() {
           {/* Canvas mode toggle */}
           <Pressable
             testID="canvas-mode-toggle"
-            onPress={toggleCanvasMode}
+            onPress={() => setShowStylePicker(true)}
             style={({ pressed }) => ({
               width: 46,
               height: 46,
@@ -1344,6 +1344,143 @@ export default function InvestigationCanvas() {
         </View>
       </SafeAreaView>
 
+      {/* ---- CANVAS STYLE PICKER MODAL ---- */}
+      <Modal
+        visible={showStylePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStylePicker(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+          }}
+          onPress={() => setShowStylePicker(false)}
+        >
+          <Animated.View
+            entering={SlideInDown.springify().damping(18)}
+            exiting={SlideOutDown.springify()}
+            style={{ width: '100%', maxWidth: 420 }}
+          >
+            <Pressable onPress={() => {}} style={{ width: '100%' }}>
+              {/* Close button */}
+              <Pressable
+                onPress={() => setShowStylePicker(false)}
+                style={{
+                  position: 'absolute',
+                  top: -8,
+                  right: -8,
+                  zIndex: 10,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: C.surface,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={16} color={C.muted} strokeWidth={2.5} />
+              </Pressable>
+
+              {/* Header */}
+              <View style={{ alignItems: 'center', marginBottom: 28 }}>
+                <Text
+                  style={{
+                    color: C.text,
+                    fontSize: 28,
+                    fontWeight: '800',
+                    letterSpacing: 0.3,
+                    marginBottom: 8,
+                  }}
+                >
+                  Canvas Style
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 15, textAlign: 'center' }}>
+                  Choose how your investigation is displayed
+                </Text>
+              </View>
+
+              {/* Cards row */}
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                {/* Canvas / Corkboard card */}
+                <Pressable
+                  onPress={() => {
+                    setCanvasMode('corkboard');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setShowStylePicker(false);
+                  }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 180,
+                    backgroundColor: canvasMode === 'corkboard'
+                      ? 'rgba(212,165,116,0.12)'
+                      : C.surface,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: canvasMode === 'corkboard' ? C.pin : C.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20,
+                    gap: 12,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <LayoutGrid size={72} color={C.pin} strokeWidth={1.5} />
+                  <View style={{ alignItems: 'center', gap: 4 }}>
+                    <Text style={{ color: C.text, fontSize: 22, fontWeight: '700' }}>
+                      Canvas
+                    </Text>
+                    <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center' }}>
+                      Pin notes on a corkboard
+                    </Text>
+                  </View>
+                </Pressable>
+
+                {/* Web / Mind Map card */}
+                <Pressable
+                  onPress={() => {
+                    setCanvasMode('mindmap');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setShowStylePicker(false);
+                  }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 180,
+                    backgroundColor: canvasMode === 'mindmap'
+                      ? 'rgba(59,130,246,0.12)'
+                      : C.surface,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: canvasMode === 'mindmap' ? '#3B82F6' : C.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20,
+                    gap: 12,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Network size={72} color="#3B82F6" strokeWidth={1.5} />
+                  <View style={{ alignItems: 'center', gap: 4 }}>
+                    <Text style={{ color: C.text, fontSize: 22, fontWeight: '700' }}>
+                      Web
+                    </Text>
+                    <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center' }}>
+                      Connect nodes in a network
+                    </Text>
+                  </View>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
       {/* ---- ADD NODE MENU ---- */}
       <Modal
         visible={showAddMenu}
@@ -1368,7 +1505,7 @@ export default function InvestigationCanvas() {
                 marginBottom: 16,
               }}
             >
-              <Text className="text-lg font-bold" style={{ color: C.text }}>
+              <Text style={{ color: C.text, fontSize: 22, fontWeight: '800' }}>
                 Add Node
               </Text>
               <Pressable onPress={() => setShowAddMenu(false)}>
@@ -1400,17 +1537,17 @@ export default function InvestigationCanvas() {
               >
                 <View
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
+                    width: 52,
+                    height: 52,
+                    borderRadius: 14,
                     backgroundColor: C.bg,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <item.Icon size={18} color={C.pin} strokeWidth={2} />
+                  <item.Icon size={26} color={C.pin} strokeWidth={2} />
                 </View>
-                <Text className="text-base font-semibold" style={{ color: C.text }}>
+                <Text style={{ color: C.text, fontSize: 17, fontWeight: '600' }}>
                   {item.label}
                 </Text>
               </Pressable>
