@@ -59,6 +59,9 @@ function RootLayoutNav() {
           <Stack.Screen name="paywall" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="tip-inbox" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="sources-panel" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="appearance" options={{ headerShown: false }} />
+          <Stack.Screen name="live-broadcast" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="live-streams" options={{ headerShown: false, presentation: 'modal' }} />
         </Stack.Protected>
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />

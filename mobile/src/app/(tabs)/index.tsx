@@ -683,11 +683,11 @@ function HamburgerMenu({
                 onPress={() => { onClose(); router.push('/live-broadcast'); }}
               />
               <MenuRow
-                icon="🎥"
+                icon="👥"
                 iconBg="rgba(59,130,246,0.15)"
                 title="War Room"
-                subtitle="Real-time collab session"
-                onPress={() => { onClose(); router.push('/war-room'); }}
+                subtitle="Join or start a session"
+                onPress={() => { onClose(); router.push('/collab'); }}
               />
               <MenuRow
                 icon="👥"
