@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail } from 'lucide-react-native';
+import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail, ScrollText } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
@@ -691,6 +691,27 @@ export default function InvestigationsDashboard() {
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* Prompt History button */}
+              <Pressable
+                testID="prompt-history-button"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/(tabs)/prompt-history');
+                }}
+                style={({ pressed }) => ({
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <ScrollText size={15} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+
               {/* Tip Inbox button */}
               <Pressable
                 testID="tip-inbox-button"

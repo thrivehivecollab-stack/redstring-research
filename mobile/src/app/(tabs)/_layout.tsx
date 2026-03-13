@@ -77,6 +77,12 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="prompt-history"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
