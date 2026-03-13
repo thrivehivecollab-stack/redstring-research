@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Search, Map, Brain, Radio, Mic } from 'lucide-react-native';
 import {
   useFonts,
   CourierPrime_400Regular,
@@ -104,33 +103,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="podcast"
+        name="tips"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Live" emoji="📡" />
+            <TabItem color={color} focused={focused} label="Tips" emoji="📬" />
           ),
         }}
       />
       <Tabs.Screen
-        name="scripts"
+        name="collab-tab"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Pods" emoji="🎙️" />
+            <TabItem color={color} focused={focused} label="Collab" emoji="👥" />
           ),
         }}
       />
-      <Tabs.Screen
-        name="bookmarks"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="prompt-history"
-        options={{
-          href: null,
-        }}
-      />
+      {/* Hidden tabs - accessible via hamburger menu */}
+      <Tabs.Screen name="podcast" options={{ href: null }} />
+      <Tabs.Screen name="scripts" options={{ href: null }} />
+      <Tabs.Screen name="bookmarks" options={{ href: null }} />
+      <Tabs.Screen name="prompt-history" options={{ href: null }} />
     </Tabs>
   );
 }
