@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker } from '@/lib/types';
 import { api } from '@/lib/api/api';
 
 function generateId(): string {
@@ -66,6 +66,14 @@ interface InvestigationStore {
 
   // Undo
   restoreInvestigation: (investigation: Investigation) => void;
+
+  // ─── New actions ──────────────────────────────────────────────────────────
+  updateInvestigationMeta: (id: string, updates: Pick<Investigation, 'icon' | 'iconUri' | 'boardStyle' | 'filingTabColor' | 'filingTabLabel'>) => void;
+  setInvestigationPin: (id: string, pinHash: string) => void;
+  logAccess: (id: string, entry: Omit<AccessLogEntry, 'id'>) => void;
+  addSticker: (investigationId: string, nodeId: string, sticker: Omit<NodeSticker, 'id'>) => void;
+  removeSticker: (investigationId: string, nodeId: string, stickerId: string) => void;
+  toggleInvisibleInk: (investigationId: string, nodeId: string) => void;
 }
 
 const useInvestigationStore = create<InvestigationStore>()(
@@ -447,6 +455,102 @@ const useInvestigationStore = create<InvestigationStore>()(
       restoreInvestigation: (investigation) => {
         set((state) => ({
           investigations: [...state.investigations, investigation],
+        }));
+      },
+
+      // ─── New actions ────────────────────────────────────────────────────────
+      updateInvestigationMeta: (id, updates) => {
+        const now = Date.now();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === id ? { ...inv, ...updates, updatedAt: now } : inv
+          ),
+        }));
+      },
+
+      setInvestigationPin: (id, pinHash) => {
+        const now = Date.now();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === id ? { ...inv, investigationPin: pinHash, updatedAt: now } : inv
+          ),
+        }));
+      },
+
+      logAccess: (id, entry) => {
+        const entryId = generateId();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === id
+              ? {
+                  ...inv,
+                  accessLog: [...(inv.accessLog ?? []), { ...entry, id: entryId }],
+                }
+              : inv
+          ),
+        }));
+      },
+
+      addSticker: (investigationId, nodeId, sticker) => {
+        const stickerId = generateId();
+        const now = Date.now();
+        const newSticker: NodeSticker = { ...sticker, id: stickerId };
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  nodes: inv.nodes.map((n) =>
+                    n.id === nodeId
+                      ? { ...n, stickers: [...(n.stickers ?? []), newSticker], updatedAt: now }
+                      : n
+                  ),
+                  updatedAt: now,
+                }
+              : inv
+          ),
+        }));
+      },
+
+      removeSticker: (investigationId, nodeId, stickerId) => {
+        const now = Date.now();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  nodes: inv.nodes.map((n) =>
+                    n.id === nodeId
+                      ? {
+                          ...n,
+                          stickers: (n.stickers ?? []).filter((s) => s.id !== stickerId),
+                          updatedAt: now,
+                        }
+                      : n
+                  ),
+                  updatedAt: now,
+                }
+              : inv
+          ),
+        }));
+      },
+
+      toggleInvisibleInk: (investigationId, nodeId) => {
+        const now = Date.now();
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  nodes: inv.nodes.map((n) =>
+                    n.id === nodeId
+                      ? { ...n, invisibleInk: !n.invisibleInk, updatedAt: now }
+                      : n
+                  ),
+                  updatedAt: now,
+                }
+              : inv
+          ),
         }));
       },
     }),

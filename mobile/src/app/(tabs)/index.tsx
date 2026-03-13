@@ -75,6 +75,8 @@ import VideoOnboardingModal from '@/components/VideoOnboardingModal';
 import { createDemoInvestigation } from '@/lib/demoData';
 import type { Investigation } from '@/lib/types';
 import type { CollabSession } from '@/lib/state/collab-store';
+import useAppearanceStore from '@/lib/state/appearance-store';
+import { getTheme, COLORS as BASE_COLORS, FONTS } from '@/lib/theme';
 import {
   useFonts,
   BebasNeue_400Regular,
@@ -86,26 +88,8 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Color constants
-const COLORS = {
-  background: '#1A1614',
-  surface: '#231F1C',
-  surface2: '#2D2825',
-  card: '#F5ECD7',
-  red: '#C41E3A',
-  redDark: '#A3162E',
-  pin: '#D4A574',
-  gold: '#F0C060',
-  textLight: '#E8DCC8',
-  muted: '#6B5B4F',
-  border: '#3D332C',
-  cardText: '#2C1810',
-  green: '#22C55E',
-  blue: '#3B82F6',
-  teal: '#14B8A6',
-  amber: '#F59E0B',
-  purple: '#A855F7',
-} as const;
+// Static color fallbacks (components that can't easily use theme hook use these)
+const COLORS = BASE_COLORS;
 
 const SWIPE_THRESHOLD = 120;
 
@@ -121,13 +105,10 @@ function formatDate(timestamp: number): string {
 }
 
 function getBoardColor(inv: Investigation): string {
-  // Use filingTabColor if set (stored as a hex), else map boardStyle
-  const style = (inv as any).boardStyle as string | undefined;
-  const filingColor = (inv as any).filingTabColor as string | undefined;
-  if (filingColor) return filingColor;
-  if (style === 'mindmap') return COLORS.blue;
-  if (style === 'timeline') return COLORS.amber;
-  if (style === 'casefile') return COLORS.teal;
+  if (inv.filingTabColor) return inv.filingTabColor;
+  if (inv.boardStyle === 'mindmap') return COLORS.blue;
+  if (inv.boardStyle === 'timeline') return COLORS.amber;
+  if (inv.boardStyle === 'casefile') return COLORS.teal;
   return COLORS.red; // corkboard default
 }
 
@@ -158,21 +139,23 @@ function TapeStrip() {
 function HeroCard({
   inv,
   collabSession,
+  heroFontFamily,
   onPress,
   onLongPress,
   onCollabPress,
 }: {
   inv: Investigation;
   collabSession: CollabSession | null;
+  heroFontFamily: string;
   onPress: () => void;
   onLongPress: () => void;
   onCollabPress: () => void;
 }) {
   const nodeCount = inv.nodes.length;
   const stringCount = (inv.strings ?? []).length;
-  const tipCount = (inv as any).tips?.length ?? 0;
+  const tipCount = 0; // tips field not yet on Investigation type
   const tint = getBoardColor(inv);
-  const icon = (inv as any).icon as string | undefined;
+  const icon = inv.icon;
 
   return (
     <Animated.View entering={FadeInDown.duration(400).springify()} style={{ marginHorizontal: 16, marginBottom: 20 }}>
@@ -281,7 +264,7 @@ function HeroCard({
             style={{
               color: COLORS.textLight,
               fontSize: 21,
-              fontFamily: 'BebasNeue_400Regular',
+              fontFamily: heroFontFamily,
               letterSpacing: 1,
               marginBottom: 4,
             }}
@@ -389,8 +372,8 @@ function CaseCell({
   onLongPress: () => void;
 }) {
   const tint = getBoardColor(inv);
-  const icon = (inv as any).icon as string | undefined;
-  const imageUri = (inv as any).coverImageUri as string | undefined;
+  const icon = inv.icon;
+  const imageUri = inv.iconUri;
 
   return (
     <Animated.View
@@ -1186,6 +1169,19 @@ export default function InvestigationsDashboard() {
   const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
   const [collabSheetVisible, setCollabSheetVisible] = useState<boolean>(false);
 
+  // Appearance prefs → theme
+  const appearancePrefs = useAppearanceStore((s) => ({
+    heroFont: s.heroFont,
+    themeMode: s.themeMode,
+    accentColor: s.accentColor,
+    corkIntensity: s.corkIntensity,
+    tapeColor: s.tapeColor,
+    pushpinColor: s.pushpinColor,
+    highlighterColor: s.highlighterColor,
+    fineLinkerColor: s.fineLinkerColor,
+  }));
+  const theme = getTheme(appearancePrefs);
+
   // Font loading
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
@@ -1480,6 +1476,7 @@ export default function InvestigationsDashboard() {
                 <HeroCard
                   inv={heroInv}
                   collabSession={collabSessionMap.get(heroInv.id) ?? null}
+                  heroFontFamily={theme.heroFontFamily}
                   onPress={() => handleCardPress(heroInv.id)}
                   onLongPress={() => handleCardLongPress(heroInv.id, heroInv.title)}
                   onCollabPress={() => handleCollabPress(heroInv.id)}

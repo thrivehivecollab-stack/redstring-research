@@ -2,6 +2,30 @@
 
 export type NodeType = 'investigation' | 'folder' | 'note' | 'link' | 'image' | 'dataset';
 
+// ─── Sticker types ────────────────────────────────────────────────────────────
+export type StickerType =
+  | 'classified' | 'redacted' | 'verified' | 'unconfirmed' | 'top_secret' | 'evidence'
+  | 'suspect' | 'witness' | 'source' | 'person_of_interest' | 'deceased' | 'alias'
+  | 'original' | 'copy' | 'leaked' | 'declassified' | 'forgery' | 'pending_review'
+  | 'gps_pin' | 'date_stamp' | 'timeline_marker' | 'filing_tab' | 'case_number';
+
+export interface NodeSticker {
+  id: string;
+  type: StickerType;
+  position: Position; // relative to node, 0-1 normalized
+  customText?: string; // for label-type stickers
+}
+
+// ─── Access log ───────────────────────────────────────────────────────────────
+export interface AccessLogEntry {
+  id: string;
+  action: 'opened' | 'edited' | 'exported' | 'shared' | 'node_added' | 'node_deleted' | 'collab_joined';
+  userId: string;
+  deviceInfo?: string;
+  timestamp: number;
+  metadata?: Record<string, string>;
+}
+
 export type TagColor = 'red' | 'blue' | 'green' | 'amber' | 'purple' | 'teal';
 
 export interface Position {
@@ -53,6 +77,11 @@ export interface CanvasNode {
   sources?: NodeSource[];
   createdAt: number;
   updatedAt: number;
+  // ─── New fields ─────────────────────────────────────────
+  invisibleInk?: boolean;      // if true, content is hidden unless revealed
+  stickers?: NodeSticker[];    // array of applied stickers
+  tapeColor?: string;          // per-node tape override
+  pushpinColor?: string;       // per-node pushpin override
 }
 
 export interface RedString {
@@ -93,6 +122,14 @@ export interface Investigation {
   isDemo?: boolean;
   createdAt: number;
   updatedAt: number;
+  // ─── New fields ─────────────────────────────────────────
+  icon?: string;               // emoji string or 'photo'
+  iconUri?: string;            // local URI if icon === 'photo'
+  boardStyle?: 'corkboard' | 'mindmap' | 'timeline' | 'casefile'; // default 'corkboard'
+  filingTabColor?: string;     // hex
+  filingTabLabel?: string;
+  investigationPin?: string;   // bcrypt hash of invisible-ink PIN for this investigation
+  accessLog?: AccessLogEntry[];
 }
 
 export interface AISuggestion {
