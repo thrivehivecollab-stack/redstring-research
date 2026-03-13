@@ -1169,18 +1169,16 @@ export default function InvestigationsDashboard() {
   const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
   const [collabSheetVisible, setCollabSheetVisible] = useState<boolean>(false);
 
-  // Appearance prefs → theme
-  const appearancePrefs = useAppearanceStore((s) => ({
-    heroFont: s.heroFont,
-    themeMode: s.themeMode,
-    accentColor: s.accentColor,
-    corkIntensity: s.corkIntensity,
-    tapeColor: s.tapeColor,
-    pushpinColor: s.pushpinColor,
-    highlighterColor: s.highlighterColor,
-    fineLinkerColor: s.fineLinkerColor,
-  }));
-  const theme = getTheme(appearancePrefs);
+  // Appearance prefs → theme (select primitives individually to avoid infinite re-renders)
+  const heroFont = useAppearanceStore((s) => s.heroFont);
+  const themeMode = useAppearanceStore((s) => s.themeMode);
+  const accentColor = useAppearanceStore((s) => s.accentColor);
+  const corkIntensity = useAppearanceStore((s) => s.corkIntensity);
+  const tapeColor = useAppearanceStore((s) => s.tapeColor);
+  const pushpinColor = useAppearanceStore((s) => s.pushpinColor);
+  const highlighterColor = useAppearanceStore((s) => s.highlighterColor);
+  const fineLinkerColor = useAppearanceStore((s) => s.fineLinkerColor);
+  const theme = getTheme({ heroFont, themeMode, accentColor, corkIntensity, tapeColor, pushpinColor, highlighterColor, fineLinkerColor });
 
   // Font loading
   const [fontsLoaded] = useFonts({
