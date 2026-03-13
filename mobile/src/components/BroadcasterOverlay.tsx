@@ -15,7 +15,7 @@ type Phase = 'setup' | 'live' | 'ended';
 interface Props {
   investigationTitle: string;
   investigationId: string;
-  canvasRef: React.RefObject<View>;
+  canvasRef: React.RefObject<View | null>;
   onClose: () => void;
 }
 

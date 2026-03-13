@@ -38,10 +38,12 @@ import BottomSheet, {
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+import BroadcasterOverlay from '@/components/BroadcasterOverlay';
 import {
   ArrowLeft,
   Plus,
   Cable,
+  Radio,
   FileText,
   Link2,
   Image as ImageIcon,
@@ -492,6 +494,9 @@ export default function InvestigationCanvas() {
   const { width: screenW, height: screenH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
+  const canvasViewRef = React.useRef<View>(null);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+
   // Store selectors
   const activeId = useInvestigationStore((s) => s.activeInvestigationId);
   const selectedNodeId = useInvestigationStore((s) => s.selectedNodeId);
@@ -890,7 +895,7 @@ export default function InvestigationCanvas() {
   const bottomOffset = tabBarH;
 
   return (
-    <View className="flex-1" style={{ backgroundColor: C.bg }} testID="canvas-screen">
+    <View ref={canvasViewRef} className="flex-1" style={{ backgroundColor: C.bg }} testID="canvas-screen">
       {/* Demo Mode Banner */}
       {isDemoMode ? (
         <View
@@ -1203,6 +1208,23 @@ export default function InvestigationCanvas() {
               <Cable size={18} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
             </Pressable>
           ) : null}
+
+          {/* Go Live button */}
+          <Pressable
+            onPress={() => setIsBroadcasting(true)}
+            style={({ pressed }) => ({
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: isBroadcasting ? C.red : pressed ? C.border : C.surface,
+              borderWidth: isBroadcasting ? 0 : 1,
+              borderColor: C.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            <Radio size={18} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
+          </Pressable>
 
           {/* Add node */}
           <Pressable
@@ -1817,6 +1839,16 @@ export default function InvestigationCanvas() {
 
       {/* Tour Overlay */}
       <TourOverlay />
+
+      {/* Broadcaster Overlay */}
+      {isBroadcasting && investigation ? (
+        <BroadcasterOverlay
+          investigationTitle={investigation.title}
+          investigationId={investigation.id}
+          canvasRef={canvasViewRef}
+          onClose={() => setIsBroadcasting(false)}
+        />
+      ) : null}
     </View>
   );
 }

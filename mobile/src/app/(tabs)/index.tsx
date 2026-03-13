@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail, ScrollText } from 'lucide-react-native';
+import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail, ScrollText, Radio } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
@@ -710,6 +710,26 @@ export default function InvestigationsDashboard() {
                 })}
               >
                 <ScrollText size={15} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+
+              {/* Watch Live button */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/live-viewer');
+                }}
+                style={({ pressed }) => ({
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <Radio size={15} color={COLORS.muted} strokeWidth={2} />
               </Pressable>
 
               {/* Tip Inbox button */}
