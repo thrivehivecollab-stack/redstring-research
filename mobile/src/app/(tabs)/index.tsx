@@ -1129,8 +1129,7 @@ export default function InvestigationsDashboard() {
   const removeDemoInvestigation = useInvestigationStore((s) => s.removeDemoInvestigation);
 
   const tier = useSubscriptionStore((s) => s.tier);
-  const maxInvestigations = useSubscriptionStore((s) => s.maxInvestigations);
-  const maxInvestigationsCount = maxInvestigations();
+  const maxInvestigationsCount = tier === 'plus' ? Infinity : tier === 'pro' ? 25 : 3;
 
   const sessions = useCollabStore((s) => s.sessions);
 
