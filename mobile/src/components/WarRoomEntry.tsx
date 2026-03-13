@@ -32,9 +32,7 @@ interface WarRoom {
 }
 
 interface Props {
-  /** If provided, links the room to a collab session */
   collabSessionId?: string;
-  /** Override button size - 'sm' for header buttons, 'md' for full-width */
   size?: 'sm' | 'md';
 }
 
@@ -45,7 +43,6 @@ export default function WarRoomEntry({ collabSessionId, size = 'sm' }: Props) {
   const investigations = useInvestigationStore((s) => s.investigations);
   const activeInvestigation = investigations.find((i) => i.id === activeId) ?? investigations[0];
 
-  // Check for an existing active room for this session
   const { data: existingRoom, isLoading: checkingRoom } = useQuery({
     queryKey: ['war-room-session', collabSessionId],
     queryFn: () => api.get<WarRoom | null>(`/api/warroom/rooms/session/${collabSessionId}`),
@@ -63,27 +60,23 @@ export default function WarRoomEntry({ collabSessionId, size = 'sm' }: Props) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push({ pathname: '/war-room', params: { warRoomId: data.warRoomId, collabSessionId: collabSessionId ?? '' } });
     },
-    onError: (err: any) => {
-      const msg = err?.message ?? '';
-      if (msg.includes('DAILY_NOT_CONFIGURED')) {
-        router.push({ pathname: '/war-room', params: { warRoomId: 'unconfigured' } });
-      }
+    onError: () => {
+      router.push({ pathname: '/war-room', params: { warRoomId: 'unconfigured' } });
     },
   });
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!session?.user) return;
-    // Join existing room if one exists for this session
     if (existingRoom?.id) {
       router.push({ pathname: '/war-room', params: { warRoomId: existingRoom.id, collabSessionId: collabSessionId ?? '' } });
       return;
     }
-    // Create a new room
     createRoomMutation.mutate();
   };
 
   const isLoading = createRoomMutation.isPending || checkingRoom;
+  const label = existingRoom?.id ? 'Join War Room' : 'Open War Room';
 
   if (size === 'md') {
     return (
@@ -93,33 +86,34 @@ export default function WarRoomEntry({ collabSessionId, size = 'sm' }: Props) {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: 10,
           backgroundColor: pressed ? '#A3162E' : C.red,
-          borderRadius: 12,
-          paddingVertical: 13,
-          marginBottom: 16,
+          borderRadius: 14,
+          paddingVertical: 15,
+          marginBottom: 14,
           shadowColor: C.red,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 6,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.45,
+          shadowRadius: 14,
+          elevation: 8,
         })}
       >
         {isLoading ? (
           <ActivityIndicator color="#FFF" size="small" />
         ) : (
           <>
-            <Video size={16} color="#FFF" strokeWidth={2.5} />
-            <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>
-              {existingRoom?.id ? 'Join War Room' : 'Open War Room'}
-            </Text>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <Video size={16} color="#FFF" strokeWidth={2.5} />
+            </View>
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 }}>{label}</Text>
+            <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF6B6B' }} />
           </>
         )}
       </Pressable>
     );
   }
 
-  // size === 'sm' — header button style
+  // sm — compact header pill
   return (
     <Pressable
       onPress={handlePress}
@@ -127,20 +121,23 @@ export default function WarRoomEntry({ collabSessionId, size = 'sm' }: Props) {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 5,
-        backgroundColor: pressed ? 'rgba(196,30,58,0.25)' : 'rgba(196,30,58,0.15)',
+        backgroundColor: pressed ? '#A3162E' : C.red,
         borderRadius: 10,
         paddingHorizontal: 10,
         paddingVertical: 7,
-        borderWidth: 1,
-        borderColor: 'rgba(196,30,58,0.35)',
+        shadowColor: C.red,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 4,
       })}
     >
       {isLoading ? (
-        <ActivityIndicator color={C.red} size="small" style={{ width: 12, height: 12 }} />
+        <ActivityIndicator color="#FFF" size="small" style={{ width: 14, height: 14 }} />
       ) : (
-        <Video size={12} color={C.red} strokeWidth={2.5} />
+        <Video size={13} color="#FFF" strokeWidth={2.5} />
       )}
-      <Text style={{ color: C.red, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>WAR ROOM</Text>
+      <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>WAR ROOM</Text>
     </Pressable>
   );
 }
