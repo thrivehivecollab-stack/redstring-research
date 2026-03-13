@@ -12,6 +12,7 @@ import { meRouter } from "./routes/me";
 import { sourcesRouter } from "./routes/sources";
 import { tipsRouter } from "./routes/tips";
 import { aiRouter } from "./routes/ai";
+import { broadcastRouter } from "./routes/broadcast";
 
 const app = new Hono<{ Variables: HonoVariables }>();
 
@@ -60,6 +61,7 @@ app.route("/api/me", meRouter);
 app.route("/api/sources", sourcesRouter);
 app.route("/api/tips", tipsRouter);
 app.route("/api/ai", aiRouter);
+app.route("/api/broadcast", broadcastRouter);
 
 // Dev-only route to expose last OTP code
 if (env.NODE_ENV !== "production") {
