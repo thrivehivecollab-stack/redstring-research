@@ -13,6 +13,7 @@ A visual investigation canvas app for mapping relationships, evidence, and conne
 - 18-step guided tour for new users
 - Subscription tier management (Free / Pro / Plus)
 - COLLAB button in header navigates to collaboration sessions screen
+- WAR ROOM button in header opens live video war room (requires Daily.co API key — see SETUP.md)
 
 ### Visual Investigation Canvas (Tab 2)
 - Pannable and zoomable corkboard canvas

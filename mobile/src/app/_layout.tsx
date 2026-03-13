@@ -67,6 +67,7 @@ function RootLayoutNav() {
         <Stack.Screen name="tip-submit" options={{ presentation: 'card', headerShown: false }} />
         <Stack.Screen name="collab" options={{ headerShown: false }} />
         <Stack.Screen name="collab-session" options={{ headerShown: false }} />
+        <Stack.Screen name="war-room" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack>
     </ThemeProvider>
   );

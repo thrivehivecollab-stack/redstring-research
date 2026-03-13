@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { api } from '@/lib/api/api';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import { useSession } from '@/lib/auth/use-session';
+import WarRoomEntry from '@/components/WarRoomEntry';
 
 const C = {
   bg: '#1A1614',
@@ -206,23 +207,26 @@ export default function CollabSessionScreen() {
       return (
         <View style={{ padding: 20 }}>
           {isOwner ? (
-            <Pressable
-              testID="invite-button"
-              onPress={() => setShowInvite(true)}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                backgroundColor: pressed ? '#A3162E' : C.red,
-                borderRadius: 12,
-                paddingVertical: 13,
-                marginBottom: 20,
-              })}
-            >
-              <Users size={16} color="#FFF" strokeWidth={2.5} />
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Invite Investigator</Text>
-            </Pressable>
+            <>
+              <WarRoomEntry collabSessionId={id} size="md" />
+              <Pressable
+                testID="invite-button"
+                onPress={() => setShowInvite(true)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  backgroundColor: pressed ? '#A3162E' : C.red,
+                  borderRadius: 12,
+                  paddingVertical: 13,
+                  marginBottom: 20,
+                })}
+              >
+                <Users size={16} color="#FFF" strokeWidth={2.5} />
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Invite Investigator</Text>
+              </Pressable>
+            </>
           ) : null}
 
           {members.map((m) => (

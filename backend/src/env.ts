@@ -21,6 +21,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   // ElevenLabs
   ELEVENLABS_API_KEY: z.string().optional(),
+  // Daily.co (War Room video calls)
+  DAILY_API_KEY: z.string().optional(),
 });
 
 /**

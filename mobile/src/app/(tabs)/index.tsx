@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail, ScrollText, Radio } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import WarRoomEntry from '@/components/WarRoomEntry';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -755,6 +756,9 @@ export default function InvestigationsDashboard() {
                 <Users size={12} color="#D4A574" strokeWidth={2.5} />
                 <Text style={{ color: '#D4A574', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>COLLAB</Text>
               </Pressable>
+
+              {/* War Room button */}
+              <WarRoomEntry size="sm" />
 
               {/* Tip Inbox button */}
               <Pressable

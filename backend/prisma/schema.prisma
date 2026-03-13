@@ -257,6 +257,42 @@ model Tip {
   messages        TipMessage[]
 }
 
+// ============================================
+// WAR ROOM MODELS
+// ============================================
+
+// A live video war room session linked to a collab session
+model WarRoom {
+  id              String   @id @default(cuid())
+  dailyRoomName   String   @unique
+  dailyRoomUrl    String
+  sessionId       String?  // links to CollabSession
+  ownerId         String   // Better Auth user ID of room creator
+  title           String
+  status          String   @default("active") // active | ended
+  createdAt       DateTime @default(now())
+
+  dataRequests    DataRequest[]
+}
+
+// A participant's request for a specific investigation node from the room owner
+model DataRequest {
+  id            String   @id @default(cuid())
+  warRoomId     String
+  requesterId   String   // Better Auth user ID of requester
+  nodeId        String
+  nodeTitle     String
+  nodeSnapshot  String   // JSON string of the node data
+  status        String   @default("pending") // pending | approved | rejected
+  createdAt     DateTime @default(now())
+
+  warRoom       WarRoom  @relation(fields: [warRoomId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// TIP INBOX MODELS
+// ============================================
+
 // Threaded messages between investigator and tipper
 model TipMessage {
   id                 String   @id @default(cuid())
