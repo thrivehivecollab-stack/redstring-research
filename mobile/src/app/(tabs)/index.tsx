@@ -719,17 +719,19 @@ export default function InvestigationsDashboard() {
                   router.push('/live-viewer');
                 }}
                 style={({ pressed }) => ({
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
+                  flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: pressed ? 'rgba(196,30,58,0.15)' : 'rgba(196,30,58,0.08)',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderWidth: 1,
+                  borderColor: 'rgba(196,30,58,0.25)',
                 })}
               >
-                <Radio size={15} color={COLORS.muted} strokeWidth={2} />
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#C41E3A' }} />
+                <Text style={{ color: '#C41E3A', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>WATCH LIVE</Text>
               </Pressable>
 
               {/* Tip Inbox button */}
