@@ -28,112 +28,162 @@ const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 type BoardStyle = 'corkboard' | 'mindmap' | 'timeline' | 'casefile';
 
 // ─── Corkboard Preview ───────────────────────────────────────────
+// Dark bg, two note cards side by side at top, one bottom-center,
+// each with a red pushpin, red lines connecting top pins to bottom pin.
 function CorkboardPreview() {
+  // Pin center X positions (relative to the 120h container width ~CARD_WIDTH)
+  // Top-left card: left edge ~10, width 52 → pin center at 10+26 = 36
+  // Top-right card: right edge ~10, width 52 → pin center at containerWidth-10-26 = cw-36
+  // Bottom-center card: centered → pin center at containerWidth/2
+  // We use percentage strings for positions since we don't know exact CARD_WIDTH at render.
+  // Instead, use a fixed inner width of 130 for the relative layout.
+
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-      {/* Three note cards arranged in a triangle-like layout */}
-      <View style={{ width: '100%', height: 100, position: 'relative' }}>
-        {/* Top-left card */}
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 130, height: 100, position: 'relative' }}>
+
+        {/* ── Red lines first (behind everything) ── */}
+
+        {/* Line: top-left pin → bottom-center pin
+            top-left pin approx at (36, 0), bottom pin approx at (65, 55)
+            dx=29, dy=55 → length=sqrt(29²+55²)≈62, angle=atan2(55,29)≈62° */}
         <View
           style={{
             position: 'absolute',
             top: 0,
-            left: 8,
-            width: 60,
-            height: 44,
-            backgroundColor: '#F5ECD7',
-            borderRadius: 4,
-            shadowColor: '#000',
-            shadowOffset: { width: 1, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 3,
-            elevation: 3,
+            left: 36,
+            width: 62,
+            height: 1.5,
+            backgroundColor: '#C41E3A',
+            opacity: 0.6,
+            transformOrigin: 'left center',
+            transform: [{ rotate: '62deg' }],
           }}
-        >
-          {/* Lines on card */}
-          <View style={{ margin: 6, gap: 5 }}>
-            <View style={{ height: 2, backgroundColor: '#C4B89A', borderRadius: 1 }} />
-            <View style={{ height: 2, backgroundColor: '#C4B89A', borderRadius: 1, width: '70%' }} />
-          </View>
-        </View>
-        {/* Pushpin top-left */}
-        <View style={{ position: 'absolute', top: -4, left: 34, width: 8, height: 8, borderRadius: 4, backgroundColor: '#C41E3A', zIndex: 2 }} />
+        />
 
-        {/* Top-right card */}
+        {/* Line: top-right pin → bottom-center pin
+            top-right pin approx at (94, 4), bottom pin approx at (65, 55)
+            dx=-29, dy=51 → angle from right pin going down-left ≈ -60deg */}
         <View
           style={{
             position: 'absolute',
             top: 4,
-            right: 8,
-            width: 60,
-            height: 44,
-            backgroundColor: '#F5ECD7',
-            borderRadius: 4,
+            left: 94,
+            width: 58,
+            height: 1.5,
+            backgroundColor: '#C41E3A',
+            opacity: 0.6,
+            transformOrigin: 'left center',
+            transform: [{ rotate: '-119deg' }],
+          }}
+        />
+
+        {/* ── Top-left note card ── */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 4,
+            left: 10,
+            width: 52,
+            height: 40,
+            backgroundColor: '#F0E6D0',
+            borderRadius: 3,
             shadowColor: '#000',
             shadowOffset: { width: 1, height: 2 },
-            shadowOpacity: 0.3,
+            shadowOpacity: 0.35,
             shadowRadius: 3,
             elevation: 3,
           }}
         >
-          <View style={{ margin: 6, gap: 5 }}>
-            <View style={{ height: 2, backgroundColor: '#C4B89A', borderRadius: 1 }} />
-            <View style={{ height: 2, backgroundColor: '#C4B89A', borderRadius: 1, width: '60%' }} />
+          <View style={{ marginTop: 10, marginHorizontal: 6, gap: 4 }}>
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1 }} />
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1, width: '70%' }} />
           </View>
         </View>
-        {/* Pushpin top-right */}
-        <View style={{ position: 'absolute', top: 0, right: 34, width: 8, height: 8, borderRadius: 4, backgroundColor: '#C41E3A', zIndex: 2 }} />
+        {/* Pushpin top-left — centered at top of card: left+26-4=32, top=0 */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 32,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: '#C41E3A',
+            zIndex: 5,
+          }}
+        />
 
-        {/* Bottom-center card */}
+        {/* ── Top-right note card — slightly taller ── */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 68,
+            width: 52,
+            height: 44,
+            backgroundColor: '#F0E6D0',
+            borderRadius: 3,
+            shadowColor: '#000',
+            shadowOffset: { width: 1, height: 2 },
+            shadowOpacity: 0.35,
+            shadowRadius: 3,
+            elevation: 3,
+          }}
+        >
+          <View style={{ marginTop: 10, marginHorizontal: 6, gap: 4 }}>
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1 }} />
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1, width: '60%' }} />
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1, width: '80%' }} />
+          </View>
+        </View>
+        {/* Pushpin top-right — centered at top: left=68+26-4=90, top=-4 */}
+        <View
+          style={{
+            position: 'absolute',
+            top: -4,
+            left: 90,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: '#C41E3A',
+            zIndex: 5,
+          }}
+        />
+
+        {/* ── Bottom-center note card — slightly wider ── */}
         <View
           style={{
             position: 'absolute',
             bottom: 0,
-            left: '50%',
-            marginLeft: -30,
+            left: 35,
             width: 60,
-            height: 44,
-            backgroundColor: '#F5ECD7',
-            borderRadius: 4,
+            height: 40,
+            backgroundColor: '#F0E6D0',
+            borderRadius: 3,
             shadowColor: '#000',
             shadowOffset: { width: 1, height: 2 },
-            shadowOpacity: 0.3,
+            shadowOpacity: 0.35,
             shadowRadius: 3,
             elevation: 3,
           }}
         >
-          <View style={{ margin: 6, gap: 5 }}>
-            <View style={{ height: 2, backgroundColor: '#C4B89A', borderRadius: 1 }} />
-            <View style={{ height: 2, backgroundColor: '#C4B89A', borderRadius: 1, width: '80%' }} />
+          <View style={{ marginTop: 10, marginHorizontal: 6, gap: 4 }}>
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1 }} />
+            <View style={{ height: 2, backgroundColor: '#C4B59A', borderRadius: 1, width: '75%' }} />
           </View>
         </View>
-        {/* Pushpin bottom-center */}
-        <View style={{ position: 'absolute', bottom: 40, left: '50%', marginLeft: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#C41E3A', zIndex: 2 }} />
-
-        {/* Red string connecting top-left to bottom-center */}
+        {/* Pushpin bottom-center — centered at top of bottom card: left=35+30-4=61, bottom=40-4=36 */}
         <View
           style={{
             position: 'absolute',
-            top: 18,
-            left: 38,
-            width: 52,
-            height: 1.5,
+            bottom: 36,
+            left: 61,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
             backgroundColor: '#C41E3A',
-            opacity: 0.7,
-            transform: [{ rotate: '35deg' }],
-          }}
-        />
-        {/* Red string connecting top-right to bottom-center */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 22,
-            right: 38,
-            width: 52,
-            height: 1.5,
-            backgroundColor: '#C41E3A',
-            opacity: 0.7,
-            transform: [{ rotate: '-35deg' }],
+            zIndex: 5,
           }}
         />
       </View>
@@ -142,39 +192,185 @@ function CorkboardPreview() {
 }
 
 // ─── Mind Map Preview ─────────────────────────────────────────────
+// Central magnifying-glass circle, 4 satellite rounded-rect nodes with icons,
+// thin colored lines from center to each node.
 function MindMapPreview() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
-      <View style={{ width: 100, height: 100, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Connecting lines */}
-        <View style={{ position: 'absolute', top: 18, left: 18, width: 22, height: 1.5, backgroundColor: '#3B82F6', opacity: 0.7, transform: [{ rotate: '-45deg' }] }} />
-        <View style={{ position: 'absolute', top: 18, right: 18, width: 22, height: 1.5, backgroundColor: '#22C55E', opacity: 0.7, transform: [{ rotate: '45deg' }] }} />
-        <View style={{ position: 'absolute', bottom: 18, left: 18, width: 22, height: 1.5, backgroundColor: '#F59E0B', opacity: 0.7, transform: [{ rotate: '45deg' }] }} />
-        <View style={{ position: 'absolute', bottom: 18, right: 18, width: 22, height: 1.5, backgroundColor: '#C41E3A', opacity: 0.7, transform: [{ rotate: '-45deg' }] }} />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 120, height: 100, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
 
-        {/* Satellite nodes */}
-        <View style={{ position: 'absolute', top: 4, left: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#3B82F6', opacity: 0.8 }} />
-        <View style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#22C55E', opacity: 0.8 }} />
-        <View style={{ position: 'absolute', bottom: 4, left: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#F59E0B', opacity: 0.8 }} />
-        <View style={{ position: 'absolute', bottom: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#C41E3A', opacity: 0.8 }} />
+        {/* ── Connector lines (behind nodes) ── */}
+        {/* Top-left line: center(60,50) → top-left node center(14,14) */}
+        <View style={{
+          position: 'absolute',
+          top: 14,
+          left: 14,
+          width: 58,
+          height: 1.5,
+          backgroundColor: '#3B82F6',
+          opacity: 0.7,
+          transformOrigin: 'left center',
+          transform: [{ rotate: '37deg' }],
+        }} />
+        {/* Top-right line: center(60,50) → top-right node center(106,14) */}
+        <View style={{
+          position: 'absolute',
+          top: 14,
+          left: 60,
+          width: 58,
+          height: 1.5,
+          backgroundColor: '#E8DCC8',
+          opacity: 0.6,
+          transformOrigin: 'left center',
+          transform: [{ rotate: '-37deg' }],
+        }} />
+        {/* Bottom-left line: center(60,50) → bottom-left node center(14,86) */}
+        <View style={{
+          position: 'absolute',
+          top: 50,
+          left: 14,
+          width: 58,
+          height: 1.5,
+          backgroundColor: '#22C55E',
+          opacity: 0.7,
+          transformOrigin: 'left center',
+          transform: [{ rotate: '-37deg' }],
+        }} />
+        {/* Bottom-right line: center(60,50) → bottom-right node center(106,86) */}
+        <View style={{
+          position: 'absolute',
+          top: 50,
+          left: 60,
+          width: 58,
+          height: 1.5,
+          backgroundColor: '#F59E0B',
+          opacity: 0.7,
+          transformOrigin: 'left center',
+          transform: [{ rotate: '37deg' }],
+        }} />
 
-        {/* Central node */}
+        {/* ── Satellite nodes ── */}
+
+        {/* Top-left: person icon (blue) */}
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          backgroundColor: '#1E3A5F',
+          borderWidth: 1,
+          borderColor: '#3B82F6',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {/* Head */}
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6', marginBottom: 1 }} />
+          {/* Body */}
+          <View style={{ width: 12, height: 6, borderRadius: 3, backgroundColor: '#3B82F6' }} />
+        </View>
+
+        {/* Top-right: document icon (light) */}
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          backgroundColor: '#2A2520',
+          borderWidth: 1,
+          borderColor: '#6B5C4E',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <View style={{ width: 14, height: 18, backgroundColor: '#E8DCC8', borderRadius: 2, padding: 2 }}>
+            <View style={{ height: 2, backgroundColor: '#6B5C4E', borderRadius: 1, marginBottom: 2 }} />
+            <View style={{ height: 2, backgroundColor: '#6B5C4E', borderRadius: 1, marginBottom: 2, width: '80%' }} />
+            <View style={{ height: 2, backgroundColor: '#6B5C4E', borderRadius: 1, width: '60%' }} />
+          </View>
+        </View>
+
+        {/* Bottom-left: pin/location icon (green) */}
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          backgroundColor: '#14291A',
+          borderWidth: 1,
+          borderColor: '#22C55E',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {/* Teardrop pin */}
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#22C55E', marginBottom: -2 }} />
+          <View style={{ width: 3, height: 6, backgroundColor: '#22C55E', borderRadius: 1 }} />
+        </View>
+
+        {/* Bottom-right: link icon — two overlapping circles */}
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          backgroundColor: '#2A1F0A',
+          borderWidth: 1,
+          borderColor: '#F59E0B',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+        }}>
+          <View style={{ width: 9, height: 9, borderRadius: 4.5, borderWidth: 2, borderColor: '#F59E0B', marginRight: -3 }} />
+          <View style={{ width: 9, height: 9, borderRadius: 4.5, borderWidth: 2, borderColor: '#F59E0B' }} />
+        </View>
+
+        {/* ── Central node: magnifying glass look ── */}
         <View
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 17,
-            backgroundColor: '#E8DCC8',
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: '#2A2520',
+            borderWidth: 2,
+            borderColor: '#6B5C4E',
             alignItems: 'center',
             justifyContent: 'center',
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
+            shadowOpacity: 0.4,
             shadowRadius: 4,
             elevation: 4,
+            zIndex: 10,
           }}
         >
-          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#3D332C' }} />
+          {/* Inner circle of magnifying glass */}
+          <View style={{
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            borderWidth: 2,
+            borderColor: '#E8DCC8',
+            position: 'absolute',
+            top: 5,
+            left: 5,
+          }} />
+          {/* Handle line — bottom-right diagonal */}
+          <View style={{
+            position: 'absolute',
+            bottom: 4,
+            right: 4,
+            width: 7,
+            height: 2,
+            backgroundColor: '#E8DCC8',
+            borderRadius: 1,
+            transform: [{ rotate: '45deg' }],
+          }} />
         </View>
       </View>
     </View>
@@ -182,21 +378,24 @@ function MindMapPreview() {
 }
 
 // ─── Timeline Preview ─────────────────────────────────────────────
+// Horizontal gray line, 4 colored dots sitting ON the line, year labels below.
 function TimelinePreview() {
-  const dots = [
-    { color: '#C41E3A', year: '2019', left: '8%' },
-    { color: '#F59E0B', year: '2021', left: '34%' },
-    { color: '#3B82F6', year: '2022', left: '60%' },
-    { color: '#22C55E', year: '2024', left: '82%' },
+  const dots: { color: string; year: string }[] = [
+    { color: '#C41E3A', year: '2019' },
+    { color: '#F59E0B', year: '2021' },
+    { color: '#3B82F6', year: '2022' },
+    { color: '#22C55E', year: '2024' },
   ];
+
   return (
-    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 12 }}>
-      <View style={{ position: 'relative', height: 60 }}>
-        {/* Horizontal line */}
+    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 10 }}>
+      {/* Outer container so we can absolutely position dots on the line */}
+      <View style={{ height: 50, position: 'relative', justifyContent: 'center' }}>
+        {/* Horizontal gray line — vertically centered at y=15 within this 50h box */}
         <View
           style={{
             position: 'absolute',
-            top: 18,
+            top: 15,
             left: 0,
             right: 0,
             height: 2,
@@ -204,60 +403,78 @@ function TimelinePreview() {
             borderRadius: 1,
           }}
         />
-        {/* Colored dots + year labels */}
-        {dots.map((dot) => (
-          <View
-            key={dot.year}
-            style={{ position: 'absolute', top: 10, left: dot.left as any, alignItems: 'center' }}
-          >
-            <View
-              style={{
-                width: 16,
-                height: 16,
-                borderRadius: 8,
-                backgroundColor: dot.color,
-                borderWidth: 2,
-                borderColor: '#231F1C',
-              }}
-            />
-            <Text
-              style={{
-                color: '#6B5C4E',
-                fontSize: 8,
-                fontFamily: 'CourierPrime_400Regular',
-                marginTop: 6,
-              }}
-            >
-              {dot.year}
-            </Text>
-          </View>
-        ))}
+
+        {/* Dots + year labels, distributed evenly */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          {dots.map((dot) => (
+            <View key={dot.year} style={{ alignItems: 'center', width: 28 }}>
+              {/* Dot sitting on the line: dot is 14px, line is at top=15, so marginTop = 15 - 7 = 8 */}
+              <View
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 7,
+                  backgroundColor: dot.color,
+                  marginTop: 8,
+                }}
+              />
+              <Text
+                style={{
+                  color: '#6B5C4E',
+                  fontSize: 8,
+                  marginTop: 4,
+                }}
+              >
+                {dot.year}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   );
 }
 
 // ─── Case File Preview ────────────────────────────────────────────
+// 4 horizontal colored bars, each with a left-side dot, varying widths.
 function CaseFilePreview() {
-  const bars = [
-    { color: '#C41E3A', width: '100%' },
-    { color: '#3B82F6', width: '80%' },
-    { color: '#F59E0B', width: '60%' },
-    { color: '#22C55E', width: '75%' },
+  const bars: { color: string; pct: number }[] = [
+    { color: '#C41E3A', pct: 1.0 },
+    { color: '#3B82F6', pct: 0.85 },
+    { color: '#F59E0B', pct: 0.65 },
+    { color: '#22C55E', pct: 0.78 },
   ];
+
   return (
-    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 14, gap: 10 }}>
+    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 14, gap: 8 }}>
       {bars.map((bar, i) => (
         <View
           key={i}
-          style={{
-            height: 10,
-            width: bar.width as any,
-            backgroundColor: bar.color,
-            borderRadius: 5,
-            opacity: 0.85,
-          }}
-        />
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+        >
+          {/* Left dot */}
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: bar.color,
+              flexShrink: 0,
+            }}
+          />
+          {/* Bar — flex-based width relative to remaining space */}
+          <View style={{ flex: 1 }}>
+            <View
+              style={{
+                height: 8,
+                width: `${bar.pct * 100}%`,
+                backgroundColor: bar.color,
+                borderRadius: 4,
+                opacity: 0.9,
+              }}
+            />
+          </View>
+        </View>
       ))}
     </View>
   );
