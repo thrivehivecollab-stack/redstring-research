@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail, ScrollText, Radio } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import WarRoomEntry from '@/components/WarRoomEntry';
@@ -141,8 +142,8 @@ function InvestigationCard({
   return (
     <View
       style={{
-        marginHorizontal: 20,
-        marginBottom: 16,
+        marginHorizontal: 16,
+        marginBottom: 20,
       }}
     >
       {/* Trash reveal behind card */}
@@ -153,7 +154,7 @@ function InvestigationCard({
           top: 0,
           bottom: 0,
           width: 80,
-          borderRadius: 12,
+          borderRadius: 16,
           backgroundColor: 'rgba(196,30,58,0.15)',
           borderWidth: 1,
           borderColor: 'rgba(196,30,58,0.3)',
@@ -178,26 +179,41 @@ function InvestigationCard({
             onLongPress={onLongPress}
             style={({ pressed }) => ({
               backgroundColor: COLORS.card,
-              borderRadius: 12,
-              padding: 16,
+              borderRadius: 16,
+              padding: 20,
               opacity: pressed ? 0.92 : 1,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
+              shadowOpacity: 0.35,
+              shadowRadius: 16,
               elevation: 6,
               transform: [{ scale: pressed ? 0.98 : 1 }],
+              overflow: 'hidden',
             })}
           >
+            {/* Left accent bar */}
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 4,
+                backgroundColor: investigation.nodes[0]?.color
+                  ? (investigation.nodes[0].color === 'red' ? '#C41E3A' : investigation.nodes[0].color === 'blue' ? '#3B82F6' : investigation.nodes[0].color === 'green' ? '#22C55E' : investigation.nodes[0].color === 'amber' ? '#F59E0B' : investigation.nodes[0].color === 'purple' ? '#A855F7' : investigation.nodes[0].color === 'teal' ? '#14B8A6' : COLORS.red)
+                  : COLORS.red,
+              }}
+            />
+
             {/* Pushpin accent */}
             <View
               style={{
                 position: 'absolute',
-                top: -6,
-                left: 24,
-                width: 12,
-                height: 12,
-                borderRadius: 6,
+                top: -8,
+                left: 28,
+                width: 16,
+                height: 16,
+                borderRadius: 8,
                 backgroundColor: COLORS.pin,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
@@ -212,36 +228,34 @@ function InvestigationCard({
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text
-                  className="text-lg font-bold"
-                  style={{ color: COLORS.cardText, marginBottom: 4 }}
+                  style={{ color: COLORS.cardText, marginBottom: 4, fontSize: 20, fontWeight: '900' }}
                   numberOfLines={1}
                 >
                   {investigation.title}
                 </Text>
                 {investigation.description ? (
                   <Text
-                    className="text-sm"
-                    style={{ color: COLORS.muted, lineHeight: 20 }}
+                    style={{ color: COLORS.muted, lineHeight: 22, fontSize: 14 }}
                     numberOfLines={2}
                   >
                     {investigation.description}
                   </Text>
                 ) : null}
               </View>
-              <ChevronRight size={20} color={COLORS.muted} strokeWidth={2} />
+              <ChevronRight size={22} color={COLORS.muted} strokeWidth={2} />
             </View>
 
             {/* Stats row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <FileText size={14} color={COLORS.muted} strokeWidth={2} />
-                <Text className="text-xs font-medium" style={{ color: COLORS.muted }}>
+                <FileText size={16} color={COLORS.muted} strokeWidth={2} />
+                <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
                   {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Cable size={14} color={COLORS.red} strokeWidth={2} />
-                <Text className="text-xs font-medium" style={{ color: COLORS.muted }}>
+                <Cable size={16} color={COLORS.red} strokeWidth={2} />
+                <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
                   {stringCount} {stringCount === 1 ? 'string' : 'strings'}
                 </Text>
               </View>
@@ -278,6 +292,13 @@ function InvestigationCard({
                 {formatDate(investigation.updatedAt)}
               </Text>
             </View>
+
+            {/* Bottom gradient overlay */}
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.04)']}
+              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 40, borderRadius: 16 }}
+              pointerEvents="none"
+            />
           </Pressable>
         </Animated.View>
       </GestureDetector>
@@ -685,8 +706,7 @@ export default function InvestigationsDashboard() {
           <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
               <Text
-                className="text-3xl font-black"
-                style={{ color: COLORS.red, letterSpacing: 2 }}
+                style={{ color: COLORS.red, letterSpacing: 3, fontSize: 28, fontWeight: '900' }}
               >
                 RED STRING
               </Text>
@@ -724,15 +744,15 @@ export default function InvestigationsDashboard() {
                   alignItems: 'center',
                   gap: 6,
                   backgroundColor: pressed ? 'rgba(196,30,58,0.15)' : 'rgba(196,30,58,0.08)',
-                  borderRadius: 10,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
                   borderWidth: 1,
                   borderColor: 'rgba(196,30,58,0.25)',
                 })}
               >
                 <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#C41E3A' }} />
-                <Text style={{ color: '#C41E3A', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>WATCH LIVE</Text>
+                <Text style={{ color: '#C41E3A', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>WATCH LIVE</Text>
               </Pressable>
 
               {/* Collab button */}
@@ -746,15 +766,15 @@ export default function InvestigationsDashboard() {
                   alignItems: 'center',
                   gap: 6,
                   backgroundColor: pressed ? 'rgba(212,165,116,0.15)' : 'rgba(212,165,116,0.08)',
-                  borderRadius: 10,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
                   borderWidth: 1,
                   borderColor: 'rgba(212,165,116,0.25)',
                 })}
               >
                 <Users size={12} color="#D4A574" strokeWidth={2.5} />
-                <Text style={{ color: '#D4A574', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>COLLAB</Text>
+                <Text style={{ color: '#D4A574', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>COLLAB</Text>
               </Pressable>
 
               {/* War Room button */}
@@ -866,8 +886,7 @@ export default function InvestigationsDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text
-              className="text-sm font-semibold"
-              style={{ color: COLORS.muted, letterSpacing: 4, marginTop: 2 }}
+              style={{ color: COLORS.muted, letterSpacing: 4, marginTop: 2, fontSize: 13 }}
             >
               RESEARCH
             </Text>
@@ -890,14 +909,15 @@ export default function InvestigationsDashboard() {
             backgroundColor: pressed ? '#A3162E' : COLORS.red,
             borderRadius: 12,
             padding: 14,
+            paddingVertical: 16,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
             shadowColor: COLORS.red,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
+            shadowOpacity: 0.6,
+            shadowRadius: 20,
             elevation: 6,
           })}
         >

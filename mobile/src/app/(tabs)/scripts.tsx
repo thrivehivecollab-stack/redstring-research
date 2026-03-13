@@ -121,8 +121,8 @@ function renderPreview(body: string, vars: Record<string, string>): string {
 function CategoryBadge({ category }: { category: string }) {
   const bg = CATEGORY_COLORS[category] ?? '#3D332C';
   return (
-    <View style={{ backgroundColor: bg, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' }}>
-      <Text style={{ color: COLORS.textLight, fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+    <View style={{ backgroundColor: bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' }}>
+      <Text style={{ color: COLORS.textLight, fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
         {category}
       </Text>
     </View>
@@ -133,7 +133,7 @@ function CategoryBadge({ category }: { category: string }) {
 function Pushpin({ color = COLORS.pin }: { color?: string }) {
   return (
     <View style={{ alignItems: 'center', position: 'absolute', top: -10, right: 18 }}>
-      <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: color, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 2, elevation: 4 }} />
+      <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: color, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 2, elevation: 4 }} />
       <View style={{ width: 2, height: 8, backgroundColor: color, opacity: 0.7 }} />
     </View>
   );
@@ -160,7 +160,7 @@ function ScriptCard({
         testID={`script-card-${script.id}`}
         style={{
           backgroundColor: COLORS.card,
-          borderRadius: 10,
+          borderRadius: 14,
           padding: 16,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
@@ -173,7 +173,7 @@ function ScriptCard({
         {/* Title row */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
           <FileText size={16} color={COLORS.red} strokeWidth={2} style={{ marginTop: 1, marginRight: 8 }} />
-          <Text style={{ flex: 1, color: COLORS.cardText, fontSize: 15, fontWeight: '800', lineHeight: 20, letterSpacing: 0.2 }}>
+          <Text style={{ flex: 1, color: COLORS.cardText, fontSize: 16, fontWeight: '800', lineHeight: 20, letterSpacing: 0.2 }}>
             {script.title}
           </Text>
         </View>
@@ -181,13 +181,13 @@ function ScriptCard({
         {/* Badge + variable count */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <CategoryBadge category={script.category} />
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '600' }}>
+          <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
             {script.variables.length} variable{script.variables.length !== 1 ? 's' : ''}
           </Text>
         </View>
 
         {/* Preview text */}
-        <Text style={{ color: '#5C4033', fontSize: 12, lineHeight: 18, fontStyle: 'italic', marginBottom: 14, borderLeftWidth: 2, borderLeftColor: COLORS.muted, paddingLeft: 8 }}>
+        <Text style={{ color: '#5C4033', fontSize: 14, lineHeight: 18, fontStyle: 'italic', marginBottom: 14, borderLeftWidth: 2, borderLeftColor: COLORS.muted, paddingLeft: 8 }}>
           {preview}
         </Text>
 
@@ -196,23 +196,23 @@ function ScriptCard({
           <Pressable
             testID={`edit-btn-${script.id}`}
             onPress={onEdit}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 6, backgroundColor: 'rgba(44,24,16,0.08)', borderWidth: 1, borderColor: 'rgba(44,24,16,0.15)' }}>
-            <Edit2 size={13} color={COLORS.cardText} strokeWidth={2} />
-            <Text style={{ color: COLORS.cardText, fontSize: 12, fontWeight: '700' }}>Edit</Text>
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14, borderRadius: 10, backgroundColor: 'rgba(44,24,16,0.08)', borderWidth: 1, borderColor: 'rgba(44,24,16,0.15)' }}>
+            <Edit2 size={16} color={COLORS.cardText} strokeWidth={2} />
+            <Text style={{ color: COLORS.cardText, fontSize: 14, fontWeight: '700' }}>Edit</Text>
           </Pressable>
           <Pressable
             testID={`copy-btn-${script.id}`}
             onPress={onCopy}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 6, backgroundColor: 'rgba(44,24,16,0.08)', borderWidth: 1, borderColor: 'rgba(44,24,16,0.15)' }}>
-            <Copy size={13} color={COLORS.cardText} strokeWidth={2} />
-            <Text style={{ color: COLORS.cardText, fontSize: 12, fontWeight: '700' }}>Copy</Text>
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14, borderRadius: 10, backgroundColor: 'rgba(44,24,16,0.08)', borderWidth: 1, borderColor: 'rgba(44,24,16,0.15)' }}>
+            <Copy size={16} color={COLORS.cardText} strokeWidth={2} />
+            <Text style={{ color: COLORS.cardText, fontSize: 14, fontWeight: '700' }}>Copy</Text>
           </Pressable>
           <Pressable
             testID={`use-btn-${script.id}`}
             onPress={onUse}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 6, backgroundColor: COLORS.red }}>
-            <BookOpen size={13} color='#fff' strokeWidth={2} />
-            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Use</Text>
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14, borderRadius: 10, backgroundColor: COLORS.red }}>
+            <BookOpen size={16} color='#fff' strokeWidth={2} />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Use</Text>
           </Pressable>
         </View>
       </View>
@@ -300,7 +300,7 @@ function UseScriptModal({
             <X size={20} color={COLORS.muted} strokeWidth={2.5} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: COLORS.red, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' }}>Use Script</Text>
+            <Text style={{ color: COLORS.red, fontSize: 12, fontWeight: '800', letterSpacing: 1.7, textTransform: 'uppercase' }}>Use Script</Text>
             <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>{script.title}</Text>
           </View>
           <CategoryBadge category={script.category} />
@@ -309,19 +309,19 @@ function UseScriptModal({
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
           {/* Script preview with highlights */}
           <View style={{ backgroundColor: COLORS.card, borderRadius: 10, padding: 14, marginBottom: 20, borderLeftWidth: 3, borderLeftColor: COLORS.red }}>
-            <Text style={{ color: COLORS.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Script Preview</Text>
+            <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Script Preview</Text>
             <Text style={{ lineHeight: 20 }}>{renderHighlighted()}</Text>
           </View>
 
           {/* Variable inputs */}
           {script.variables.length > 0 && (
             <View style={{ marginBottom: 20 }}>
-              <Text style={{ color: COLORS.textLight, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
+              <Text style={{ color: COLORS.textLight, fontSize: 13, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 }}>
                 Fill Variables
               </Text>
               {script.variables.map((varName) => (
                 <View key={varName} style={{ marginBottom: 12 }}>
-                  <Text style={{ color: COLORS.red, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 5 }}>
+                  <Text style={{ color: COLORS.red, fontSize: 12, fontWeight: '700', letterSpacing: 0.7, marginBottom: 5 }}>
                     [{varName}]
                   </Text>
                   <TextInput
@@ -334,7 +334,7 @@ function UseScriptModal({
                       backgroundColor: COLORS.surface,
                       borderWidth: 1,
                       borderColor: COLORS.border,
-                      borderRadius: 8,
+                      borderRadius: 12,
                       paddingHorizontal: 12,
                       paddingVertical: 10,
                       color: COLORS.textLight,
@@ -348,8 +348,8 @@ function UseScriptModal({
 
           {/* Live preview */}
           <View style={{ backgroundColor: '#0D1F0D', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#1E3A1E' }}>
-            <Text style={{ color: '#4CAF50', fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Live Preview</Text>
-            <Text style={{ color: '#B8E6B8', fontSize: 13, lineHeight: 20 }}>{preview}</Text>
+            <Text style={{ color: '#4CAF50', fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Live Preview</Text>
+            <Text style={{ color: '#B8E6B8', fontSize: 14, lineHeight: 22 }}>{preview}</Text>
           </View>
         </ScrollView>
 
@@ -413,24 +413,24 @@ function EditScriptModal({
           <Pressable testID="edit-modal-close" onPress={onClose} style={{ padding: 4, marginRight: 12 }}>
             <X size={20} color={COLORS.muted} strokeWidth={2.5} />
           </Pressable>
-          <Text style={{ flex: 1, color: COLORS.textLight, fontSize: 16, fontWeight: '800' }}>Edit Script</Text>
-          <Pressable testID="edit-save-btn" onPress={handleSave} style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: COLORS.red, borderRadius: 8 }}>
+          <Text style={{ flex: 1, color: COLORS.textLight, fontSize: 18, fontWeight: '800' }}>Edit Script</Text>
+          <Pressable testID="edit-save-btn" onPress={handleSave} style={{ paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.red, borderRadius: 12 }}>
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Save</Text>
           </Pressable>
         </View>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Title</Text>
+          <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Title</Text>
           <TextInput
             testID="edit-title-input"
             value={title}
             onChangeText={setTitle}
             placeholder="Script title..."
             placeholderTextColor={COLORS.muted}
-            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 15, marginBottom: 16 }}
+            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 15, marginBottom: 16 }}
           />
 
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Category</Text>
+          <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Category</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {CATEGORIES.filter((c) => c !== 'All').map((cat) => (
@@ -445,7 +445,7 @@ function EditScriptModal({
             </View>
           </ScrollView>
 
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+          <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>
             Script Body — use [VARIABLE_NAME] for variables
           </Text>
           <TextInput
@@ -457,12 +457,12 @@ function EditScriptModal({
             multiline
             numberOfLines={8}
             textAlignVertical="top"
-            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 14, lineHeight: 21, minHeight: 160, marginBottom: 16 }}
+            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 14, lineHeight: 21, minHeight: 160, marginBottom: 16 }}
           />
 
           {detectedVars.length > 0 && (
-            <View style={{ backgroundColor: COLORS.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: COLORS.border }}>
-              <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Detected Variables</Text>
+            <View style={{ backgroundColor: COLORS.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: COLORS.border }}>
+              <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Detected Variables</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 {detectedVars.map((v) => (
                   <View key={v} style={{ backgroundColor: '#3A1010', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4 }}>
@@ -519,27 +519,27 @@ function CreateScriptModal({
           <Pressable testID="create-modal-close" onPress={() => { reset(); onClose(); }} style={{ padding: 4, marginRight: 12 }}>
             <X size={20} color={COLORS.muted} strokeWidth={2.5} />
           </Pressable>
-          <Text style={{ flex: 1, color: COLORS.textLight, fontSize: 16, fontWeight: '800' }}>New Script</Text>
+          <Text style={{ flex: 1, color: COLORS.textLight, fontSize: 18, fontWeight: '800' }}>New Script</Text>
           <Pressable
             testID="create-save-btn"
             onPress={handleCreate}
-            style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: title.trim() && body.trim() ? COLORS.red : COLORS.muted, borderRadius: 8 }}>
+            style={{ paddingHorizontal: 16, paddingVertical: 14, backgroundColor: title.trim() && body.trim() ? COLORS.red : COLORS.muted, borderRadius: 12 }}>
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Create</Text>
           </Pressable>
         </View>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Title</Text>
+          <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Title</Text>
           <TextInput
             testID="create-title-input"
             value={title}
             onChangeText={setTitle}
             placeholder="e.g. Follow-up Contact Template"
             placeholderTextColor={COLORS.muted}
-            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 15, marginBottom: 16 }}
+            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 15, marginBottom: 16 }}
           />
 
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Category</Text>
+          <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Category</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {CATEGORIES.filter((c) => c !== 'All').map((cat) => (
@@ -554,10 +554,10 @@ function CreateScriptModal({
             </View>
           </ScrollView>
 
-          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+          <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>
             Script Body
           </Text>
-          <Text style={{ color: COLORS.muted, fontSize: 11, marginBottom: 8 }}>
+          <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 8 }}>
             Wrap variable names in brackets: [YOUR_NAME], [TOPIC], etc.
           </Text>
           <TextInput
@@ -569,12 +569,12 @@ function CreateScriptModal({
             multiline
             numberOfLines={8}
             textAlignVertical="top"
-            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 14, lineHeight: 21, minHeight: 180, marginBottom: 16 }}
+            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.textLight, fontSize: 14, lineHeight: 21, minHeight: 180, marginBottom: 16 }}
           />
 
           {detectedVars.length > 0 && (
-            <View style={{ backgroundColor: COLORS.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: COLORS.border }}>
-              <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Auto-Detected Variables ({detectedVars.length})</Text>
+            <View style={{ backgroundColor: COLORS.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: COLORS.border }}>
+              <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Auto-Detected Variables ({detectedVars.length})</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 {detectedVars.map((v) => (
                   <View key={v} style={{ backgroundColor: '#3A1010', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4 }}>
@@ -667,7 +667,7 @@ export default function ScriptsScreen() {
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '600' }}>{filtered.length} scripts</Text>
+            <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '600' }}>{filtered.length} scripts</Text>
           </View>
         </View>
         {/* Red underline */}
@@ -676,8 +676,8 @@ export default function ScriptsScreen() {
 
       {/* Search bar */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border, gap: 8 }}>
-          <Search size={16} color={COLORS.muted} strokeWidth={2} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border, gap: 8 }}>
+          <Search size={18} color={COLORS.muted} strokeWidth={2} />
           <TextInput
             testID="scripts-search-input"
             value={search}
@@ -712,13 +712,13 @@ export default function ScriptsScreen() {
               }}
               style={{
                 paddingHorizontal: 14,
-                paddingVertical: 7,
+                paddingVertical: 9,
                 borderRadius: 20,
                 backgroundColor: active ? COLORS.red : COLORS.surface,
                 borderWidth: 1,
                 borderColor: active ? COLORS.red : COLORS.border,
               }}>
-              <Text style={{ color: active ? '#fff' : COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 }}>
+              <Text style={{ color: active ? '#fff' : COLORS.muted, fontSize: 13, fontWeight: '700', letterSpacing: 0.5 }}>
                 {cat}
               </Text>
             </Pressable>
@@ -737,7 +737,7 @@ export default function ScriptsScreen() {
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
             <FileText size={40} color={COLORS.muted} strokeWidth={1.5} />
             <Text style={{ color: COLORS.muted, fontSize: 15, fontWeight: '600', marginTop: 12 }}>No scripts found</Text>
-            <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 4, opacity: 0.7 }}>Try a different search or category</Text>
+            <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 4, opacity: 0.7 }}>Try a different search or category</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -761,9 +761,9 @@ export default function ScriptsScreen() {
           position: 'absolute',
           bottom: 100,
           right: 20,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
+          width: 60,
+          height: 60,
+          borderRadius: 30,
           backgroundColor: COLORS.red,
           alignItems: 'center',
           justifyContent: 'center',
@@ -773,7 +773,7 @@ export default function ScriptsScreen() {
           shadowRadius: 8,
           elevation: 8,
         }}>
-        <Plus size={26} color='#fff' strokeWidth={2.5} />
+        <Plus size={28} color='#fff' strokeWidth={2.5} />
       </Pressable>
 
       {/* Modals */}

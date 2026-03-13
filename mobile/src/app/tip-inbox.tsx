@@ -136,7 +136,7 @@ function TipCard({
           marginHorizontal: 16,
           marginBottom: 10,
           backgroundColor: pressed ? C.surfaceAlt : C.surface,
-          borderRadius: 12,
+          borderRadius: 16,
           borderWidth: 1,
           borderColor: C.border,
           flexDirection: 'row',
@@ -148,7 +148,7 @@ function TipCard({
         <View style={{ width: 4, backgroundColor: accentColor }} />
 
         {/* Content */}
-        <View style={{ flex: 1, padding: 14 }}>
+        <View style={{ flex: 1, padding: 18 }}>
           {/* Top row */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
             {isUnread ? (
@@ -167,8 +167,8 @@ function TipCard({
               style={{
                 flex: 1,
                 color: C.text,
-                fontSize: 15,
-                fontWeight: isUnread ? '700' : '600',
+                fontSize: 17,
+                fontWeight: '800',
                 lineHeight: 20,
               }}
               numberOfLines={1}
@@ -218,14 +218,14 @@ function TipCard({
             <View
               style={{
                 backgroundColor: accentColor + '22',
-                borderRadius: 6,
-                paddingHorizontal: 7,
-                paddingVertical: 3,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
                 borderWidth: 1,
                 borderColor: accentColor + '44',
               }}
             >
-              <Text style={{ color: accentColor, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
+              <Text style={{ color: accentColor, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>
                 {statusLabel(tip.status)}
               </Text>
             </View>
@@ -651,8 +651,8 @@ function TipDetail({
               disabled={vetMutation.isPending}
               style={({ pressed }) => ({
                 backgroundColor: pressed ? '#7C3AED' : '#8B5CF6',
-                borderRadius: 10,
-                padding: 14,
+                borderRadius: 14,
+                paddingVertical: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -665,7 +665,7 @@ function TipDetail({
               ) : (
                 <Brain size={16} color="#FFF" strokeWidth={2} />
               )}
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>
+              <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800' }}>
                 {vetMutation.isPending ? 'Vetting...' : 'Vet with AI'}
               </Text>
             </Pressable>
@@ -680,8 +680,8 @@ function TipDetail({
             disabled={addToBoardMutation.isPending}
             style={({ pressed }) => ({
               backgroundColor: pressed ? '#A3162E' : '#D4A574',
-              borderRadius: 10,
-              padding: 14,
+              borderRadius: 14,
+              paddingVertical: 16,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -694,7 +694,7 @@ function TipDetail({
             ) : (
               <MapPin size={16} color="#1A1614" strokeWidth={2} />
             )}
-            <Text style={{ color: '#1A1614', fontSize: 14, fontWeight: '700' }}>
+            <Text style={{ color: '#1A1614', fontSize: 15, fontWeight: '800' }}>
               {addToBoardMutation.isPending ? 'Adding…' : 'Add to Board'}
             </Text>
           </Pressable>
@@ -708,8 +708,8 @@ function TipDetail({
             disabled={dismissMutation.isPending || tip.status === 'dismissed'}
             style={({ pressed }) => ({
               backgroundColor: 'transparent',
-              borderRadius: 10,
-              padding: 14,
+              borderRadius: 14,
+              paddingVertical: 16,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -720,7 +720,7 @@ function TipDetail({
             })}
           >
             <XCircle size={16} color={C.muted} strokeWidth={2} />
-            <Text style={{ color: C.muted, fontSize: 14, fontWeight: '600' }}>
+            <Text style={{ color: C.muted, fontSize: 15, fontWeight: '800' }}>
               {tip.status === 'dismissed' ? 'Dismissed' : 'Dismiss Tip'}
             </Text>
           </Pressable>

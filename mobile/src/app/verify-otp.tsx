@@ -241,15 +241,15 @@ export default function VerifyOtpScreen() {
                   pinCodeContainerStyle: {
                     backgroundColor: COLORS.surface,
                     borderColor: COLORS.border,
-                    borderRadius: 12,
+                    borderRadius: 14,
                     borderWidth: 1,
-                    width: 44,
-                    height: 54,
+                    width: 52,
+                    height: 64,
                   },
                   pinCodeTextStyle: {
                     color: COLORS.text,
-                    fontSize: 22,
-                    fontWeight: "700",
+                    fontSize: 28,
+                    fontWeight: "800",
                   },
                   focusedPinCodeContainerStyle: {
                     borderColor: COLORS.red,
@@ -302,10 +302,10 @@ export default function VerifyOtpScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontSize: 32,
+                    fontSize: 38,
                     fontWeight: "900",
                     color: "#D4A574",
-                    letterSpacing: 8,
+                    letterSpacing: 10,
                   }}
                 >
                   {devOtpCode}

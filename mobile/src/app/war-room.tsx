@@ -206,11 +206,11 @@ function CtrlBtn({
               borderColor: C.bg,
             }}
           >
-            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{badge}</Text>
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>{badge}</Text>
           </View>
         ) : null}
       </View>
-      <Text style={{ color: danger ? '#FF6B6B' : active ? C.pin : C.muted, fontSize: 10, fontWeight: '600', letterSpacing: 0.3 }}>
+      <Text style={{ color: danger ? '#FF6B6B' : active ? C.pin : C.muted, fontSize: 12, fontWeight: '600', letterSpacing: 0.5 }}>
         {label}
       </Text>
     </Pressable>
@@ -392,11 +392,11 @@ export default function WarRoomScreen() {
         <Animated.View style={[{ width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(196,30,58,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 28, borderWidth: 1.5, borderColor: 'rgba(196,30,58,0.3)' }, loadingGlowStyle]}>
           <Radio size={44} color={C.red} strokeWidth={1.5} />
         </Animated.View>
-        <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 }}>War Room</Text>
-        <Text style={{ color: C.muted, fontSize: 13, letterSpacing: 0.3 }}>Connecting to secure channel...</Text>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', letterSpacing: 0.7, marginBottom: 8 }}>War Room</Text>
+        <Text style={{ color: C.muted, fontSize: 13, letterSpacing: 0.5 }}>Connecting to secure channel...</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 28 }}>
           <ActivityIndicator color={C.red} size="small" />
-          <Text style={{ color: C.muted, fontSize: 12 }}>Establishing encrypted session</Text>
+          <Text style={{ color: C.muted, fontSize: 13 }}>Establishing encrypted session</Text>
         </View>
       </View>
     );
@@ -472,8 +472,8 @@ export default function WarRoomScreen() {
               return (
                 <View key={node.id} style={{ position: 'absolute', left: node.position.x + 500, top: node.position.y + 500, width: 160, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: color + '50', borderLeftWidth: 4, borderLeftColor: color, padding: 11, shadowColor: color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                    <NodeTypeIcon type={node.type} size={14} />
-                    <Text style={{ color: color, fontSize: 9, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', flex: 1 }} numberOfLines={1}>{node.type}</Text>
+                    <NodeTypeIcon type={node.type} size={15} />
+                    <Text style={{ color: color, fontSize: 9, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', flex: 1 }} numberOfLines={1}>{node.type}</Text>
                   </View>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', lineHeight: 17 }} numberOfLines={2}>{node.title}</Text>
                   {!isOwner ? (
@@ -481,8 +481,8 @@ export default function WarRoomScreen() {
                       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); requestNodeMutation.mutate({ nodeId: node.id, nodeTitle: node.title, nodeSnapshot: JSON.stringify(node) }); }}
                       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, backgroundColor: pressed ? 'rgba(212,165,116,0.25)' : 'rgba(212,165,116,0.12)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(212,165,116,0.25)' })}
                     >
-                      <Download size={11} color={C.pin} strokeWidth={2.5} />
-                      <Text style={{ color: C.pin, fontSize: 10, fontWeight: '800' }}>Request</Text>
+                      <Download size={15} color={C.pin} strokeWidth={2.5} />
+                      <Text style={{ color: C.pin, fontSize: 12, fontWeight: '800' }}>Request</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -525,7 +525,7 @@ export default function WarRoomScreen() {
           {/* LIVE badge */}
           <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(15,13,11,0.75)', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
             <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.red }} />
-            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', letterSpacing: 1 }}>LIVE</Text>
+            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', letterSpacing: 1.2 }}>LIVE</Text>
           </View>
         </Animated.View>
       ) : null}
@@ -546,7 +546,7 @@ export default function WarRoomScreen() {
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
               <PulsingDot />
-              <Text style={{ color: C.red, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 }}>LIVE SESSION</Text>
+              <Text style={{ color: C.red, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 }}>LIVE SESSION</Text>
             </View>
           </View>
         </View>
@@ -578,22 +578,22 @@ export default function WarRoomScreen() {
                   <View key={msg.id + idx} style={{ alignItems: isMine ? 'flex-end' : 'flex-start' }}>
                     {msg.type === 'system' ? (
                       <View style={{ backgroundColor: C.surfaceAlt, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 }}>
-                        <Text style={{ color: C.muted, fontSize: 11, fontStyle: 'italic' }}>{msg.text}</Text>
+                        <Text style={{ color: C.muted, fontSize: 12, fontStyle: 'italic' }}>{msg.text}</Text>
                       </View>
                     ) : msg.type === 'file' ? (
                       <View style={{ backgroundColor: C.surfaceAlt, borderRadius: 14, padding: 12, maxWidth: SCREEN_W * 0.72, borderWidth: 1, borderColor: C.border }}>
-                        <Text style={{ color: nameColor, fontSize: 11, fontWeight: '700', marginBottom: 6 }}>{msg.senderName}</Text>
+                        <Text style={{ color: nameColor, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{msg.senderName}</Text>
                         <Pressable onPress={() => downloadFile(msg)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: pressed ? C.border : C.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 })}>
                           <Download size={16} color={C.pin} strokeWidth={2} />
                           <Text style={{ color: C.text, fontSize: 13, fontWeight: '600', flex: 1 }} numberOfLines={1}>{msg.fileName}</Text>
                         </Pressable>
-                        <Text style={{ color: C.muted, fontSize: 10, marginTop: 5 }}>{formatTime(msg.timestamp)}</Text>
+                        <Text style={{ color: C.muted, fontSize: 12, marginTop: 5 }}>{formatTime(msg.timestamp)}</Text>
                       </View>
                     ) : (
                       <View style={{ backgroundColor: isMine ? 'rgba(196,30,58,0.2)' : C.surfaceAlt, borderRadius: 14, padding: 12, maxWidth: SCREEN_W * 0.74, borderWidth: 1, borderColor: isMine ? 'rgba(196,30,58,0.35)' : C.border }}>
-                        {!isMine ? <Text style={{ color: nameColor, fontSize: 11, fontWeight: '800', marginBottom: 4 }}>{msg.senderName}</Text> : null}
+                        {!isMine ? <Text style={{ color: nameColor, fontSize: 12, fontWeight: '800', marginBottom: 4 }}>{msg.senderName}</Text> : null}
                         <Text style={{ color: C.text, fontSize: 14, lineHeight: 20 }}>{msg.text}</Text>
-                        <Text style={{ color: C.muted, fontSize: 10, marginTop: 4, textAlign: 'right' }}>{formatTime(msg.timestamp)}</Text>
+                        <Text style={{ color: C.muted, fontSize: 12, marginTop: 4, textAlign: 'right' }}>{formatTime(msg.timestamp)}</Text>
                       </View>
                     )}
                   </View>
@@ -631,10 +631,9 @@ export default function WarRoomScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>Private Scratchpad</Text>
-                <Text style={{ color: C.muted, fontSize: 10, marginTop: 1 }}>Only visible to you</Text>
-              </View>
+                <Text style={{ color: C.muted, fontSize: 12, marginTop: 1 }}>Only visible to you</Text>              </View>
               <Pressable onPress={shareNote} style={({ pressed }) => ({ backgroundColor: pressed ? '#A3162E' : C.red, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8, shadowColor: C.red, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 5 })}>
-                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>Share</Text>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Share</Text>
               </Pressable>
               <Pressable onPress={() => setActivePanel('none')} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
                 <ChevronDown size={20} color={C.muted} strokeWidth={2} />
@@ -667,21 +666,21 @@ export default function WarRoomScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{sessionData?.user?.name ?? 'You'}</Text>
-                      <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>{roomInfo?.isOwner ? 'Room Owner' : 'Participant'}</Text>
+                      <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{roomInfo?.isOwner ? 'Room Owner' : 'Participant'}</Text>
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: micMuted ? 'rgba(196,30,58,0.12)' : 'rgba(34,197,94,0.1)', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: micMuted ? 'rgba(196,30,58,0.25)' : 'rgba(34,197,94,0.2)' }}>
-                      {micMuted ? <MicOff size={13} color={C.red} strokeWidth={2} /> : <Mic size={13} color={C.green} strokeWidth={2} />}
-                      <Text style={{ color: micMuted ? C.red : C.green, fontSize: 11, fontWeight: '700' }}>{micMuted ? 'Muted' : 'Live'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: micMuted ? 'rgba(196,30,58,0.12)' : 'rgba(34,197,94,0.1)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: micMuted ? 'rgba(196,30,58,0.25)' : 'rgba(34,197,94,0.2)' }}>
+                      {micMuted ? <MicOff size={15} color={C.red} strokeWidth={2} /> : <Mic size={15} color={C.green} strokeWidth={2} />}
+                      <Text style={{ color: micMuted ? C.red : C.green, fontSize: 12, fontWeight: '700' }}>{micMuted ? 'Muted' : 'Live'}</Text>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: camOff ? 'rgba(196,30,58,0.12)' : 'rgba(34,197,94,0.1)', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: camOff ? 'rgba(196,30,58,0.25)' : 'rgba(34,197,94,0.2)' }}>
-                      {camOff ? <VideoOff size={13} color={C.red} strokeWidth={2} /> : <Video size={13} color={C.green} strokeWidth={2} />}
-                      <Text style={{ color: camOff ? C.red : C.green, fontSize: 11, fontWeight: '700' }}>{camOff ? 'Off' : 'On'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: camOff ? 'rgba(196,30,58,0.12)' : 'rgba(34,197,94,0.1)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: camOff ? 'rgba(196,30,58,0.25)' : 'rgba(34,197,94,0.2)' }}>
+                      {camOff ? <VideoOff size={15} color={C.red} strokeWidth={2} /> : <Video size={15} color={C.green} strokeWidth={2} />}
+                      <Text style={{ color: camOff ? C.red : C.green, fontSize: 12, fontWeight: '700' }}>{camOff ? 'Off' : 'On'}</Text>
                     </View>
                   </View>
                 </View>
-                <Text style={{ color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>Remote participants are visible in the video panel</Text>
+                <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 18 }}>Remote participants are visible in the video panel</Text>
               </ScrollView>
             </SafeAreaView>
           </Animated.View>
@@ -713,7 +712,7 @@ export default function WarRoomScreen() {
                       <NodeTypeIcon type={parsedNode.type ?? 'note'} size={14} />
                       <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginLeft: 6, flex: 1 }} numberOfLines={1}>{req.nodeTitle}</Text>
                     </View>
-                    <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>Participant is requesting this node</Text>
+                    <Text style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>Participant is requesting this node</Text>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                       <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); approveMutation.mutate({ reqId: req.id }); }} style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: pressed ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.12)', borderRadius: 10, paddingVertical: 11, borderWidth: 1, borderColor: 'rgba(34,197,94,0.35)' })}>
                         <Check size={16} color={C.green} strokeWidth={2.5} />

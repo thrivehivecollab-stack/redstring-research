@@ -986,11 +986,11 @@ function MessageBubble({
           <View
             style={{
               backgroundColor: isUser ? COLORS.red : COLORS.surface,
-              borderRadius: 16,
-              borderBottomRightRadius: isUser ? 4 : 16,
-              borderBottomLeftRadius: isUser ? 16 : 4,
-              paddingHorizontal: 14,
-              paddingVertical: 11,
+              borderRadius: 18,
+              borderBottomRightRadius: isUser ? 4 : 18,
+              borderBottomLeftRadius: isUser ? 18 : 4,
+              paddingHorizontal: isUser ? 14 : 16,
+              paddingVertical: isUser ? 14 : 16,
               borderWidth: message.highlight ? 0 : isUser ? 0 : 1,
               borderColor: COLORS.border,
               borderLeftWidth: message.highlight && !isUser ? 4 : isUser ? 0 : 1,
@@ -1006,8 +1006,8 @@ function MessageBubble({
             <Text
               style={{
                 color: isUser ? '#FFF' : COLORS.textLight,
-                fontSize: 14,
-                lineHeight: 21,
+                fontSize: 15,
+                lineHeight: 24,
                 fontWeight: '400',
               }}
             >
@@ -1067,25 +1067,23 @@ function MessageBubble({
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 5,
+                width: 32,
+                height: 32,
                 backgroundColor: message.pinned
                   ? 'rgba(212,165,116,0.18)'
                   : pressed
                   ? 'rgba(212,165,116,0.12)'
                   : 'rgba(212,165,116,0.07)',
                 borderRadius: 8,
-                paddingHorizontal: 9,
-                paddingVertical: 5,
                 borderWidth: 1,
                 borderColor: message.pinned
                   ? 'rgba(212,165,116,0.5)'
                   : 'rgba(212,165,116,0.2)',
               })}
             >
-              <Pin size={11} color={COLORS.pin} strokeWidth={2.5} />
-              <Text style={{ color: COLORS.pin, fontSize: 11, fontWeight: '700' }}>
-                {message.pinned ? 'Pinned' : 'Pin to Board'}
-              </Text>
+              <Pin size={14} color={COLORS.pin} strokeWidth={2.5} />
             </Pressable>
             {/* Speak button per message */}
             <Pressable
@@ -1094,22 +1092,23 @@ function MessageBubble({
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 4,
+                width: 32,
+                height: 32,
                 backgroundColor: isSpeaking
                   ? 'rgba(196,30,58,0.18)'
                   : pressed
                   ? 'rgba(196,30,58,0.12)'
                   : 'rgba(196,30,58,0.06)',
                 borderRadius: 8,
-                paddingHorizontal: 9,
-                paddingVertical: 5,
                 borderWidth: 1,
                 borderColor: isSpeaking
                   ? 'rgba(196,30,58,0.5)'
                   : 'rgba(196,30,58,0.2)',
               })}
             >
-              <Volume2 size={12} color={COLORS.red} strokeWidth={2.5} />
+              <Volume2 size={14} color={COLORS.red} strokeWidth={2.5} />
             </Pressable>
           </View>
         ) : null}
@@ -2001,9 +2000,7 @@ export default function AIResearchScreen() {
             onLongPress={handleVoiceButtonLongPress}
             delayLongPress={400}
             style={({ pressed }) => ({
-              width: 34,
-              height: voiceEnabled ? 44 : 34,
-              borderRadius: 10,
+              borderRadius: 12,
               backgroundColor: voiceEnabled
                 ? pressed
                   ? 'rgba(196,30,58,0.25)'
@@ -2015,6 +2012,8 @@ export default function AIResearchScreen() {
               justifyContent: 'center',
               borderWidth: 1,
               borderColor: voiceEnabled ? 'rgba(196,30,58,0.5)' : COLORS.border,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
             })}
           >
             {voiceEnabled ? (
@@ -2025,7 +2024,7 @@ export default function AIResearchScreen() {
             {voiceEnabled ? (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: selectedVoice?.persona === 'detective' ? '#C41E3A' : selectedVoice?.persona === 'interrogator' ? '#F97316' : selectedVoice?.persona === 'analyst' ? '#3B82F6' : selectedVoice?.persona === 'journalist' ? '#22C55E' : selectedVoice?.persona === 'archivist' ? '#A855F7' : '#D4A574', marginRight: 5 }} />
-                <Text style={{ color: '#E8DCC8', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>{selectedVoiceName.toUpperCase()}</Text>
+                <Text style={{ color: '#E8DCC8', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>{selectedVoiceName.toUpperCase()}</Text>
               </View>
             ) : null}
           </Pressable>
@@ -2330,9 +2329,9 @@ export default function AIResearchScreen() {
                   onPress={handleMicPress}
                   disabled={isTranscribing}
                   style={({ pressed }) => ({
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
+                    width: 52,
+                    height: 52,
+                    borderRadius: 26,
                     backgroundColor: isListening
                       ? COLORS.red
                       : isTranscribing
@@ -2376,10 +2375,10 @@ export default function AIResearchScreen() {
                   borderWidth: 1,
                   borderColor:
                     inputText.length > 0 ? 'rgba(196,30,58,0.4)' : COLORS.border,
-                  paddingHorizontal: 16,
+                  paddingHorizontal: 18,
                   paddingTop: 12,
                   paddingBottom: 12,
-                  minHeight: 48,
+                  minHeight: 52,
                   maxHeight: 120,
                   justifyContent: 'center',
                 }}
@@ -2393,7 +2392,7 @@ export default function AIResearchScreen() {
                   multiline
                   style={{
                     color: COLORS.textLight,
-                    fontSize: 14,
+                    fontSize: 16,
                     lineHeight: 20,
                     margin: 0,
                     padding: 0,
@@ -2409,9 +2408,9 @@ export default function AIResearchScreen() {
                 onPress={handleSend}
                 disabled={!inputText.trim() || isThinking}
                 style={({ pressed }) => ({
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
                   backgroundColor:
                     inputText.trim() && !isThinking
                       ? pressed

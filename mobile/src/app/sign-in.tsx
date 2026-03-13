@@ -276,7 +276,7 @@ export default function SignInScreen() {
                   fontSize: 32,
                   fontWeight: "900",
                   color: COLORS.red,
-                  letterSpacing: 3,
+                  letterSpacing: 3.2,
                   textAlign: "center",
                   marginBottom: 4,
                 }}
@@ -288,7 +288,7 @@ export default function SignInScreen() {
                   fontSize: 13,
                   fontWeight: "700",
                   color: COLORS.amber,
-                  letterSpacing: 6,
+                  letterSpacing: 6.2,
                   textAlign: "center",
                   marginBottom: 16,
                 }}
@@ -311,7 +311,7 @@ export default function SignInScreen() {
                     fontSize: 13,
                     color: COLORS.muted,
                     fontStyle: "italic",
-                    letterSpacing: 0.5,
+                    letterSpacing: 0.7,
                   }}
                 >
                   Every thread leads somewhere.
@@ -338,7 +338,7 @@ export default function SignInScreen() {
               >
                 <Text
                   style={{
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: "700",
                     color: COLORS.text,
                     marginBottom: 4,
@@ -360,10 +360,10 @@ export default function SignInScreen() {
                 {/* Phone input */}
                 <Text
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: "700",
                     color: COLORS.muted,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.6,
                     marginBottom: 8,
                   }}
                 >
@@ -400,7 +400,7 @@ export default function SignInScreen() {
                 {error ? (
                   <Text
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       color: COLORS.red,
                       marginBottom: 16,
                       lineHeight: 16,
@@ -446,7 +446,7 @@ export default function SignInScreen() {
                           fontSize: 16,
                           fontWeight: "800",
                           color: isValidPhone ? "#FFFFFF" : COLORS.muted,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.7,
                         }}
                       >
                         {isLoading ? "Sending Code..." : "Send Verification Code"}
@@ -460,7 +460,7 @@ export default function SignInScreen() {
             {/* OR divider */}
             <Animated.View entering={FadeInDown.delay(400).duration(500)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, marginBottom: 16 }}>
               <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-              <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '600', letterSpacing: 1 }}>OR</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600', letterSpacing: 1.2 }}>OR</Text>
               <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
             </Animated.View>
 
@@ -486,9 +486,9 @@ export default function SignInScreen() {
                 })}
               >
                 <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#4285F4', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>G</Text>
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>G</Text>
                 </View>
-                <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '600' }}>Continue with Google</Text>
+                <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '600' }}>Continue with Google</Text>
               </Pressable>
 
               {/* Apple */}
@@ -511,9 +511,9 @@ export default function SignInScreen() {
                 })}
               >
                 <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#F5ECD7', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#1A1614', fontSize: 12, fontWeight: '900' }}></Text>
+                  <Text style={{ color: '#1A1614', fontSize: 13, fontWeight: '900' }}></Text>
                 </View>
-                <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '600' }}>Continue with Apple</Text>
+                <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '600' }}>Continue with Apple</Text>
               </Pressable>
             </Animated.View>
 
@@ -534,7 +534,7 @@ export default function SignInScreen() {
             >
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   color: COLORS.muted,
                   textAlign: "center",
                   lineHeight: 18,

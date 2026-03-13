@@ -374,7 +374,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`add-board-${episode.id}`}
             onPress={() => onAddToBoard(episode)}
             style={styles.actionBtn}>
-            <Pin size={13} color={C.pin} strokeWidth={2} />
+            <Pin size={15} color={C.pin} strokeWidth={2} />
             <Text style={styles.actionBtnText}>Add to Board</Text>
           </Pressable>
 
@@ -382,7 +382,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`ai-summary-${episode.id}`}
             onPress={() => onAISummary(episode)}
             style={[styles.actionBtn, styles.actionBtnAI]}>
-            <Brain size={13} color={C.red} strokeWidth={2} />
+            <Brain size={15} color={C.red} strokeWidth={2} />
             <Text style={[styles.actionBtnText, { color: C.red }]}>AI Summary</Text>
           </Pressable>
 
@@ -390,7 +390,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`share-${episode.id}`}
             onPress={() => onShare(episode)}
             style={styles.actionBtn}>
-            <Share2 size={13} color={C.muted} strokeWidth={2} />
+            <Share2 size={15} color={C.muted} strokeWidth={2} />
             <Text style={styles.actionBtnText}>Share</Text>
           </Pressable>
 
@@ -398,7 +398,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`play-${episode.id}`}
             onPress={() => onPlay(episode)}
             style={styles.playBtn}>
-            <Play size={11} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />
+            <Play size={13} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />
             <Text style={styles.playBtnText}>Play</Text>
           </Pressable>
         </View>
@@ -461,9 +461,9 @@ function LiveCard({
           style={styles.pinButton}
           hitSlop={8}>
           {pinned ? (
-            <BookmarkCheck size={20} color={C.pin} strokeWidth={2} />
+            <BookmarkCheck size={22} color={C.pin} strokeWidth={2} />
           ) : (
-            <Pin size={18} color={C.muted} strokeWidth={2} />
+            <Pin size={20} color={C.muted} strokeWidth={2} />
           )}
         </Pressable>
       </View>
@@ -827,22 +827,22 @@ const styles = StyleSheet.create({
     borderBottomColor: C.border,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: C.red,
     letterSpacing: 2,
   },
   headerSubtitle: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '600',
     color: C.muted,
-    letterSpacing: 3,
+    letterSpacing: 3.2,
     marginTop: 1,
   },
   headerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -879,7 +879,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: C.muted,
-    letterSpacing: 0.5,
+    letterSpacing: 0.7,
   },
   tabButtonTextActive: { color: C.textLight },
   tabIndicatorTrack: {
@@ -924,10 +924,10 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   showPillText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: C.muted,
     maxWidth: 110,
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     borderColor: C.red,
   },
   showPillCountText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     color: C.muted,
   },
@@ -968,20 +968,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   episodeListHeaderText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: C.muted,
-    letterSpacing: 1.5,
+    letterSpacing: 1.7,
     textTransform: 'uppercase',
   },
   episodeListHeaderCount: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: C.muted,
     backgroundColor: C.surface,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: C.border,
   },
@@ -996,15 +996,15 @@ const styles = StyleSheet.create({
   // Episode Card
   episodeCard: {
     marginBottom: 10,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   episodeCardInner: {
     backgroundColor: C.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: C.border,
-    padding: 14,
+    padding: 16,
     gap: 10,
   },
   episodeTopRow: {
@@ -1013,25 +1013,25 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   showAvatarSmall: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   showAvatarSmallText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.7,
   },
   episodeMeta: { flex: 1, gap: 2 },
   episodeShowLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: C.muted,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   episodeMetaRow: {
     flexDirection: 'row',
@@ -1061,14 +1061,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   episodeTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: C.textLight,
     lineHeight: 21,
     letterSpacing: 0.1,
   },
   episodeDesc: {
-    fontSize: 13,
+    fontSize: 14,
     color: C.muted,
     lineHeight: 18,
     letterSpacing: 0.1,
@@ -1087,9 +1087,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: C.card,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: C.border,
   },
@@ -1098,7 +1098,7 @@ const styles = StyleSheet.create({
     borderColor: C.red,
   },
   actionBtnText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: C.muted,
     letterSpacing: 0.2,
@@ -1108,13 +1108,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: C.red,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     marginLeft: 'auto',
   },
   playBtnText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.3,
@@ -1129,7 +1129,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: C.muted,
     letterSpacing: 2,
@@ -1168,7 +1168,7 @@ const styles = StyleSheet.create({
   liveCardContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 14,
+    padding: 16,
     gap: 12,
   },
   liveCardLeft: { flex: 1, gap: 7 },
@@ -1209,7 +1209,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   liveTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: C.textLight,
     lineHeight: 20,
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   liveChannelText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: C.muted,
   },
@@ -1258,7 +1258,7 @@ const styles = StyleSheet.create({
     borderColor: C.red,
   },
   keywordChipText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
     color: C.red,
     letterSpacing: 0.3,
@@ -1276,12 +1276,12 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   keywordAddChipText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: C.muted,
   },
   keywordHint: {
-    fontSize: 10,
+    fontSize: 12,
     color: C.muted,
     fontStyle: 'italic',
     letterSpacing: 0.3,

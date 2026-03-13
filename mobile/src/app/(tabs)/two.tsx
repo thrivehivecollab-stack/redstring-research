@@ -88,8 +88,8 @@ const C = {
   cardText: '#2C1810',
 } as const;
 
-const NODE_W = 160;
-const NODE_H = 100;
+const NODE_W = 180;
+const NODE_H = 110;
 
 const TAG_COLORS: Record<TagColor, string> = {
   red: '#C41E3A',
@@ -276,6 +276,11 @@ function NodeCard({
         <View
           style={[
             styles.nodeCard,
+            node.color ? {
+              backgroundColor: pinColor + '14',
+              borderWidth: 1,
+              borderColor: pinColor + '66',
+            } : undefined,
             connectMode
               ? {
                   borderWidth: node.id === connectingFromId ? 2 : 1,
@@ -306,10 +311,9 @@ function NodeCard({
           ) : null}
           <View style={[styles.pushpin, { backgroundColor: pinColor }]} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
-            <Icon size={14} color={C.muted} strokeWidth={2} />
+            <Icon size={18} color={C.muted} strokeWidth={2} />
             <Text
-              className="text-xs font-bold"
-              style={{ color: C.cardText, flex: 1 }}
+              style={{ color: C.cardText, flex: 1, fontSize: 14, fontWeight: '800' }}
               numberOfLines={2}
             >
               {node.title}
@@ -965,15 +969,15 @@ export default function InvestigationCanvas() {
             <View style={StyleSheet.absoluteFill}>
               {/* Cork texture dots */}
               <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-                {Array.from({ length: 30 }, (_, r) =>
-                  Array.from({ length: 20 }, (_, col) => (
+                {Array.from({ length: 40 }, (_, r) =>
+                  Array.from({ length: 60 }, (_, col) => (
                     <SvgCircle
                       key={`d${r}-${col}`}
-                      cx={r * 25 + 12}
-                      cy={col * 25 + 12}
-                      r={1}
+                      cx={r * 24 + 12}
+                      cy={col * 24 + 12}
+                      r={1.5}
                       fill="#F5ECD7"
-                      opacity={0.03}
+                      opacity={0.06}
                     />
                   ))
                 )}
@@ -1166,8 +1170,8 @@ export default function InvestigationCanvas() {
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 12,
-            paddingVertical: 8,
-            gap: 8,
+            paddingVertical: 10,
+            gap: 10,
           }}
           pointerEvents="box-none"
         >
@@ -1176,15 +1180,15 @@ export default function InvestigationCanvas() {
             testID="canvas-back-button"
             onPress={handleGoBack}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: pressed ? C.border : C.surface,
               alignItems: 'center',
               justifyContent: 'center',
             })}
           >
-            <ArrowLeft size={18} color={C.text} strokeWidth={2} />
+            <ArrowLeft size={22} color={C.text} strokeWidth={2} />
           </Pressable>
 
           {/* Title */}
@@ -1215,9 +1219,9 @@ export default function InvestigationCanvas() {
             testID="canvas-mode-toggle"
             onPress={toggleCanvasMode}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: pressed ? C.border : C.surface,
               alignItems: 'center',
               justifyContent: 'center',
@@ -1226,9 +1230,9 @@ export default function InvestigationCanvas() {
             })}
           >
             {canvasMode === 'corkboard' ? (
-              <Network size={17} color={C.text} strokeWidth={2} />
+              <Network size={22} color={C.text} strokeWidth={2} />
             ) : (
-              <LayoutGrid size={17} color={C.text} strokeWidth={2} />
+              <LayoutGrid size={22} color={C.text} strokeWidth={2} />
             )}
           </Pressable>
 
@@ -1240,9 +1244,9 @@ export default function InvestigationCanvas() {
               router.push({ pathname: '/sources-panel', params: { investigationId: investigation.id } });
             }}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: pressed ? C.border : C.surface,
               alignItems: 'center',
               justifyContent: 'center',
@@ -1250,7 +1254,7 @@ export default function InvestigationCanvas() {
               borderColor: C.border,
             })}
           >
-            <BookOpen size={17} color={C.text} strokeWidth={2} />
+            <BookOpen size={22} color={C.text} strokeWidth={2} />
           </Pressable>
 
           {/* Connect toggle (corkboard only) */}
@@ -1259,9 +1263,9 @@ export default function InvestigationCanvas() {
               testID="connect-toggle"
               onPress={toggleConnectMode}
               style={({ pressed }) => ({
-                width: 36,
-                height: 36,
-                borderRadius: 18,
+                width: 46,
+                height: 46,
+                borderRadius: 23,
                 backgroundColor: connectMode ? C.red : pressed ? C.border : C.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1269,7 +1273,7 @@ export default function InvestigationCanvas() {
                 borderColor: C.border,
               })}
             >
-              <Cable size={18} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
+              <Cable size={22} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
             </Pressable>
           ) : null}
 
@@ -1280,9 +1284,9 @@ export default function InvestigationCanvas() {
               handleOpenCollabSheet();
             }}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: pressed ? C.border : C.surface,
               borderWidth: 1,
               borderColor: C.border,
@@ -1290,16 +1294,16 @@ export default function InvestigationCanvas() {
               justifyContent: 'center',
             })}
           >
-            <Users size={18} color={C.text} strokeWidth={2} />
+            <Users size={22} color={C.text} strokeWidth={2} />
           </Pressable>
 
           {/* Go Live button */}
           <Pressable
             onPress={() => setIsBroadcasting(true)}
             style={({ pressed }) => ({
-              width: 42,
-              height: 42,
-              borderRadius: 21,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: isBroadcasting ? C.red : pressed ? C.border : C.surface,
               borderWidth: isBroadcasting ? 0 : 1,
               borderColor: C.border,
@@ -1307,7 +1311,7 @@ export default function InvestigationCanvas() {
               justifyContent: 'center',
             })}
           >
-            <Radio size={18} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
+            <Radio size={22} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
           </Pressable>
 
           {/* Add node */}
@@ -1323,18 +1327,18 @@ export default function InvestigationCanvas() {
               setShowAddMenu(true);
             }}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: isAtNodeLimit ? C.border : pressed ? '#A3162E' : C.red,
               alignItems: 'center',
               justifyContent: 'center',
             })}
           >
             {isAtNodeLimit ? (
-              <Lock size={16} color={C.muted} strokeWidth={2} />
+              <Lock size={20} color={C.muted} strokeWidth={2} />
             ) : (
-              <Plus size={18} color="#FFF" strokeWidth={2.5} />
+              <Plus size={22} color="#FFF" strokeWidth={2.5} />
             )}
           </Pressable>
         </View>
@@ -2013,22 +2017,22 @@ export default function InvestigationCanvas() {
 const styles = StyleSheet.create({
   nodeCard: {
     backgroundColor: C.card,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 5,
     minHeight: 60,
   },
   pushpin: {
     position: 'absolute',
-    top: -5,
-    left: 14,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: -8,
+    left: 28,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,

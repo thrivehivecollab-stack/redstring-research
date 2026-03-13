@@ -127,7 +127,7 @@ const useInvestigationStore = create<InvestigationStore>()(
           type,
           title,
           position,
-          size: { width: 160, height: 100 },
+          size: { width: 180, height: 110 },
           tags: [],
           createdAt: now,
           updatedAt: now,

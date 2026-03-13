@@ -112,8 +112,8 @@ export default function CollabScreen() {
       }}
       style={({ pressed }) => ({
         backgroundColor: pressed ? C.surfaceAlt : C.surface,
-        borderRadius: 14,
-        padding: 16,
+        borderRadius: 16,
+        padding: 18,
         marginBottom: 10,
         borderWidth: 1,
         borderColor: C.border,
@@ -122,27 +122,27 @@ export default function CollabScreen() {
       })}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 4 }}>
+        <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>
           {item.title}
         </Text>
         {item.description ? (
-          <Text style={{ color: C.muted, fontSize: 12, marginBottom: 8 }} numberOfLines={1}>
+          <Text style={{ color: C.muted, fontSize: 14, marginBottom: 8 }} numberOfLines={1}>
             {item.description}
           </Text>
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(212,165,116,0.1)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(212,165,116,0.2)' }}>
-            <Users size={10} color={C.pin} strokeWidth={2.5} />
-            <Text style={{ color: C.pin, fontSize: 10, fontWeight: '700' }}>{item.memberCount ?? (item.members?.length ?? 0)}</Text>
+            <Users size={16} color={C.pin} strokeWidth={2.5} />
+            <Text style={{ color: C.pin, fontSize: 13, fontWeight: '700' }}>{item.memberCount ?? (item.members?.length ?? 0)}</Text>
           </View>
           <View style={{ backgroundColor: (PERMISSION_COLORS[item.myPermission] ?? C.muted) + '20', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: (PERMISSION_COLORS[item.myPermission] ?? C.muted) + '40' }}>
-            <Text style={{ color: PERMISSION_COLORS[item.myPermission] ?? C.muted, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
+            <Text style={{ color: PERMISSION_COLORS[item.myPermission] ?? C.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.7 }}>
               {PERMISSION_LABELS[item.myPermission] ?? item.myPermission.toUpperCase()}
             </Text>
           </View>
         </View>
       </View>
-      <ChevronRight size={18} color={C.muted} strokeWidth={2} />
+      <ChevronRight size={20} color={C.muted} strokeWidth={2} />
     </Pressable>
   ), [router]);
 
@@ -156,13 +156,13 @@ export default function CollabScreen() {
           <Pressable
             testID="collab-back-button"
             onPress={() => router.back()}
-            style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, backgroundColor: pressed ? C.border : C.surface, alignItems: 'center', justifyContent: 'center', marginRight: 14 })}
+            style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: pressed ? C.border : C.surface, alignItems: 'center', justifyContent: 'center', marginRight: 14 })}
           >
-            <ArrowLeft size={18} color={C.text} strokeWidth={2} />
+            <ArrowLeft size={20} color={C.text} strokeWidth={2} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: C.red, fontSize: 20, fontWeight: '900', letterSpacing: 2 }}>COLLABORATIONS</Text>
-            <Text style={{ color: C.muted, fontSize: 10, letterSpacing: 3, marginTop: 1 }}>SHARED INVESTIGATIONS</Text>
+            <Text style={{ color: C.red, fontSize: 22, fontWeight: '900', letterSpacing: 2.2 }}>COLLABORATIONS</Text>
+            <Text style={{ color: C.muted, fontSize: 13, letterSpacing: 3.2, marginTop: 1 }}>SHARED INVESTIGATIONS</Text>
           </View>
         </View>
 
@@ -174,10 +174,10 @@ export default function CollabScreen() {
         ) : sessions.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }} testID="empty-state">
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 20, borderWidth: 1, borderColor: C.border }}>
-              <Users size={32} color={C.muted} strokeWidth={1.5} />
+              <Users size={36} color={C.muted} strokeWidth={1.5} />
             </View>
-            <Text style={{ color: C.text, fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>No collaborations yet</Text>
-            <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', lineHeight: 19 }}>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>No collaborations yet</Text>
+            <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 19 }}>
               Start one to invite investigators to your board.
             </Text>
           </View>
@@ -190,7 +190,7 @@ export default function CollabScreen() {
               <View style={{ padding: 20 }}>
                 {mySessions.length > 0 ? (
                   <>
-                    <Text style={{ color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 12 }}>MY SESSIONS</Text>
+                    <Text style={{ color: C.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.7, marginBottom: 12 }}>MY SESSIONS</Text>
                     {mySessions.map((item) => (
                       <View key={item.id}>{renderSession({ item })}</View>
                     ))}
@@ -200,7 +200,7 @@ export default function CollabScreen() {
                   <>
                     <View style={{ height: mySessions.length > 0 ? 8 : 0 }} />
                     {mySessions.length > 0 ? <View style={{ height: 1, backgroundColor: C.border, marginBottom: 16 }} /> : null}
-                    <Text style={{ color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 12 }}>JOINED SESSIONS</Text>
+                    <Text style={{ color: C.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.7, marginBottom: 12 }}>JOINED SESSIONS</Text>
                     {joinedSessions.map((item) => (
                       <View key={item.id}>{renderSession({ item })}</View>
                     ))}
@@ -226,9 +226,9 @@ export default function CollabScreen() {
           position: 'absolute',
           bottom: 40,
           right: 24,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
+          width: 60,
+          height: 60,
+          borderRadius: 30,
           backgroundColor: pressed ? '#A3162E' : C.red,
           alignItems: 'center',
           justifyContent: 'center',
@@ -239,7 +239,7 @@ export default function CollabScreen() {
           elevation: 8,
         })}
       >
-        <Plus size={24} color="#FFF" strokeWidth={2.5} />
+        <Plus size={26} color="#FFF" strokeWidth={2.5} />
       </Pressable>
 
       {/* Create Modal */}
@@ -250,9 +250,9 @@ export default function CollabScreen() {
               {/* Handle */}
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 20 }} />
 
-              <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', marginBottom: 20, letterSpacing: 0.3 }}>New Collab Session</Text>
+              <Text style={{ color: C.text, fontSize: 20, fontWeight: '800', marginBottom: 20, letterSpacing: 0.5 }}>New Collab Session</Text>
 
-              <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 }}>TITLE</Text>
+              <Text style={{ color: C.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, marginBottom: 6 }}>TITLE</Text>
               <TextInput
                 testID="create-title-input"
                 value={createTitle}
@@ -260,10 +260,10 @@ export default function CollabScreen() {
                 placeholder="Session title..."
                 placeholderTextColor={C.muted}
                 autoFocus
-                style={{ backgroundColor: C.surfaceAlt, borderRadius: 10, padding: 14, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 16 }}
+                style={{ backgroundColor: C.surfaceAlt, borderRadius: 12, padding: 14, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 16 }}
               />
 
-              <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 }}>DESCRIPTION (OPTIONAL)</Text>
+              <Text style={{ color: C.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, marginBottom: 6 }}>DESCRIPTION (OPTIONAL)</Text>
               <TextInput
                 testID="create-desc-input"
                 value={createDesc}
@@ -272,12 +272,12 @@ export default function CollabScreen() {
                 placeholderTextColor={C.muted}
                 multiline
                 numberOfLines={2}
-                style={{ backgroundColor: C.surfaceAlt, borderRadius: 10, padding: 14, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 16, minHeight: 70, textAlignVertical: 'top' }}
+                style={{ backgroundColor: C.surfaceAlt, borderRadius: 12, padding: 14, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 16, minHeight: 70, textAlignVertical: 'top' }}
               />
 
               {nonDemoInvestigations.length > 0 ? (
                 <>
-                  <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>LINK TO INVESTIGATION</Text>
+                  <Text style={{ color: C.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 }}>LINK TO INVESTIGATION</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20, flexGrow: 0 }}>
                     {nonDemoInvestigations.map((inv) => {
                       const isSelected = selectedInvId === inv.id;
@@ -316,7 +316,7 @@ export default function CollabScreen() {
                 style={({ pressed }) => ({
                   backgroundColor: createTitle.trim() ? (pressed ? '#A3162E' : C.red) : C.border,
                   borderRadius: 12,
-                  paddingVertical: 15,
+                  paddingVertical: 16,
                   alignItems: 'center',
                   marginBottom: 8,
                 })}
@@ -324,7 +324,7 @@ export default function CollabScreen() {
                 {createMutation.isPending ? (
                   <ActivityIndicator color="#FFF" testID="create-loading" />
                 ) : (
-                  <Text style={{ color: createTitle.trim() ? '#FFF' : C.muted, fontSize: 15, fontWeight: '700' }}>Create Session</Text>
+                  <Text style={{ color: createTitle.trim() ? '#FFF' : C.muted, fontSize: 16, fontWeight: '800' }}>Create Session</Text>
                 )}
               </Pressable>
             </Pressable>

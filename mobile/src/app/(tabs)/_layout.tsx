@@ -12,23 +12,23 @@ export default function TabLayout() {
           borderTopColor: '#3D332C',
           borderTopWidth: 1,
           height: 88,
-          paddingBottom: 28,
+          paddingBottom: 20,
           paddingTop: 8,
         },
         tabBarActiveTintColor: '#C41E3A',
         tabBarInactiveTintColor: '#6B5B4F',
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
-          letterSpacing: 0.5,
+          fontWeight: '700',
+          letterSpacing: 0.2,
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Investigations',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Search size={size} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color }: { color: string; size: number }) => (
+            <Search size={26} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -36,8 +36,8 @@ export default function TabLayout() {
         name="two"
         options={{
           title: 'Canvas',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Map size={size} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color }: { color: string; size: number }) => (
+            <Map size={26} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -45,8 +45,8 @@ export default function TabLayout() {
         name="scripts"
         options={{
           title: 'Scripts',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <FileText size={size} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color }: { color: string; size: number }) => (
+            <FileText size={26} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -54,8 +54,8 @@ export default function TabLayout() {
         name="podcast"
         options={{
           title: 'Live & Pods',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Radio size={size} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color }: { color: string; size: number }) => (
+            <Radio size={26} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -63,8 +63,8 @@ export default function TabLayout() {
         name="ai-research"
         options={{
           title: 'AI Research',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Brain size={size} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color }: { color: string; size: number }) => (
+            <Brain size={26} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -72,8 +72,8 @@ export default function TabLayout() {
         name="bookmarks"
         options={{
           title: 'Bookmarks',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Bookmark size={size} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color }: { color: string; size: number }) => (
+            <Bookmark size={26} color={color} strokeWidth={2} />
           ),
         }}
       />

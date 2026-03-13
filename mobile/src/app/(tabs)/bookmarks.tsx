@@ -140,8 +140,8 @@ function CategoryBadge({ category }: { category: BookmarkCategory }) {
     PDF: '#D97706',
   };
   return (
-    <View style={{ backgroundColor: colorMap[category] + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: colorMap[category] + '55' }}>
-      <Text style={{ color: colorMap[category], fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>
+    <View style={{ backgroundColor: colorMap[category] + '22', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: colorMap[category] + '55' }}>
+      <Text style={{ color: colorMap[category], fontSize: 13, fontWeight: '700', letterSpacing: 0.7 }}>
         {category.toUpperCase()}
       </Text>
     </View>
@@ -276,32 +276,32 @@ export default function BookmarksScreen() {
     >
       {/* Pushpin */}
       <View style={{ position: 'absolute', top: -8, left: 20, zIndex: 10, alignItems: 'center' }}>
-        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.pin, borderWidth: 1.5, borderColor: '#A0784A' }} />
+        <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: COLORS.pin, borderWidth: 1.5, borderColor: '#A0784A' }} />
         <View style={{ width: 2, height: 10, backgroundColor: '#A0784A', marginTop: -1 }} />
       </View>
       <View style={{
         backgroundColor: COLORS.card,
-        borderRadius: 12,
-        padding: 14,
+        borderRadius: 16,
+        padding: 18,
         paddingTop: 18,
         borderWidth: 1,
         borderColor: '#D4C5A9',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
         elevation: 4,
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={{ color: COLORS.cardText, fontSize: 14, fontWeight: '700', lineHeight: 20, marginBottom: 4 }} numberOfLines={2}>
+            <Text style={{ color: COLORS.cardText, fontSize: 16, fontWeight: '800', lineHeight: 20, marginBottom: 4 }} numberOfLines={2}>
               {item.title}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <PlatformIcon platform={item.platform} size={12} />
-              <Text style={{ color: COLORS.muted, fontSize: 11 }}>{item.domain}</Text>
-              <Text style={{ color: '#C5B69A', fontSize: 11 }}>•</Text>
-              <Text style={{ color: COLORS.muted, fontSize: 11 }}>{item.dateImported}</Text>
+              <PlatformIcon platform={item.platform} size={16} />
+              <Text style={{ color: COLORS.muted, fontSize: 13 }}>{item.domain}</Text>
+              <Text style={{ color: '#C5B69A', fontSize: 13 }}>•</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 13 }}>{item.dateImported}</Text>
             </View>
           </View>
           <CategoryBadge category={item.category} />
@@ -316,12 +316,12 @@ export default function BookmarksScreen() {
             style={({ pressed }) => ({
               flexDirection: 'row', alignItems: 'center', gap: 5,
               backgroundColor: pressed ? '#9B1530' : COLORS.red,
-              borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+              borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9,
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <Plus size={12} color="#FFF" strokeWidth={2.5} />
-            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>Add to Investigation</Text>
+            <Plus size={16} color="#FFF" strokeWidth={2.5} />
+            <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>Add to Investigation</Text>
           </Pressable>
         </View>
       </View>
@@ -333,10 +333,10 @@ export default function BookmarksScreen() {
       {/* Header */}
       <Animated.View entering={FadeInDown.delay(50).duration(400)} style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <Bookmark size={22} color={COLORS.red} strokeWidth={2} />
+          <Bookmark size={24} color={COLORS.red} strokeWidth={2} />
           <Text style={{ color: COLORS.red, fontSize: 22, fontWeight: '900', letterSpacing: 3 }}>BOOKMARKS</Text>
         </View>
-        <Text style={{ color: COLORS.pin, fontSize: 11, fontWeight: '700', letterSpacing: 4, marginLeft: 32 }}>IMPORT</Text>
+        <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700', letterSpacing: 4.2, marginLeft: 32 }}>IMPORT</Text>
       </Animated.View>
 
       {/* Search bar */}
@@ -347,7 +347,7 @@ export default function BookmarksScreen() {
           borderWidth: 1, borderColor: COLORS.border,
           paddingHorizontal: 14, paddingVertical: 10,
         }}>
-          <Search size={16} color={COLORS.muted} strokeWidth={2} />
+          <Search size={18} color={COLORS.muted} strokeWidth={2} />
           <TextInput
             testID="bookmark-search-input"
             value={searchQuery}
@@ -382,7 +382,7 @@ export default function BookmarksScreen() {
               }}
               style={{
                 backgroundColor: activeFilter === tab ? COLORS.red : COLORS.surface,
-                borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8,
+                borderRadius: 20, paddingHorizontal: 18, paddingVertical: 9,
                 borderWidth: 1, borderColor: activeFilter === tab ? COLORS.red : COLORS.border,
               }}
             >
@@ -404,8 +404,8 @@ export default function BookmarksScreen() {
             {/* Connect Sources section */}
             <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Filter size={14} color={COLORS.pin} strokeWidth={2} />
-                <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700', letterSpacing: 1.5 }}>CONNECT SOURCES</Text>
+                <Filter size={15} color={COLORS.pin} strokeWidth={2} />
+                <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700', letterSpacing: 1.7 }}>CONNECT SOURCES</Text>
               </View>
               <View style={{ gap: 8 }}>
                 {sources.map((source) => (
@@ -413,15 +413,15 @@ export default function BookmarksScreen() {
                     flexDirection: 'row', alignItems: 'center',
                     backgroundColor: COLORS.surface, borderRadius: 12,
                     borderWidth: 1, borderColor: COLORS.border,
-                    padding: 14, gap: 12,
+                    padding: 16, gap: 12,
                   }}>
                     <SourceIcon platform={source.platform} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '600' }}>{source.name}</Text>
+                      <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '600' }}>{source.name}</Text>
                       {source.connected && source.bookmarkCount != null ? (
-                        <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>{source.bookmarkCount.toLocaleString()} bookmarks</Text>
+                        <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>{source.bookmarkCount.toLocaleString()} bookmarks</Text>
                       ) : (
-                        <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>Not connected</Text>
+                        <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>Not connected</Text>
                       )}
                     </View>
                     {source.platform === 'browser' ? (
@@ -433,11 +433,11 @@ export default function BookmarksScreen() {
                         }}
                         style={({ pressed }) => ({
                           backgroundColor: pressed ? '#1A3A6B' : '#1E40AF22',
-                          borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+                          borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
                           borderWidth: 1, borderColor: '#2563EB55',
                         })}
                       >
-                        <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '700' }}>Import JSON</Text>
+                        <Text style={{ color: '#3B82F6', fontSize: 13, fontWeight: '700' }}>Import JSON</Text>
                       </Pressable>
                     ) : (
                       <Pressable
@@ -448,11 +448,11 @@ export default function BookmarksScreen() {
                         }}
                         style={({ pressed }) => ({
                           backgroundColor: pressed ? '#9B1530' : COLORS.red,
-                          borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+                          borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
                           opacity: pressed ? 0.85 : 1,
                         })}
                       >
-                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>Connect</Text>
+                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Connect</Text>
                       </Pressable>
                     )}
                   </View>
@@ -463,10 +463,10 @@ export default function BookmarksScreen() {
             {/* Bookmarks section header */}
             <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Bookmark size={14} color={COLORS.pin} strokeWidth={2} />
-                <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700', letterSpacing: 1.5 }}>IMPORTED BOOKMARKS</Text>
+                <Bookmark size={15} color={COLORS.pin} strokeWidth={2} />
+                <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700', letterSpacing: 1.7 }}>IMPORTED BOOKMARKS</Text>
               </View>
-              <Text style={{ color: COLORS.muted, fontSize: 12 }}>{filteredBookmarks.length} items</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 13 }}>{filteredBookmarks.length} items</Text>
             </View>
           </Animated.View>
         }
@@ -551,7 +551,7 @@ export default function BookmarksScreen() {
                     <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '800' }}>
                       {connectModalSource.name}
                     </Text>
-                    <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>Import Instructions</Text>
+                    <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>Import Instructions</Text>
                   </View>
                 </View>
                 <View style={{ gap: 10, marginBottom: 24 }}>
@@ -567,7 +567,7 @@ export default function BookmarksScreen() {
                         backgroundColor: COLORS.red + '33', borderWidth: 1, borderColor: COLORS.red + '55',
                         alignItems: 'center', justifyContent: 'center', marginTop: 1,
                       }}>
-                        <Text style={{ color: COLORS.red, fontSize: 11, fontWeight: '800' }}>{i + 1}</Text>
+                        <Text style={{ color: COLORS.red, fontSize: 12, fontWeight: '800' }}>{i + 1}</Text>
                       </View>
                       <Text style={{ color: COLORS.textLight, fontSize: 14, lineHeight: 22, flex: 1 }}>{step}</Text>
                     </View>
@@ -653,7 +653,7 @@ export default function BookmarksScreen() {
             </View>
 
             {/* Investigation picker */}
-            <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 }}>
+            <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 }}>
               SELECT INVESTIGATION
             </Text>
             <View style={{ gap: 8, marginBottom: 24 }}>
@@ -721,7 +721,7 @@ export default function BookmarksScreen() {
               </View>
               <View>
                 <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '800' }}>Import Bookmarks</Text>
-                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>Supported formats: JSON, CSV, HTML</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>Supported formats: JSON, CSV, HTML</Text>
               </View>
             </View>
             <View style={{ gap: 10, marginBottom: 24 }}>
@@ -737,7 +737,7 @@ export default function BookmarksScreen() {
                     backgroundColor: COLORS.pin + '33', borderWidth: 1, borderColor: COLORS.pin + '55',
                     alignItems: 'center', justifyContent: 'center', marginTop: 1,
                   }}>
-                    <Text style={{ color: COLORS.pin, fontSize: 11, fontWeight: '800' }}>{i + 1}</Text>
+                    <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '800' }}>{i + 1}</Text>
                   </View>
                   <Text style={{ color: COLORS.textLight, fontSize: 14, lineHeight: 22, flex: 1 }}>{step}</Text>
                 </View>
