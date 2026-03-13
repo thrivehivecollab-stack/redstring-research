@@ -4,6 +4,7 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { env } from "../env";
 import type { HonoVariables } from "../types";
+import { checkRateLimit, getClientIp } from '../lib/rateLimit';
 
 const aiRouter = new Hono<{ Variables: HonoVariables }>();
 
@@ -27,7 +28,17 @@ aiRouter.post(
   "/chat",
   zValidator("json", chatSchema),
   async (c) => {
+    const ip = getClientIp(c.req.raw);
+    if (!checkRateLimit(`ai-chat:${ip}`, 20, 60_000)) {
+      return c.json({ error: { message: 'Too many requests', code: 'RATE_LIMITED' } }, 429);
+    }
+
     const { messages, investigationContext } = c.req.valid("json");
+
+    const totalLength = messages.reduce((sum, m) => sum + m.content.length, 0) + (investigationContext?.length ?? 0);
+    if (totalLength > 50_000) {
+      return c.json({ error: { message: 'Request payload too large', code: 'PAYLOAD_TOO_LARGE' } }, 413);
+    }
 
     if (!env.OPENAI_API_KEY) {
       return c.json(
@@ -134,6 +145,11 @@ aiRouter.post(
   "/tts",
   zValidator("json", z.object({ text: z.string().min(1), voice_id: z.string().optional() })),
   async (c) => {
+    const ip = getClientIp(c.req.raw);
+    if (!checkRateLimit(`ai-tts:${ip}`, 10, 60_000)) {
+      return c.json({ error: { message: 'Too many requests', code: 'RATE_LIMITED' } }, 429);
+    }
+
     const { text, voice_id } = c.req.valid("json");
 
     if (!env.ELEVENLABS_API_KEY) {
@@ -311,6 +327,24 @@ aiRouter.get('/podcast-image', async (c) => {
     return c.json({ error: { message: 'Missing url query param' } }, 400);
   }
 
+  // Only allow fetching images from known podcast CDN domains
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch {
+    return c.json({ error: { message: 'Invalid URL' } }, 400);
+  }
+  const allowedHosts = [
+    'cdn.simplecast.com', 'feeds.simplecast.com', 'static.simplecast.com',
+    'i.cloudup.com', 'audioboom.com', 'megaphone.fm', 'd3t3ozftmdmh3i.cloudfront.net',
+    'images.transistor.fm', 'ssl-static.libsyn.com', 'media.rss.com',
+    'i1.sndcdn.com', 'i.scdn.co', 'podtrac.com', 'is1-ssl.mzstatic.com',
+    'artwork.captivate.fm', 'storage.googleapis.com', 'podcastartwork.s3.amazonaws.com',
+  ];
+  if (!allowedHosts.some(h => parsedUrl.hostname === h || parsedUrl.hostname.endsWith(`.${h}`))) {
+    return c.json({ error: { message: 'Image host not allowed' } }, 403);
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
 
@@ -377,6 +411,11 @@ aiRouter.post(
   "/verify",
   zValidator("json", verifySchema),
   async (c) => {
+    const ip = getClientIp(c.req.raw);
+    if (!checkRateLimit(`ai-verify:${ip}`, 10, 60_000)) {
+      return c.json({ error: { message: 'Too many requests', code: 'RATE_LIMITED' } }, 429);
+    }
+
     const { claim, context, nodeTitle } = c.req.valid("json");
 
     if (!env.OPENAI_API_KEY) {

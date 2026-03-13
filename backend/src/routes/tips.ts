@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createId } from "@paralleldrive/cuid2";
 import { prisma } from "../prisma";
 import type { HonoVariables } from "../types";
+import { checkRateLimit, getClientIp } from '../lib/rateLimit';
 
 const tipsRouter = new Hono<{ Variables: HonoVariables }>();
 
@@ -45,6 +46,12 @@ tipsRouter.post(
   zValidator("json", submitTipSchema),
   async (c) => {
     const recipientId = c.req.param("recipientId");
+
+    // Rate limit: 5 tip submissions per IP per hour
+    const ip = getClientIp(c.req.raw);
+    if (!checkRateLimit(`tip-submit:${ip}`, 5, 3_600_000)) {
+      return c.json({ error: { message: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' } }, 429);
+    }
 
     // Verify recipient exists
     const recipient = await prisma.user.findUnique({ where: { id: recipientId } });
