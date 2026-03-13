@@ -11,11 +11,11 @@ export default function TabLayout() {
           backgroundColor: '#1A1614',
           borderTopColor: '#3D332C',
           borderTopWidth: 1,
-          height: 88,
+          height: 96,
           paddingBottom: 20,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#C41E3A',
+        tabBarActiveTintColor: '#E8203F',
         tabBarInactiveTintColor: '#6B5B4F',
         tabBarLabelStyle: {
           fontSize: 11,
@@ -28,7 +28,7 @@ export default function TabLayout() {
         options={{
           title: 'Investigations',
           tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Search size={26} color={color} strokeWidth={2} />
+            <Search size={32} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -37,7 +37,7 @@ export default function TabLayout() {
         options={{
           title: 'Canvas',
           tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Map size={26} color={color} strokeWidth={2} />
+            <Map size={32} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -46,7 +46,7 @@ export default function TabLayout() {
         options={{
           title: 'Scripts',
           tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <FileText size={26} color={color} strokeWidth={2} />
+            <FileText size={32} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -55,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: 'Live & Pods',
           tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Radio size={26} color={color} strokeWidth={2} />
+            <Radio size={32} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -64,7 +64,7 @@ export default function TabLayout() {
         options={{
           title: 'AI Research',
           tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Brain size={26} color={color} strokeWidth={2} />
+            <Brain size={32} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -73,7 +73,7 @@ export default function TabLayout() {
         options={{
           title: 'Bookmarks',
           tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Bookmark size={26} color={color} strokeWidth={2} />
+            <Bookmark size={32} color={color} strokeWidth={2} />
           ),
         }}
       />

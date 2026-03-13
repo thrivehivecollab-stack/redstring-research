@@ -298,7 +298,7 @@ export default function BookmarksScreen() {
               {item.title}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <PlatformIcon platform={item.platform} size={16} />
+              <PlatformIcon platform={item.platform} size={20} />
               <Text style={{ color: COLORS.muted, fontSize: 13 }}>{item.domain}</Text>
               <Text style={{ color: '#C5B69A', fontSize: 13 }}>•</Text>
               <Text style={{ color: COLORS.muted, fontSize: 13 }}>{item.dateImported}</Text>
@@ -320,7 +320,7 @@ export default function BookmarksScreen() {
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <Plus size={16} color="#FFF" strokeWidth={2.5} />
+            <Plus size={20} color="#FFF" strokeWidth={2.5} />
             <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>Add to Investigation</Text>
           </Pressable>
         </View>
@@ -333,7 +333,7 @@ export default function BookmarksScreen() {
       {/* Header */}
       <Animated.View entering={FadeInDown.delay(50).duration(400)} style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <Bookmark size={24} color={COLORS.red} strokeWidth={2} />
+          <Bookmark size={28} color={COLORS.red} strokeWidth={2} />
           <Text style={{ color: COLORS.red, fontSize: 22, fontWeight: '900', letterSpacing: 3 }}>BOOKMARKS</Text>
         </View>
         <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700', letterSpacing: 4.2, marginLeft: 32 }}>IMPORT</Text>
@@ -347,7 +347,7 @@ export default function BookmarksScreen() {
           borderWidth: 1, borderColor: COLORS.border,
           paddingHorizontal: 14, paddingVertical: 10,
         }}>
-          <Search size={18} color={COLORS.muted} strokeWidth={2} />
+          <Search size={22} color={COLORS.muted} strokeWidth={2} />
           <TextInput
             testID="bookmark-search-input"
             value={searchQuery}
@@ -404,7 +404,7 @@ export default function BookmarksScreen() {
             {/* Connect Sources section */}
             <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Filter size={15} color={COLORS.pin} strokeWidth={2} />
+                <Filter size={22} color={COLORS.pin} strokeWidth={2} />
                 <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700', letterSpacing: 1.7 }}>CONNECT SOURCES</Text>
               </View>
               <View style={{ gap: 8 }}>
@@ -463,7 +463,7 @@ export default function BookmarksScreen() {
             {/* Bookmarks section header */}
             <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Bookmark size={15} color={COLORS.pin} strokeWidth={2} />
+                <Bookmark size={22} color={COLORS.pin} strokeWidth={2} />
                 <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700', letterSpacing: 1.7 }}>IMPORTED BOOKMARKS</Text>
               </View>
               <Text style={{ color: COLORS.muted, fontSize: 13 }}>{filteredBookmarks.length} items</Text>
@@ -501,7 +501,7 @@ export default function BookmarksScreen() {
             opacity: pressed ? 0.85 : 1,
           })}
         >
-          <Plus size={18} color="#FFF" strokeWidth={2.5} />
+          <Plus size={26} color="#FFF" strokeWidth={2.5} />
           <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }}>Import from File</Text>
         </Pressable>
       </View>
@@ -786,7 +786,7 @@ export default function BookmarksScreen() {
                   opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <Plus size={18} color="#FFF" strokeWidth={2.5} />
+                <Plus size={22} color="#FFF" strokeWidth={2.5} />
                 <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>Select File</Text>
               </Pressable>
               <Pressable

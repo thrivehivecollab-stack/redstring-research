@@ -248,13 +248,13 @@ function InvestigationCard({
             {/* Stats row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <FileText size={16} color={COLORS.muted} strokeWidth={2} />
+                <FileText size={18} color={COLORS.muted} strokeWidth={2} />
                 <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
                   {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Cable size={16} color={COLORS.red} strokeWidth={2} />
+                <Cable size={18} color={COLORS.red} strokeWidth={2} />
                 <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
                   {stringCount} {stringCount === 1 ? 'string' : 'strings'}
                 </Text>
@@ -281,7 +281,7 @@ function InvestigationCard({
                     borderColor: 'rgba(196,30,58,0.3)',
                   })}
                 >
-                  <Users size={11} color={COLORS.red} strokeWidth={2.5} />
+                  <Users size={18} color={COLORS.red} strokeWidth={2.5} />
                   <Text style={{ color: COLORS.red, fontSize: 10, fontWeight: '700' }}>
                     {memberCount}
                   </Text>
@@ -720,9 +720,9 @@ export default function InvestigationsDashboard() {
                   router.push('/(tabs)/prompt-history');
                 }}
                 style={({ pressed }) => ({
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
                   backgroundColor: pressed ? COLORS.border : COLORS.surface,
                   borderWidth: 1,
                   borderColor: COLORS.border,
@@ -730,7 +730,7 @@ export default function InvestigationsDashboard() {
                   justifyContent: 'center',
                 })}
               >
-                <ScrollText size={15} color={COLORS.muted} strokeWidth={2} />
+                <ScrollText size={22} color={COLORS.muted} strokeWidth={2} />
               </Pressable>
 
               {/* Watch Live button */}
@@ -773,7 +773,7 @@ export default function InvestigationsDashboard() {
                   borderColor: 'rgba(212,165,116,0.25)',
                 })}
               >
-                <Users size={12} color="#D4A574" strokeWidth={2.5} />
+                <Users size={18} color="#D4A574" strokeWidth={2.5} />
                 <Text style={{ color: '#D4A574', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>COLLAB</Text>
               </Pressable>
 
@@ -788,9 +788,9 @@ export default function InvestigationsDashboard() {
                   router.push('/tip-inbox');
                 }}
                 style={({ pressed }) => ({
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
                   backgroundColor: pressed ? COLORS.border : COLORS.surface,
                   borderWidth: 1,
                   borderColor: COLORS.border,
@@ -798,7 +798,7 @@ export default function InvestigationsDashboard() {
                   justifyContent: 'center',
                 })}
               >
-                <Mail size={15} color={COLORS.muted} strokeWidth={2} />
+                <Mail size={22} color={COLORS.muted} strokeWidth={2} />
               </Pressable>
 
               {/* Help button */}
@@ -809,9 +809,9 @@ export default function InvestigationsDashboard() {
                   setShowHelpMenu(true);
                 }}
                 style={({ pressed }) => ({
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
                   backgroundColor: pressed ? COLORS.border : COLORS.surface,
                   borderWidth: 1,
                   borderColor: hasCompletedTour ? COLORS.border : COLORS.red,
@@ -819,7 +819,7 @@ export default function InvestigationsDashboard() {
                   justifyContent: 'center',
                 })}
               >
-                <HelpCircle size={15} color={hasCompletedTour ? COLORS.muted : COLORS.red} strokeWidth={2} />
+                <HelpCircle size={22} color={hasCompletedTour ? COLORS.muted : COLORS.red} strokeWidth={2} />
                 {/* Unread badge */}
                 {!hasCompletedTour ? (
                   <View
@@ -846,9 +846,9 @@ export default function InvestigationsDashboard() {
                   setShowAccountModal(true);
                 }}
                 style={({ pressed }) => ({
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
                   backgroundColor: pressed ? COLORS.border : COLORS.surface,
                   borderWidth: 1,
                   borderColor: COLORS.border,
@@ -856,7 +856,7 @@ export default function InvestigationsDashboard() {
                   justifyContent: 'center',
                 })}
               >
-                <User size={15} color={COLORS.muted} strokeWidth={2} />
+                <User size={22} color={COLORS.muted} strokeWidth={2} />
               </Pressable>
 
               {/* Plan badge */}
@@ -921,7 +921,7 @@ export default function InvestigationsDashboard() {
             elevation: 6,
           })}
         >
-          <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
+          <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
           <Text className="text-base font-bold" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
             New Investigation
           </Text>

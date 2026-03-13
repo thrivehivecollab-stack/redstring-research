@@ -374,7 +374,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`add-board-${episode.id}`}
             onPress={() => onAddToBoard(episode)}
             style={styles.actionBtn}>
-            <Pin size={15} color={C.pin} strokeWidth={2} />
+            <Pin size={20} color={C.pin} strokeWidth={2} />
             <Text style={styles.actionBtnText}>Add to Board</Text>
           </Pressable>
 
@@ -382,7 +382,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`ai-summary-${episode.id}`}
             onPress={() => onAISummary(episode)}
             style={[styles.actionBtn, styles.actionBtnAI]}>
-            <Brain size={15} color={C.red} strokeWidth={2} />
+            <Brain size={20} color={C.red} strokeWidth={2} />
             <Text style={[styles.actionBtnText, { color: C.red }]}>AI Summary</Text>
           </Pressable>
 
@@ -390,7 +390,7 @@ function EpisodeCard({ episode, onAddToBoard, onAISummary, onShare, onPlay }: Ep
             testID={`share-${episode.id}`}
             onPress={() => onShare(episode)}
             style={styles.actionBtn}>
-            <Share2 size={15} color={C.muted} strokeWidth={2} />
+            <Share2 size={20} color={C.muted} strokeWidth={2} />
             <Text style={styles.actionBtnText}>Share</Text>
           </Pressable>
 
@@ -623,7 +623,7 @@ export default function PodcastScreen() {
             <Text style={styles.headerSubtitle}>RESEARCH FEED</Text>
           </View>
           <View style={styles.headerIcon}>
-            <Radio size={20} color={C.red} strokeWidth={2} />
+            <Radio size={28} color={C.red} strokeWidth={2} />
           </View>
         </View>
 
@@ -772,7 +772,7 @@ export default function PodcastScreen() {
                     testID={`keyword-${kw.id}`}
                     onLongPress={() => handleRemoveKeyword(kw.id)}
                     style={styles.keywordChip}>
-                    <Hash size={10} color={C.red} strokeWidth={2.5} />
+                    <Hash size={16} color={C.red} strokeWidth={2.5} />
                     <Text style={styles.keywordChipText}>{kw.tag}</Text>
                   </Pressable>
                 ))}
@@ -784,7 +784,7 @@ export default function PodcastScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   style={styles.keywordAddChip}>
-                  <Plus size={11} color={C.muted} strokeWidth={2.5} />
+                  <Plus size={16} color={C.muted} strokeWidth={2.5} />
                   <Text style={styles.keywordAddChipText}>Add</Text>
                 </Pressable>
               </View>
@@ -1087,8 +1087,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: C.card,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: C.border,
@@ -1108,8 +1108,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: C.red,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     borderRadius: 10,
     marginLeft: 'auto',
   },
