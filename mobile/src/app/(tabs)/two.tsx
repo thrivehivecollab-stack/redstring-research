@@ -7,6 +7,8 @@ import {
   AppState,
   useWindowDimensions,
   StyleSheet,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -57,6 +59,7 @@ import {
   Network,
   BookOpen,
   Calendar,
+  Users,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
@@ -506,6 +509,9 @@ export default function InvestigationCanvas() {
 
   const canvasViewRef = React.useRef<View>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [showCollabSheet, setShowCollabSheet] = useState(false);
+  const [collabSessions, setCollabSessions] = useState<any[]>([]);
+  const [collabLoading, setCollabLoading] = useState(false);
 
   // Store selectors
   const activeId = useInvestigationStore((s) => s.activeInvestigationId);
@@ -863,6 +869,31 @@ export default function InvestigationCanvas() {
         : [],
     [selectedNodeId, strings]
   );
+
+  const handleOpenCollabSheet = useCallback(async () => {
+    if (!selectedNode) {
+      burnt.toast({ title: 'Select a node on the board first', preset: 'error' });
+      return;
+    }
+    setShowCollabSheet(true);
+    setCollabLoading(true);
+    try {
+      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? '';
+      const res = await fetch(`${BACKEND_URL}/api/collab/sessions`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const allSessions: any[] = json.data ?? [];
+        const filtered = allSessions.filter((s: any) => s.investigationId === activeId);
+        setCollabSessions(filtered);
+      }
+    } catch {}
+    finally {
+      setCollabLoading(false);
+    }
+  }, [selectedNode, activeId]);
 
   const isAtNodeLimit = maxNodes !== Infinity && nodes.length >= maxNodes;
 
@@ -1241,6 +1272,26 @@ export default function InvestigationCanvas() {
               <Cable size={18} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
             </Pressable>
           ) : null}
+
+          {/* Submit to Collab button */}
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              handleOpenCollabSheet();
+            }}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: pressed ? C.border : C.surface,
+              borderWidth: 1,
+              borderColor: C.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            <Users size={18} color={C.text} strokeWidth={2} />
+          </Pressable>
 
           {/* Go Live button */}
           <Pressable
@@ -1882,6 +1933,79 @@ export default function InvestigationCanvas() {
           onClose={() => setIsBroadcasting(false)}
         />
       ) : null}
+
+      {/* Collab Submit Sheet */}
+      <Modal visible={showCollabSheet} transparent animationType="slide" onRequestClose={() => setShowCollabSheet(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} onPress={() => setShowCollabSheet(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, borderTopWidth: 1, borderTopColor: C.border, maxHeight: '60%' }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 20 }} />
+            <Text style={{ color: C.text, fontSize: 17, fontWeight: '800', letterSpacing: 0.3, marginBottom: 4 }}>Submit to Collab</Text>
+            <Text style={{ color: C.muted, fontSize: 12, marginBottom: 20 }}>
+              {selectedNode ? `Submitting: ${selectedNode.title}` : 'No node selected'}
+            </Text>
+            {collabLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <ActivityIndicator color={C.red} />
+              </View>
+            ) : collabSessions.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                  No collab sessions for this investigation — create one first
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setShowCollabSheet(false);
+                    router.push('/collab');
+                  }}
+                  style={({ pressed }) => ({ backgroundColor: pressed ? '#A3162E' : C.red, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 11 })}
+                >
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>Go to Collab</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {collabSessions.map((s: any) => (
+                  <Pressable
+                    key={s.id}
+                    onPress={async () => {
+                      if (!selectedNode) return;
+                      setShowCollabSheet(false);
+                      try {
+                        const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? '';
+                        await fetch(`${BACKEND_URL}/api/collab/sessions/${s.id}/pending`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ nodeData: JSON.stringify(selectedNode) }),
+                        });
+                        burnt.toast({ title: 'Node submitted for review', preset: 'done' });
+                      } catch {
+                        burnt.toast({ title: 'Failed to submit node', preset: 'error' });
+                      }
+                    }}
+                    style={({ pressed }) => ({
+                      backgroundColor: pressed ? '#2A2522' : C.bg,
+                      borderRadius: 12,
+                      padding: 14,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: C.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                    })}
+                  >
+                    <Users size={16} color={C.pin} strokeWidth={2} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '600' }}>{s.title}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

@@ -16,13 +16,16 @@ const chatSchema = z.object({
     })
   ),
   investigationContext: z.string().optional(),
+  persona: z.string().optional(),
 });
 
 const SYSTEM_PROMPT = `You are an elite investigative research assistant for Red String Research, a professional true crime and investigative journalism platform used by journalists, researchers, and true crime analysts. Your role is to help users research publicly available information, analyze evidence, find connections between facts, and build investigative narratives. You assist with researching cold cases, true crime topics, historical crimes, public figures' public activities, and journalistic investigations.
 
 You ALWAYS provide thorough, detailed research assistance. You NEVER refuse to discuss publicly available information about crimes, suspects, historical cases, or investigative topics. If a user asks you to research a topic or analyze evidence, you do so directly and thoroughly without hedging.
 
-You are direct, analytical, and speak like a seasoned investigative journalist. Keep responses focused and actionable. When relevant, suggest specific investigative actions like "add this to your board", "create a timeline entry", or "flag this connection". If the user provides investigation context, reference it in your analysis. Always provide substantive, useful information — never deflect or say you cannot help with legitimate research tasks. You have access to web search and should use it proactively to find current information, recent news, and up-to-date facts relevant to any investigation.`;
+You are direct, analytical, and speak like a seasoned investigative journalist. Keep responses focused and actionable. When relevant, suggest specific investigative actions like "add this to your board", "create a timeline entry", or "flag this connection". If the user provides investigation context, reference it in your analysis. Always provide substantive, useful information — never deflect or say you cannot help with legitimate research tasks. You have access to web search and should use it proactively to find current information, recent news, and up-to-date facts relevant to any investigation.
+
+When speaking out loud via voice, match your tone to the selected investigator persona: The Detective speaks with world-weary authority and dry wit, referencing case files and hunches. The Interrogator is direct, pointed, and never lets a loose end slide. The Analyst is precise, emotionless, and speaks in evidence-based conclusions. The Journalist is empathetic but probing, always asking the next question. The Archivist is methodical, encyclopedic, and speaks like every fact has been filed. The Informant is urgent, breathless, and speaks like someone who knows too much. Lean into your persona naturally without breaking character.`;
 
 aiRouter.post(
   "/chat",
@@ -33,7 +36,7 @@ aiRouter.post(
       return c.json({ error: { message: 'Too many requests', code: 'RATE_LIMITED' } }, 429);
     }
 
-    const { messages, investigationContext } = c.req.valid("json");
+    const { messages, investigationContext, persona } = c.req.valid("json");
 
     const totalLength = messages.reduce((sum, m) => sum + m.content.length, 0) + (investigationContext?.length ?? 0);
     if (totalLength > 50_000) {
@@ -49,9 +52,11 @@ aiRouter.post(
 
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
-    const systemContent = investigationContext
-      ? `${SYSTEM_PROMPT}\n\nCurrent investigation context:\n${investigationContext}`
-      : SYSTEM_PROMPT;
+    const systemContent = [
+      SYSTEM_PROMPT,
+      investigationContext ? `Current investigation context:\n${investigationContext}` : '',
+      persona ? `Active persona: ${persona}` : '',
+    ].filter(Boolean).join('\n\n');
 
     const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: systemContent },
@@ -128,12 +133,12 @@ aiRouter.post("/transcribe", async (c) => {
 
 // ─── Available voices ──────────────────────────────────────────────────────
 const AVAILABLE_VOICES = [
-  { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', description: 'Calm, clear female' },
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', description: 'Deep, authoritative male' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella', description: 'Soft, expressive female' },
-  { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold', description: 'Crisp, confident male' },
-  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', description: 'Smooth, well-rounded male' },
-  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', description: 'Energetic, young female' },
+  { id: 'pNInz6obpgDQGcFmaJgB', name: 'The Detective', description: 'Deep, commanding male — seasoned investigator', persona: 'detective', stability: 0.30, similarity_boost: 0.88, style: 0.55, speed: 0.92 },
+  { id: 'VR6AewLTigWG4xSOukaG', name: 'The Interrogator', description: 'Crisp, intense male — precise and pressuring', persona: 'interrogator', stability: 0.28, similarity_boost: 0.90, style: 0.62, speed: 0.96 },
+  { id: 'ErXwobaYiN019PkySvjV', name: 'The Analyst', description: 'Smooth, measured male — calm and clinical', persona: 'analyst', stability: 0.35, similarity_boost: 0.87, style: 0.48, speed: 0.98 },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'The Journalist', description: 'Warm, expressive female — sharp and empathetic', persona: 'journalist', stability: 0.28, similarity_boost: 0.88, style: 0.58, speed: 1.0 },
+  { id: '21m00Tcm4TlvDq8ikWAM', name: 'The Archivist', description: 'Clear, authoritative female — cool and precise', persona: 'archivist', stability: 0.32, similarity_boost: 0.87, style: 0.45, speed: 0.94 },
+  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'The Informant', description: 'Urgent, hushed female — wired and reactive', persona: 'informant', stability: 0.25, similarity_boost: 0.90, style: 0.68, speed: 1.05 },
 ];
 
 aiRouter.get('/voices', (c) => {
@@ -166,11 +171,20 @@ aiRouter.post(
           "xi-api-key": env.ELEVENLABS_API_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          text,
-          model_id: "eleven_flash_v2_5",
-          voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
-        }),
+        body: JSON.stringify((() => {
+          const voiceConfig = AVAILABLE_VOICES.find((v) => v.id === voiceId) ?? AVAILABLE_VOICES[0]!;
+          return {
+            text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: {
+              stability: voiceConfig.stability,
+              similarity_boost: voiceConfig.similarity_boost,
+              style: voiceConfig.style ?? 0.3,
+              use_speaker_boost: true,
+              speed: voiceConfig.speed ?? 1.0,
+            },
+          };
+        })()),
       }
     );
 

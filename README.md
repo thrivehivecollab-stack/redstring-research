@@ -12,6 +12,7 @@ A visual investigation canvas app for mapping relationships, evidence, and conne
 - Demo mode with pre-loaded "Operation: Shadow Network" investigation
 - 18-step guided tour for new users
 - Subscription tier management (Free / Pro / Plus)
+- COLLAB button in header navigates to collaboration sessions screen
 
 ### Visual Investigation Canvas (Tab 2)
 - Pannable and zoomable corkboard canvas

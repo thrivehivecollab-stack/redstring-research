@@ -65,6 +65,8 @@ function RootLayoutNav() {
           <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
         </Stack.Protected>
         <Stack.Screen name="tip-submit" options={{ presentation: 'card', headerShown: false }} />
+        <Stack.Screen name="collab" options={{ headerShown: false }} />
+        <Stack.Screen name="collab-session" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );

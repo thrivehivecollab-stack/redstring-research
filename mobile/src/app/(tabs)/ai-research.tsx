@@ -82,6 +82,7 @@ interface Voice {
   id: string;
   name: string;
   description: string;
+  persona?: string;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -766,6 +767,10 @@ function VoicePickerModal({
                       >
                         {voice.description}
                       </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: voice.persona === 'detective' ? '#C41E3A' : voice.persona === 'interrogator' ? '#F97316' : voice.persona === 'analyst' ? '#3B82F6' : voice.persona === 'journalist' ? '#22C55E' : voice.persona === 'archivist' ? '#A855F7' : '#D4A574' }} />
+                          <Text style={{ color: '#6B5B4F', fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>{voice.persona}</Text>
+                        </View>
                     </View>
 
                     {/* Preview button */}
@@ -1224,8 +1229,9 @@ export default function AIResearchScreen() {
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
   // Voice picker state
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('21m00Tcm4TlvDq8ikWAM');
-  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('Rachel');
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('pNInz6obpgDQGcFmaJgB');
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('The Detective');
+  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
   const [voicePickerVisible, setVoicePickerVisible] = useState<boolean>(false);
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
@@ -1543,6 +1549,7 @@ export default function AIResearchScreen() {
                 { role: 'user', content: trimmed },
               ],
               investigationContext: buildInvestigationContext(),
+              persona: selectedVoice?.persona,
             });
 
             const aiText =
@@ -1826,6 +1833,7 @@ export default function AIResearchScreen() {
   const handleSelectVoice = useCallback((voice: Voice) => {
     setSelectedVoiceId(voice.id);
     setSelectedVoiceName(voice.name);
+    setSelectedVoice(voice);
   }, []);
 
   // ─── Voice picker: preview voice ──────────────────────────────────────
@@ -2015,18 +2023,10 @@ export default function AIResearchScreen() {
               <VolumeX size={15} color={COLORS.muted} strokeWidth={2} />
             )}
             {voiceEnabled ? (
-              <Text
-                style={{
-                  color: COLORS.red,
-                  fontSize: 7,
-                  fontWeight: '800',
-                  letterSpacing: 0.3,
-                  marginTop: 1,
-                }}
-                numberOfLines={1}
-              >
-                {selectedVoiceName.toUpperCase()}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: selectedVoice?.persona === 'detective' ? '#C41E3A' : selectedVoice?.persona === 'interrogator' ? '#F97316' : selectedVoice?.persona === 'analyst' ? '#3B82F6' : selectedVoice?.persona === 'journalist' ? '#22C55E' : selectedVoice?.persona === 'archivist' ? '#A855F7' : '#D4A574', marginRight: 5 }} />
+                <Text style={{ color: '#E8DCC8', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>{selectedVoiceName.toUpperCase()}</Text>
+              </View>
             ) : null}
           </Pressable>
 

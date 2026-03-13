@@ -734,6 +734,28 @@ export default function InvestigationsDashboard() {
                 <Text style={{ color: '#C41E3A', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>WATCH LIVE</Text>
               </Pressable>
 
+              {/* Collab button */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/collab');
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: pressed ? 'rgba(212,165,116,0.15)' : 'rgba(212,165,116,0.08)',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderWidth: 1,
+                  borderColor: 'rgba(212,165,116,0.25)',
+                })}
+              >
+                <Users size={12} color="#D4A574" strokeWidth={2.5} />
+                <Text style={{ color: '#D4A574', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>COLLAB</Text>
+              </Pressable>
+
               {/* Tip Inbox button */}
               <Pressable
                 testID="tip-inbox-button"
