@@ -1,6 +1,65 @@
 import React from 'react';
+import { View, Text } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Search, Map, Brain, Radio, FileText, Bookmark } from 'lucide-react-native';
+import { Search, Map, Brain, Radio, Mic } from 'lucide-react-native';
+import {
+  useFonts,
+  CourierPrime_400Regular,
+} from '@expo-google-fonts/courier-prime';
+
+const COLORS = {
+  background: '#1A1614',
+  border: '#3D332C',
+  red: '#C41E3A',
+  muted: '#6B5B4F',
+  textLight: '#E8DCC8',
+} as const;
+
+type TabIconProps = {
+  color: string;
+  focused: boolean;
+  label: string;
+  emoji: string;
+};
+
+function TabItem({ color, focused, label, emoji }: TabIconProps) {
+  const [fontsLoaded] = useFonts({ CourierPrime_400Regular });
+
+  return (
+    <View style={{ alignItems: 'center', gap: 3 }}>
+      <Text style={{ fontSize: 23 }}>{emoji}</Text>
+      <Text
+        style={{
+          color,
+          fontSize: 9,
+          fontFamily: fontsLoaded ? 'CourierPrime_400Regular' : undefined,
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </Text>
+      {focused ? (
+        <View
+          style={{
+            width: 20,
+            height: 2,
+            backgroundColor: COLORS.red,
+            borderRadius: 1,
+            marginTop: 1,
+            shadowColor: COLORS.red,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 4,
+            elevation: 4,
+          }}
+        />
+      ) : (
+        <View style={{ width: 20, height: 2 }} />
+      )}
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -11,70 +70,59 @@ export default function TabLayout() {
           backgroundColor: '#1A1614',
           borderTopColor: '#3D332C',
           borderTopWidth: 1,
-          height: 96,
-          paddingBottom: 20,
+          height: 88,
+          paddingBottom: 12,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#E8203F',
-        tabBarInactiveTintColor: '#6B5B4F',
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '700',
-          letterSpacing: 0.2,
-        },
-      }}>
+        tabBarActiveTintColor: COLORS.red,
+        tabBarInactiveTintColor: COLORS.muted,
+        tabBarShowLabel: false,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Investigations',
-          tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Search size={32} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabItem color={color} focused={focused} label="Cases" emoji="🗂️" />
           ),
         }}
       />
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Canvas',
-          tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Map size={32} color={color} strokeWidth={2} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="scripts"
-        options={{
-          title: 'Scripts',
-          tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <FileText size={32} color={color} strokeWidth={2} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="podcast"
-        options={{
-          title: 'Live & Pods',
-          tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Radio size={32} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabItem color={color} focused={focused} label="Canvas" emoji="📌" />
           ),
         }}
       />
       <Tabs.Screen
         name="ai-research"
         options={{
-          title: 'AI Research',
-          tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Brain size={32} color={color} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabItem color={color} focused={focused} label="AI" emoji="🤖" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="podcast"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <TabItem color={color} focused={focused} label="Live" emoji="📡" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scripts"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <TabItem color={color} focused={focused} label="Pods" emoji="🎙️" />
           ),
         }}
       />
       <Tabs.Screen
         name="bookmarks"
         options={{
-          title: 'Bookmarks',
-          tabBarIcon: ({ color }: { color: string; size: number }) => (
-            <Bookmark size={32} color={color} strokeWidth={2} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

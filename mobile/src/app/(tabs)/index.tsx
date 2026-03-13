@@ -8,11 +8,42 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, FileText, Cable, ChevronRight, Trash2, Search, Lock, Users, User, LogOut, HelpCircle, Play, Inbox, Mail, ScrollText, Radio } from 'lucide-react-native';
+import {
+  Plus,
+  FileText,
+  Cable,
+  ChevronRight,
+  Trash2,
+  Search,
+  Lock,
+  Users,
+  User,
+  LogOut,
+  HelpCircle,
+  Play,
+  Inbox,
+  Mail,
+  ScrollText,
+  Radio,
+  Menu,
+  X,
+  Mic,
+  Tv,
+  Podcast,
+  Bell,
+  Palette,
+  Star,
+  Rss,
+  ChevronDown,
+  Activity,
+} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import WarRoomEntry from '@/components/WarRoomEntry';
 import Animated, {
@@ -26,6 +57,8 @@ import Animated, {
   Extrapolation,
   SlideInDown,
   SlideOutDown,
+  SlideInLeft,
+  SlideOutLeft,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import useInvestigationStore from '@/lib/state/investigation-store';
@@ -42,18 +75,36 @@ import VideoOnboardingModal from '@/components/VideoOnboardingModal';
 import { createDemoInvestigation } from '@/lib/demoData';
 import type { Investigation } from '@/lib/types';
 import type { CollabSession } from '@/lib/state/collab-store';
+import {
+  useFonts,
+  BebasNeue_400Regular,
+} from '@expo-google-fonts/bebas-neue';
+import {
+  CourierPrime_400Regular,
+  CourierPrime_700Bold,
+} from '@expo-google-fonts/courier-prime';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Color constants
 const COLORS = {
   background: '#1A1614',
   surface: '#231F1C',
+  surface2: '#2D2825',
   card: '#F5ECD7',
   red: '#C41E3A',
+  redDark: '#A3162E',
   pin: '#D4A574',
+  gold: '#F0C060',
   textLight: '#E8DCC8',
   muted: '#6B5B4F',
   border: '#3D332C',
   cardText: '#2C1810',
+  green: '#22C55E',
+  blue: '#3B82F6',
+  teal: '#14B8A6',
+  amber: '#F59E0B',
+  purple: '#A855F7',
 } as const;
 
 const SWIPE_THRESHOLD = 120;
@@ -63,13 +114,785 @@ function formatDate(timestamp: number): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function getBoardColor(inv: Investigation): string {
+  // Use filingTabColor if set (stored as a hex), else map boardStyle
+  const style = (inv as any).boardStyle as string | undefined;
+  const filingColor = (inv as any).filingTabColor as string | undefined;
+  if (filingColor) return filingColor;
+  if (style === 'mindmap') return COLORS.blue;
+  if (style === 'timeline') return COLORS.amber;
+  if (style === 'casefile') return COLORS.teal;
+  return COLORS.red; // corkboard default
+}
+
+// ──────────────────────────────────────────────
+// TAPE STRIP ACCENT (decorative header on hero)
+// ──────────────────────────────────────────────
+function TapeStrip() {
+  const segments = 20;
+  return (
+    <View style={{ height: 3, flexDirection: 'row', overflow: 'hidden', borderRadius: 2 }}>
+      {Array.from({ length: segments }).map((_, i) => (
+        <View
+          key={i}
+          style={{
+            flex: 1,
+            backgroundColor: i % 2 === 0 ? COLORS.red : COLORS.gold,
+            marginHorizontal: 0.5,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ──────────────────────────────────────────────
+// HERO CARD — most recently updated non-demo inv
+// ──────────────────────────────────────────────
+function HeroCard({
+  inv,
+  collabSession,
+  onPress,
+  onLongPress,
+  onCollabPress,
+}: {
+  inv: Investigation;
+  collabSession: CollabSession | null;
+  onPress: () => void;
+  onLongPress: () => void;
+  onCollabPress: () => void;
+}) {
+  const nodeCount = inv.nodes.length;
+  const stringCount = (inv.strings ?? []).length;
+  const tipCount = (inv as any).tips?.length ?? 0;
+  const tint = getBoardColor(inv);
+  const icon = (inv as any).icon as string | undefined;
+
+  return (
+    <Animated.View entering={FadeInDown.duration(400).springify()} style={{ marginHorizontal: 16, marginBottom: 20 }}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        style={({ pressed }) => ({
+          backgroundColor: COLORS.surface,
+          borderRadius: 18,
+          overflow: 'hidden',
+          opacity: pressed ? 0.95 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.45,
+          shadowRadius: 18,
+          elevation: 8,
+          borderWidth: 1,
+          borderColor: COLORS.border,
+        })}
+      >
+        {/* Tape strip accent */}
+        <TapeStrip />
+
+        <View style={{ padding: 16 }}>
+          {/* Row 1: icon + badges */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+            {/* Investigation icon */}
+            <View style={{ position: 'relative', marginRight: 12 }}>
+              {/* Pushpin dot */}
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -5,
+                  left: '50%',
+                  marginLeft: -5,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: COLORS.pin,
+                  zIndex: 2,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 2,
+                  elevation: 3,
+                }}
+              />
+              <View
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 12,
+                  backgroundColor: tint + '22',
+                  borderWidth: 1.5,
+                  borderColor: tint + '55',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 26 }}>{icon || '🔍'}</Text>
+              </View>
+            </View>
+
+            {/* Badges */}
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 4 }}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(196,30,58,0.15)',
+                  borderRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderWidth: 1,
+                  borderColor: 'rgba(196,30,58,0.35)',
+                }}
+              >
+                <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>
+                  ACTIVE
+                </Text>
+              </View>
+              {tipCount > 0 ? (
+                <View
+                  style={{
+                    backgroundColor: 'rgba(34,197,94,0.12)',
+                    borderRadius: 6,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderWidth: 1,
+                    borderColor: 'rgba(34,197,94,0.3)',
+                  }}
+                >
+                  <Text style={{ color: COLORS.green, fontSize: 10, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>
+                    {tipCount} TIPS
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Chevron */}
+            <ChevronRight size={18} color={COLORS.muted} strokeWidth={2} />
+          </View>
+
+          {/* Title */}
+          <Text
+            numberOfLines={1}
+            style={{
+              color: COLORS.textLight,
+              fontSize: 21,
+              fontFamily: 'BebasNeue_400Regular',
+              letterSpacing: 1,
+              marginBottom: 4,
+            }}
+          >
+            {inv.title}
+          </Text>
+
+          {/* Description */}
+          {inv.description ? (
+            <Text
+              numberOfLines={2}
+              style={{
+                color: COLORS.muted,
+                fontSize: 11,
+                fontFamily: 'CourierPrime_400Regular',
+                lineHeight: 16,
+                marginBottom: 12,
+              }}
+            >
+              {inv.description}
+            </Text>
+          ) : <View style={{ height: 12 }} />}
+
+          {/* Stats row */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: 'rgba(212,165,116,0.1)',
+                borderRadius: 6,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: 'rgba(212,165,116,0.2)',
+              }}
+            >
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.pin }} />
+              <Text style={{ color: COLORS.pin, fontSize: 10, fontFamily: 'CourierPrime_400Regular' }}>
+                {nodeCount} nodes
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: 'rgba(196,30,58,0.08)',
+                borderRadius: 6,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: 'rgba(196,30,58,0.2)',
+              }}
+            >
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.red }} />
+              <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_400Regular' }}>
+                {stringCount} strings
+              </Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            {collabSession ? (
+              <Pressable
+                onPress={(e) => { e.stopPropagation?.(); onCollabPress(); }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 4,
+                  borderWidth: 1,
+                  borderColor: 'rgba(196,30,58,0.3)',
+                })}
+              >
+                <Users size={12} color={COLORS.red} strokeWidth={2.5} />
+                <Text style={{ color: COLORS.red, fontSize: 10, fontFamily: 'CourierPrime_700Bold' }}>
+                  {collabSession.members.length}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ──────────────────────────────────────────────
+// GRID CELL — 3-col case grid
+// ──────────────────────────────────────────────
+function CaseCell({
+  inv,
+  index,
+  hasUnreadTips,
+  onPress,
+  onLongPress,
+}: {
+  inv: Investigation;
+  index: number;
+  hasUnreadTips: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const tint = getBoardColor(inv);
+  const icon = (inv as any).icon as string | undefined;
+  const imageUri = (inv as any).coverImageUri as string | undefined;
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(index * 60).duration(350).springify()}
+      style={{ flex: 1, alignItems: 'center', marginBottom: 20, paddingHorizontal: 4 }}
+    >
+      <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, alignItems: 'center' })}>
+        {/* Pushpin dot */}
+        <View
+          style={{
+            position: 'absolute',
+            top: -5,
+            left: '50%',
+            marginLeft: -5,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: COLORS.pin,
+            zIndex: 3,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.4,
+            shadowRadius: 2,
+            elevation: 3,
+          }}
+        />
+
+        {/* Unread dot top-right */}
+        {hasUnreadTips ? (
+          <View
+            style={{
+              position: 'absolute',
+              top: -3,
+              right: 0,
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: COLORS.green,
+              borderWidth: 1.5,
+              borderColor: COLORS.background,
+              zIndex: 3,
+            }}
+          />
+        ) : null}
+
+        {/* Icon square */}
+        <View
+          style={{
+            width: 82,
+            height: 82,
+            borderRadius: 18,
+            backgroundColor: tint + '18',
+            borderWidth: 1.5,
+            borderColor: tint + '44',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            shadowColor: tint,
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.2,
+            shadowRadius: 6,
+            elevation: 4,
+          }}
+        >
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={{ width: 82, height: 82, borderRadius: 18 }} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 36 }}>{icon || '🔍'}</Text>
+          )}
+        </View>
+
+        {/* Label */}
+        <Text
+          numberOfLines={2}
+          style={{
+            color: COLORS.textLight,
+            fontSize: 10,
+            fontFamily: 'CourierPrime_400Regular',
+            textAlign: 'center',
+            marginTop: 6,
+            lineHeight: 13,
+            maxWidth: 80,
+          }}
+        >
+          {inv.title}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ──────────────────────────────────────────────
+// ADD CELL — dashed new case button
+// ──────────────────────────────────────────────
+function AddCaseCell({ onPress }: { onPress: () => void }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', marginBottom: 20, paddingHorizontal: 4 }}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => ({
+          width: 82,
+          height: 82,
+          borderRadius: 18,
+          borderWidth: 2,
+          borderColor: pressed ? COLORS.red : COLORS.muted,
+          borderStyle: 'dashed',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: pressed ? 'rgba(196,30,58,0.08)' : 'transparent',
+        })}
+      >
+        <Text style={{ fontSize: 28, color: COLORS.muted }}>＋</Text>
+      </Pressable>
+      <Text
+        style={{
+          color: COLORS.muted,
+          fontSize: 10,
+          fontFamily: 'CourierPrime_400Regular',
+          textAlign: 'center',
+          marginTop: 6,
+        }}
+      >
+        New Case
+      </Text>
+    </View>
+  );
+}
+
+// ──────────────────────────────────────────────
+// HAMBURGER MENU — full-screen slide-in overlay
+// ──────────────────────────────────────────────
+function HamburgerMenu({
+  visible,
+  onClose,
+  session,
+  sessions,
+  tier,
+  tierLabel,
+  tierColor,
+  nonDemoCount,
+  setShowAccountModal,
+  setCollabSheetVisible,
+  router,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  session: any;
+  sessions: any[];
+  tier: string;
+  tierLabel: string;
+  tierColor: string;
+  nonDemoCount: number;
+  setShowAccountModal: (v: boolean) => void;
+  setCollabSheetVisible: (v: boolean) => void;
+  router: any;
+}) {
+  const translateX = useSharedValue(visible ? 0 : -SCREEN_WIDTH);
+
+  useEffect(() => {
+    translateX.value = withTiming(visible ? 0 : -SCREEN_WIDTH, { duration: 280 });
+  }, [visible]);
+
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  if (!visible) return null;
+
+  const emailPrefix = session?.user?.email?.split('@')[0] ?? 'investigator';
+  const displayName = session?.user?.name || emailPrefix;
+  const avatarLetter = (session?.user?.email?.[0] ?? 'R').toUpperCase();
+
+  const podcastRows = [
+    { icon: '🔴', title: 'Tucker Carlson Network', subtitle: 'LIVE', isLive: true },
+    { icon: '🎙️', title: 'Candace Owens', subtitle: 'Latest episode' },
+    { icon: '🎙️', title: 'Baron Coleman', subtitle: 'Investigative reporting' },
+    { icon: '🏋️', title: 'Coach Colin', subtitle: 'Health & freedom' },
+    { icon: '🎯', title: 'Ian Carroll', subtitle: 'Deep research' },
+    { icon: '📺', title: 'Megyn Kelly', subtitle: 'The Megyn Kelly Show' },
+    { icon: '🎙️', title: 'The Charlie Kirk Show', subtitle: 'Daily commentary' },
+    { icon: '🏛️', title: 'The White House', subtitle: 'Official briefings' },
+    { icon: '📰', title: 'Major News Outlets', subtitle: 'CNN · Fox · NBC · ABC · CBS' },
+    { icon: '➕', title: 'Add Podcast or Channel', subtitle: 'RSS feed, YouTube, or search', isAdd: true },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      {/* Backdrop */}
+      <Pressable
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' }}
+        onPress={onClose}
+      />
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: SCREEN_WIDTH * 0.85,
+            backgroundColor: COLORS.surface,
+            zIndex: 100,
+            shadowColor: '#000',
+            shadowOffset: { width: 6, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 20,
+            elevation: 20,
+          },
+          slideStyle,
+        ]}
+      >
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {/* Header row */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 20,
+                paddingTop: 16,
+                paddingBottom: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+              }}
+            >
+              <Text style={{ fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 3, color: COLORS.textLight }}>
+                RED{' '}
+                <Text style={{ color: COLORS.red }}>STRING</Text>
+              </Text>
+              <Pressable
+                onPress={onClose}
+                style={({ pressed }) => ({
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: pressed ? COLORS.border : COLORS.background,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <X size={18} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            {/* Profile strip */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                paddingVertical: 16,
+                gap: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+              }}
+            >
+              <LinearGradient
+                colors={[COLORS.red, COLORS.redDark]}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800' }}>{avatarLetter}</Text>
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700', marginBottom: 2 }}>
+                  {displayName}
+                </Text>
+                <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                  @{emailPrefix} · {tierLabel} · {nonDemoCount} cases
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => { onClose(); setShowAccountModal(true); }}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? COLORS.border : COLORS.background,
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                })}
+              >
+                <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                  Switch
+                </Text>
+                <ChevronDown size={12} color={COLORS.muted} strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            {/* Section: LIVE OPERATIONS */}
+            <MenuSection title="LIVE OPERATIONS">
+              <MenuRow
+                icon="📡"
+                iconBg="rgba(196,30,58,0.15)"
+                title="Start a Broadcast"
+                subtitle="Go live with your investigation"
+                isLive
+                onPress={() => { onClose(); router.push('/live-broadcast'); }}
+              />
+              <MenuRow
+                icon="🎥"
+                iconBg="rgba(59,130,246,0.15)"
+                title="War Room"
+                subtitle="Real-time collab session"
+                onPress={() => { onClose(); router.push('/war-room'); }}
+              />
+              <MenuRow
+                icon="👥"
+                iconBg="rgba(212,165,116,0.15)"
+                title="Collaborations"
+                subtitle={`${sessions.length} active session${sessions.length !== 1 ? 's' : ''}`}
+                badge={sessions.length > 0 ? String(sessions.length) : undefined}
+                onPress={() => { onClose(); setCollabSheetVisible(true); }}
+              />
+              <MenuRow
+                icon="📺"
+                iconBg="rgba(168,85,247,0.15)"
+                title="Current Live Streams"
+                subtitle="Who's live right now"
+                onPress={() => { onClose(); router.push('/live-streams'); }}
+              />
+            </MenuSection>
+
+            {/* Section: PODCASTS & CHANNELS */}
+            <MenuSection title="PODCASTS & CHANNELS">
+              {podcastRows.map((p, i) => (
+                <MenuRow
+                  key={i}
+                  icon={p.icon}
+                  iconBg={p.isAdd ? 'rgba(212,165,116,0.1)' : 'rgba(196,30,58,0.1)'}
+                  title={p.title}
+                  subtitle={p.subtitle}
+                  isLive={p.isLive}
+                  isNew={i === 0}
+                  onPress={() => { onClose(); router.push('/podcast'); }}
+                />
+              ))}
+            </MenuSection>
+
+            {/* Section: ACCOUNT & SETTINGS */}
+            <MenuSection title="ACCOUNT & SETTINGS">
+              <MenuRow
+                icon="👤"
+                iconBg="rgba(212,165,116,0.12)"
+                title="Profiles"
+                subtitle="Manage your account"
+                badge="2"
+                onPress={() => { onClose(); setShowAccountModal(true); }}
+              />
+              <MenuRow
+                icon="🔔"
+                iconBg="rgba(59,130,246,0.12)"
+                title="Notifications"
+                subtitle="Alerts and updates"
+                onPress={() => {}}
+              />
+              <MenuRow
+                icon="🎨"
+                iconBg="rgba(168,85,247,0.12)"
+                title="Appearance"
+                subtitle="Themes and fonts"
+                onPress={() => { onClose(); router.push('/appearance'); }}
+              />
+              <MenuRow
+                icon="🔒"
+                iconBg="rgba(196,30,58,0.08)"
+                title="Privacy & Security"
+                subtitle="Data and permissions"
+                onPress={() => {}}
+              />
+              <MenuRow
+                icon="⭐"
+                iconBg="rgba(240,192,96,0.15)"
+                title="Subscription"
+                subtitle={`Current plan: ${tierLabel}`}
+                onPress={() => { onClose(); router.push('/paywall'); }}
+              />
+            </MenuSection>
+
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginTop: 20 }}>
+      <Text
+        style={{
+          color: COLORS.muted,
+          fontSize: 9,
+          fontFamily: 'CourierPrime_700Bold',
+          letterSpacing: 2,
+          paddingHorizontal: 20,
+          marginBottom: 8,
+        }}
+      >
+        {title}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+function MenuRow({
+  icon,
+  iconBg,
+  title,
+  subtitle,
+  badge,
+  isLive,
+  isNew,
+  onPress,
+}: {
+  icon: string;
+  iconBg: string;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  isLive?: boolean;
+  isNew?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 20,
+        paddingVertical: 11,
+        backgroundColor: pressed ? COLORS.background : 'transparent',
+      })}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          backgroundColor: iconBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ fontSize: 18 }}>{icon}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '600', marginBottom: 1 }}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {isLive ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.red }} />
+          <Text style={{ color: COLORS.red, fontSize: 9, fontFamily: 'CourierPrime_700Bold', letterSpacing: 1 }}>LIVE</Text>
+        </View>
+      ) : null}
+      {badge ? (
+        <View
+          style={{
+            backgroundColor: COLORS.red,
+            borderRadius: 6,
+            minWidth: 20,
+            height: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 5,
+          }}
+        >
+          <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{badge}</Text>
+        </View>
+      ) : null}
+      {isNew && !isLive ? (
+        <View style={{ backgroundColor: COLORS.red, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 }}>
+          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '700' }}>NEW</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// ──────────────────────────────────────────────
+// SWIPE-DELETE CARD (kept for legacy renderItem)
+// ──────────────────────────────────────────────
 function InvestigationCard({
   investigation,
   index,
@@ -105,15 +928,11 @@ function InvestigationCard({
     .activeOffsetX([-10, 10])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
-      if (e.translationX < 0) {
-        translateX.value = e.translationX;
-      }
+      if (e.translationX < 0) translateX.value = e.translationX;
     })
     .onEnd((e) => {
       if (e.translationX < -SWIPE_THRESHOLD) {
-        translateX.value = withTiming(-500, { duration: 250 }, () => {
-          runOnJS(triggerDelete)();
-        });
+        translateX.value = withTiming(-500, { duration: 250 }, () => runOnJS(triggerDelete)());
       } else {
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
@@ -123,75 +942,53 @@ function InvestigationCard({
     transform: [{ translateX: translateX.value }],
   }));
 
-  const trashRevealStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translateX.value,
-      [-SWIPE_THRESHOLD, -40, 0],
-      [1, 0.6, 0],
-      Extrapolation.CLAMP
-    );
-    const scale = interpolate(
-      translateX.value,
-      [-SWIPE_THRESHOLD, -40, 0],
-      [1, 0.8, 0.6],
-      Extrapolation.CLAMP
-    );
-    return { opacity, transform: [{ scale }] };
-  });
+  const trashRevealStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, -40, 0], [1, 0.6, 0], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(translateX.value, [-SWIPE_THRESHOLD, -40, 0], [1, 0.8, 0.6], Extrapolation.CLAMP) }],
+  }));
 
   return (
-    <View
-      style={{
-        marginHorizontal: 16,
-        marginBottom: 20,
-      }}
-    >
-      {/* Trash reveal behind card */}
+    <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
       <View
         style={{
           position: 'absolute',
           right: 0,
           top: 0,
           bottom: 0,
-          width: 80,
-          borderRadius: 16,
-          backgroundColor: 'rgba(196,30,58,0.15)',
+          width: 70,
+          borderRadius: 14,
+          backgroundColor: 'rgba(196,30,58,0.12)',
           borderWidth: 1,
-          borderColor: 'rgba(196,30,58,0.3)',
+          borderColor: 'rgba(196,30,58,0.25)',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
         <Animated.View style={trashRevealStyle}>
-          <Trash2 size={24} color={COLORS.red} strokeWidth={2} />
+          <Trash2 size={22} color={COLORS.red} strokeWidth={2} />
         </Animated.View>
       </View>
 
-      {/* Swipeable card */}
       <GestureDetector gesture={panGesture}>
-        <Animated.View
-          entering={FadeInDown.delay(index * 80).duration(400).springify()}
-          style={cardAnimStyle}
-        >
+        <Animated.View entering={FadeInDown.delay(index * 60).duration(350).springify()} style={cardAnimStyle}>
           <Pressable
             testID={`investigation-card-${investigation.id}`}
             onPress={onPress}
             onLongPress={onLongPress}
             style={({ pressed }) => ({
               backgroundColor: COLORS.card,
-              borderRadius: 16,
-              padding: 20,
+              borderRadius: 14,
+              padding: 16,
               opacity: pressed ? 0.92 : 1,
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.35,
-              shadowRadius: 16,
-              elevation: 6,
-              transform: [{ scale: pressed ? 0.98 : 1 }],
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.28,
+              shadowRadius: 10,
+              elevation: 5,
+              transform: [{ scale: pressed ? 0.985 : 1 }],
               overflow: 'hidden',
             })}
           >
-            {/* Left accent bar */}
             <View
               style={{
                 position: 'absolute',
@@ -199,106 +996,77 @@ function InvestigationCard({
                 top: 0,
                 bottom: 0,
                 width: 4,
-                backgroundColor: investigation.nodes[0]?.color
-                  ? (investigation.nodes[0].color === 'red' ? '#C41E3A' : investigation.nodes[0].color === 'blue' ? '#3B82F6' : investigation.nodes[0].color === 'green' ? '#22C55E' : investigation.nodes[0].color === 'amber' ? '#F59E0B' : investigation.nodes[0].color === 'purple' ? '#A855F7' : investigation.nodes[0].color === 'teal' ? '#14B8A6' : COLORS.red)
-                  : COLORS.red,
+                backgroundColor: getBoardColor(investigation),
               }}
             />
-
-            {/* Pushpin accent */}
             <View
               style={{
                 position: 'absolute',
-                top: -8,
-                left: 28,
-                width: 16,
-                height: 16,
-                borderRadius: 8,
+                top: -7,
+                left: 24,
+                width: 14,
+                height: 14,
+                borderRadius: 7,
                 backgroundColor: COLORS.pin,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
                 shadowRadius: 2,
-                elevation: 4,
+                elevation: 3,
                 zIndex: 1,
               }}
             />
-
-            {/* Card content */}
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <Text
-                  style={{ color: COLORS.cardText, marginBottom: 4, fontSize: 20, fontWeight: '900' }}
-                  numberOfLines={1}
-                >
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={{ color: COLORS.cardText, fontSize: 17, fontWeight: '800', marginBottom: 3 }} numberOfLines={1}>
                   {investigation.title}
                 </Text>
                 {investigation.description ? (
-                  <Text
-                    style={{ color: COLORS.muted, lineHeight: 22, fontSize: 14 }}
-                    numberOfLines={2}
-                  >
+                  <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', lineHeight: 17 }} numberOfLines={2}>
                     {investigation.description}
                   </Text>
                 ) : null}
               </View>
-              <ChevronRight size={22} color={COLORS.muted} strokeWidth={2} />
+              <ChevronRight size={20} color={COLORS.muted} strokeWidth={2} />
             </View>
-
-            {/* Stats row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <FileText size={18} color={COLORS.muted} strokeWidth={2} />
-                <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
-                  {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
+                <FileText size={15} color={COLORS.muted} strokeWidth={2} />
+                <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                  {nodeCount} nodes
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Cable size={18} color={COLORS.red} strokeWidth={2} />
-                <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>
-                  {stringCount} {stringCount === 1 ? 'string' : 'strings'}
+                <Cable size={15} color={COLORS.red} strokeWidth={2} />
+                <Text style={{ color: COLORS.muted, fontSize: 11, fontFamily: 'CourierPrime_400Regular' }}>
+                  {stringCount} strings
                 </Text>
               </View>
               <View style={{ flex: 1 }} />
-
-              {/* Collab badge */}
               {collabSession ? (
                 <Pressable
                   testID={`collab-badge-${investigation.id}`}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    onCollabPress();
-                  }}
+                  onPress={(e) => { e.stopPropagation?.(); onCollabPress(); }}
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 4,
                     backgroundColor: pressed ? 'rgba(196,30,58,0.2)' : 'rgba(196,30,58,0.1)',
-                    borderRadius: 8,
-                    paddingHorizontal: 7,
+                    borderRadius: 7,
+                    paddingHorizontal: 6,
                     paddingVertical: 3,
                     borderWidth: 1,
                     borderColor: 'rgba(196,30,58,0.3)',
                   })}
                 >
-                  <Users size={18} color={COLORS.red} strokeWidth={2.5} />
-                  <Text style={{ color: COLORS.red, fontSize: 10, fontWeight: '700' }}>
-                    {memberCount}
-                  </Text>
+                  <Users size={14} color={COLORS.red} strokeWidth={2.5} />
+                  <Text style={{ color: COLORS.red, fontSize: 10, fontWeight: '700' }}>{memberCount}</Text>
                 </Pressable>
               ) : null}
-
-              <Text className="text-xs" style={{ color: COLORS.muted }}>
+              <Text style={{ color: COLORS.muted, fontSize: 10, fontFamily: 'CourierPrime_400Regular' }}>
                 {formatDate(investigation.updatedAt)}
               </Text>
             </View>
-
-            {/* Bottom gradient overlay */}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.04)']}
-              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 40, borderRadius: 16 }}
-              pointerEvents="none"
-            />
           </Pressable>
         </Animated.View>
       </GestureDetector>
@@ -308,104 +1076,40 @@ function InvestigationCard({
 
 function DemoCard({ onLaunch }: { onLaunch: () => void }) {
   return (
-    <Animated.View
-      entering={FadeInDown.duration(400).springify()}
-      style={{ marginHorizontal: 20, marginBottom: 20 }}
-    >
+    <Animated.View entering={FadeInDown.duration(400).springify()} style={{ marginHorizontal: 16, marginBottom: 16 }}>
       <Pressable
         testID="demo-card"
         onPress={onLaunch}
         style={({ pressed }) => ({
           borderRadius: 14,
-          padding: 18,
+          padding: 16,
           opacity: pressed ? 0.92 : 1,
           backgroundColor: COLORS.surface,
           borderWidth: 1.5,
           borderColor: pressed ? COLORS.red : 'rgba(196,30,58,0.5)',
           shadowColor: COLORS.red,
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: pressed ? 0.35 : 0.2,
-          shadowRadius: 12,
-          elevation: 8,
+          shadowOffset: { width: 0, height: 5 },
+          shadowOpacity: pressed ? 0.35 : 0.18,
+          shadowRadius: 10,
+          elevation: 7,
           transform: [{ scale: pressed ? 0.98 : 1 }],
         })}
       >
-        {/* DEMO badge */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 12,
-            right: 14,
-            backgroundColor: COLORS.red,
-            borderRadius: 6,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-          }}
-        >
-          <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>
-            DEMO
-          </Text>
+        <View style={{ position: 'absolute', top: 10, right: 12, backgroundColor: COLORS.red, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 }}>
+          <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', letterSpacing: 1, fontFamily: 'CourierPrime_700Bold' }}>DEMO</Text>
         </View>
-
-        {/* Play icon */}
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: 'rgba(196,30,58,0.15)',
-            borderWidth: 1,
-            borderColor: 'rgba(196,30,58,0.3)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 12,
-          }}
-        >
-          <Play size={18} color={COLORS.red} strokeWidth={2} />
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(196,30,58,0.12)', borderWidth: 1, borderColor: 'rgba(196,30,58,0.25)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+          <Play size={16} color={COLORS.red} strokeWidth={2} />
         </View>
-
-        <Text style={{ color: COLORS.textLight, fontSize: 17, fontWeight: '700', marginBottom: 4 }}>
+        <Text style={{ color: COLORS.textLight, fontSize: 16, fontWeight: '700', marginBottom: 3 }}>
           Operation: Shadow Network
         </Text>
-        <Text style={{ color: COLORS.muted, fontSize: 13, marginBottom: 12, lineHeight: 18 }}>
+        <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', marginBottom: 12, lineHeight: 17 }}>
           Explore all features with a pre-loaded investigation
         </Text>
-
-        {/* Stats chips */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-          {['15 nodes', '12 connections', 'Full source attribution', 'Timeline events'].map((label) => (
-            <View
-              key={label}
-              style={{
-                backgroundColor: 'rgba(196,30,58,0.1)',
-                borderRadius: 6,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderWidth: 1,
-                borderColor: 'rgba(196,30,58,0.2)',
-              }}
-            >
-              <Text style={{ color: COLORS.red, fontSize: 11, fontWeight: '600' }}>{label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Launch button */}
-        <View
-          style={{
-            backgroundColor: COLORS.red,
-            borderRadius: 10,
-            paddingVertical: 11,
-            alignItems: 'center',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-        >
-          <Play size={14} color="#FFF" strokeWidth={2.5} />
-          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700', letterSpacing: 0.3 }}>
-            Launch Demo
-          </Text>
+        <View style={{ backgroundColor: COLORS.red, borderRadius: 9, paddingVertical: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 7 }}>
+          <Play size={13} color="#FFF" strokeWidth={2.5} />
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', letterSpacing: 0.3 }}>Launch Demo</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -414,36 +1118,23 @@ function DemoCard({ onLaunch }: { onLaunch: () => void }) {
 
 function EmptyState() {
   return (
-    <View className="flex-1 items-center justify-center" style={{ paddingHorizontal: 40, paddingBottom: 60 }}>
-      <View
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: COLORS.surface,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 20,
-        }}
-      >
-        <Search size={36} color={COLORS.muted} strokeWidth={1.5} />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 60 }}>
+      <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+        <Search size={32} color={COLORS.muted} strokeWidth={1.5} />
       </View>
-      <Text
-        className="text-lg font-semibold text-center"
-        style={{ color: COLORS.textLight, marginBottom: 8 }}
-      >
+      <Text style={{ color: COLORS.textLight, fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 7 }}>
         No investigations yet
       </Text>
-      <Text
-        className="text-sm text-center"
-        style={{ color: COLORS.muted, lineHeight: 20 }}
-      >
+      <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', textAlign: 'center', lineHeight: 18 }}>
         Every conspiracy begins with a single thread. Tap the button above to start your first investigation.
       </Text>
     </View>
   );
 }
 
+// ══════════════════════════════════════════════
+// MAIN SCREEN
+// ══════════════════════════════════════════════
 export default function InvestigationsDashboard() {
   const router = useRouter();
   const investigations = useInvestigationStore((s) => s.investigations);
@@ -463,7 +1154,6 @@ export default function InvestigationsDashboard() {
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();
 
-  // Tour store
   const hasCompletedTour = useTourStore((s) => s.hasCompletedTour);
   const isDemoMode = useTourStore((s) => s.isDemoMode);
   const startTour = useTourStore((s) => s.startTour);
@@ -482,22 +1172,27 @@ export default function InvestigationsDashboard() {
   const [showVideoOnboarding, setShowVideoOnboarding] = useState<boolean>(false);
   const [showWhatsNew, setShowWhatsNew] = useState<boolean>(false);
   const [showExitDemoConfirm, setShowExitDemoConfirm] = useState<boolean>(false);
+  const [showHamburger, setShowHamburger] = useState<boolean>(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetTitle, setDeleteTargetTitle] = useState<string>('');
   const [newTitle, setNewTitle] = useState<string>('');
   const [newDescription, setNewDescription] = useState<string>('');
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
 
-  // Undo toast state
   const [undoItem, setUndoItem] = useState<Investigation | null>(null);
   const [showUndoToast, setShowUndoToast] = useState<boolean>(false);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Collab sheet state
   const [collabSheetInvestigationId, setCollabSheetInvestigationId] = useState<string | null>(null);
   const [collabSheetVisible, setCollabSheetVisible] = useState<boolean>(false);
 
-  // Auto-show video onboarding on first session
+  // Font loading
+  const [fontsLoaded] = useFonts({
+    BebasNeue_400Regular,
+    CourierPrime_400Regular,
+    CourierPrime_700Bold,
+  });
+
   useEffect(() => {
     if (!session?.user) return;
     if (!sessionStartedAt) {
@@ -511,7 +1206,6 @@ export default function InvestigationsDashboard() {
     }
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check what's new on mount
   useEffect(() => {
     shouldShowWhatsNew().then((show) => {
       if (show) {
@@ -524,25 +1218,23 @@ export default function InvestigationsDashboard() {
     });
   }, []);
 
-  // Filter non-demo investigations for display
   const sortedInvestigations = React.useMemo(
     () => [...investigations].filter((inv) => !inv.isDemo).sort((a, b) => b.updatedAt - a.updatedAt),
     [investigations]
   );
 
-  // Map investigation id -> collab session
   const collabSessionMap = React.useMemo(() => {
     const map = new Map<string, CollabSession>();
-    for (const s of sessions) {
-      map.set(s.investigationId, s);
-    }
+    for (const s of sessions) map.set(s.investigationId, s);
     return map;
   }, [sessions]);
+
+  const heroInv = sortedInvestigations[0] ?? null;
+  const gridInvestigations = sortedInvestigations.slice(1);
 
   const handleCreate = useCallback(() => {
     const trimmedTitle = newTitle.trim();
     if (!trimmedTitle) return;
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     createInvestigation(trimmedTitle, newDescription.trim() || undefined);
     setNewTitle('');
@@ -571,15 +1263,12 @@ export default function InvestigationsDashboard() {
     [setActiveInvestigation, router]
   );
 
-  const handleCardLongPress = useCallback(
-    (id: string, title: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setDeleteTargetId(id);
-      setDeleteTargetTitle(title);
-      setShowDeleteModal(true);
-    },
-    []
-  );
+  const handleCardLongPress = useCallback((id: string, title: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setDeleteTargetId(id);
+    setDeleteTargetTitle(title);
+    setShowDeleteModal(true);
+  }, []);
 
   const handleDelete = useCallback(() => {
     if (!deleteTargetId) return;
@@ -595,10 +1284,7 @@ export default function InvestigationsDashboard() {
     deleteInvestigation(investigation.id);
     setUndoItem(investigation);
     setShowUndoToast(true);
-    // Clear any existing timer
-    if (undoTimerRef.current) {
-      clearTimeout(undoTimerRef.current);
-    }
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     undoTimerRef.current = setTimeout(() => {
       setShowUndoToast(false);
       setUndoItem(null);
@@ -610,9 +1296,7 @@ export default function InvestigationsDashboard() {
       restoreInvestigation(undoItem);
       setUndoItem(null);
       setShowUndoToast(false);
-      if (undoTimerRef.current) {
-        clearTimeout(undoTimerRef.current);
-      }
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   }, [undoItem, restoreInvestigation]);
@@ -642,7 +1326,6 @@ export default function InvestigationsDashboard() {
     startDemoMode();
     addDemoInvestigation(demo);
     router.push('/(tabs)/two');
-    // Auto-start tour from canvas_intro (step index 5) after delay
     setTimeout(() => startTourFromStep(5), 1000);
   }, [startDemoMode, addDemoInvestigation, router, startTourFromStep]);
 
@@ -671,7 +1354,7 @@ export default function InvestigationsDashboard() {
   const keyExtractor = useCallback((item: Investigation) => item.id, []);
 
   const tierLabel = tier === 'free' ? 'FREE' : tier === 'pro' ? 'PRO' : 'PLUS';
-  const tierColor = tier === 'free' ? COLORS.muted : tier === 'pro' ? COLORS.pin : '#F0C060';
+  const tierColor = tier === 'free' ? COLORS.muted : tier === 'pro' ? COLORS.pin : COLORS.gold;
 
   const activeCollabSession = collabSheetInvestigationId
     ? (collabSessionMap.get(collabSheetInvestigationId) ?? null)
@@ -679,268 +1362,225 @@ export default function InvestigationsDashboard() {
 
   const nonDemoInvestigationCount = investigations.filter((inv) => !inv.isDemo).length;
 
+  const emailPrefix = session?.user?.email?.split('@')[0] ?? 'investigator';
+  const avatarLetter = (session?.user?.email?.[0] ?? 'R').toUpperCase();
+
+  // Build grid data: gridInvestigations + add cell placeholder
+  type GridItem = { type: 'inv'; inv: Investigation } | { type: 'add' };
+  const gridData: GridItem[] = [
+    ...gridInvestigations.map((inv) => ({ type: 'inv' as const, inv })),
+    { type: 'add' as const },
+  ];
+  // Pad to multiple of 3
+  while (gridData.length % 3 !== 0) gridData.push({ type: 'add' as const });
+
   return (
-    <View className="flex-1" style={{ backgroundColor: COLORS.background }} testID="investigations-screen">
+    <View style={{ flex: 1, backgroundColor: COLORS.background }} testID="investigations-screen">
       {/* Demo Mode Banner */}
       {isDemoMode ? (
         <Pressable
           testID="demo-mode-banner"
           onPress={() => setShowExitDemoConfirm(true)}
-          style={{
-            backgroundColor: COLORS.red,
-            height: 36,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: 16,
-          }}
+          style={{ backgroundColor: COLORS.red, height: 36, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}
         >
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
             DEMO MODE — This is sample data. Tap to exit.
           </Text>
         </Pressable>
       ) : null}
 
-      <SafeAreaView className="flex-1" edges={isDemoMode ? [] : ['top']}>
-        {/* Header */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <Text
-                style={{ color: COLORS.red, letterSpacing: 3, fontSize: 28, fontWeight: '900' }}
-              >
-                RED STRING
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {/* Prompt History button */}
-              <Pressable
-                testID="prompt-history-button"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/prompt-history');
-                }}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                })}
-              >
-                <ScrollText size={22} color={COLORS.muted} strokeWidth={2} />
-              </Pressable>
-
-              {/* Watch Live button */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/live-viewer');
-                }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: pressed ? 'rgba(196,30,58,0.15)' : 'rgba(196,30,58,0.08)',
-                  borderRadius: 12,
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderWidth: 1,
-                  borderColor: 'rgba(196,30,58,0.25)',
-                })}
-              >
-                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#C41E3A' }} />
-                <Text style={{ color: '#C41E3A', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>WATCH LIVE</Text>
-              </Pressable>
-
-              {/* Collab button */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/collab');
-                }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: pressed ? 'rgba(212,165,116,0.15)' : 'rgba(212,165,116,0.08)',
-                  borderRadius: 12,
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderWidth: 1,
-                  borderColor: 'rgba(212,165,116,0.25)',
-                })}
-              >
-                <Users size={18} color="#D4A574" strokeWidth={2.5} />
-                <Text style={{ color: '#D4A574', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>COLLAB</Text>
-              </Pressable>
-
-              {/* War Room button */}
-              <WarRoomEntry size="sm" />
-
-              {/* Tip Inbox button */}
-              <Pressable
-                testID="tip-inbox-button"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/tip-inbox');
-                }}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                })}
-              >
-                <Mail size={22} color={COLORS.muted} strokeWidth={2} />
-              </Pressable>
-
-              {/* Help button */}
-              <Pressable
-                testID="help-button"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowHelpMenu(true);
-                }}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
-                  borderWidth: 1,
-                  borderColor: hasCompletedTour ? COLORS.border : COLORS.red,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                })}
-              >
-                <HelpCircle size={22} color={hasCompletedTour ? COLORS.muted : COLORS.red} strokeWidth={2} />
-                {/* Unread badge */}
-                {!hasCompletedTour ? (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -2,
-                      right: -2,
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: COLORS.red,
-                      borderWidth: 1.5,
-                      borderColor: COLORS.background,
-                    }}
-                  />
-                ) : null}
-              </Pressable>
-
-              {/* Account button */}
-              <Pressable
-                testID="account-button"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowAccountModal(true);
-                }}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? COLORS.border : COLORS.surface,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                })}
-              >
-                <User size={22} color={COLORS.muted} strokeWidth={2} />
-              </Pressable>
-
-              {/* Plan badge */}
-              <Pressable
-                testID="plan-badge"
-                onPress={() => router.push('/paywall')}
-                style={{
-                  backgroundColor: tierColor + '22',
-                  borderRadius: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderWidth: 1,
-                  borderColor: tierColor + '55',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <Text style={{ color: tierColor, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>
-                  {tierLabel}
-                </Text>
-                {tier === 'free' ? (
-                  <Lock size={10} color={tierColor} strokeWidth={2.5} />
-                ) : null}
-              </Pressable>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text
-              style={{ color: COLORS.muted, letterSpacing: 4, marginTop: 2, fontSize: 13 }}
-            >
-              RESEARCH
-            </Text>
-            {maxInvestigationsCount !== Infinity ? (
-              <Text style={{ color: COLORS.muted, fontSize: 11 }}>
-                {nonDemoInvestigationCount}/{maxInvestigationsCount} cases
-              </Text>
-            ) : null}
-          </View>
-        </View>
-
-        {/* New Investigation Button */}
-        <Pressable
-          testID="new-investigation-button"
-          onPress={handleNewInvestigationPress}
-          style={({ pressed }) => ({
-            marginHorizontal: 20,
-            marginTop: 16,
-            marginBottom: 20,
-            backgroundColor: pressed ? '#A3162E' : COLORS.red,
-            borderRadius: 12,
-            padding: 14,
-            paddingVertical: 16,
+      <SafeAreaView style={{ flex: 1 }} edges={isDemoMode ? [] : ['top']}>
+        {/* ── HEADER ── */}
+        <View
+          style={{
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            shadowColor: COLORS.red,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.6,
-            shadowRadius: 20,
-            elevation: 6,
-          })}
+            paddingHorizontal: 16,
+            paddingTop: 10,
+            paddingBottom: 12,
+          }}
         >
-          <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
-          <Text className="text-base font-bold" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
-            New Investigation
-          </Text>
-        </Pressable>
+          {/* Hamburger button */}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowHamburger(true); }}
+            style={({ pressed }) => ({
+              width: 42,
+              height: 42,
+              borderRadius: 13,
+              backgroundColor: pressed ? COLORS.border : COLORS.surface2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4,
+              elevation: 3,
+            })}
+          >
+            {/* Custom hamburger icon with offset middle line */}
+            <View style={{ gap: 4 }}>
+              <View style={{ width: 18, height: 2, backgroundColor: COLORS.textLight, borderRadius: 1 }} />
+              <View style={{ width: 12, height: 2, backgroundColor: COLORS.textLight, borderRadius: 1, alignSelf: 'flex-end' }} />
+              <View style={{ width: 18, height: 2, backgroundColor: COLORS.textLight, borderRadius: 1 }} />
+            </View>
+          </Pressable>
 
-        {/* Investigations List */}
+          {/* Center wordmark */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text
+              style={{
+                fontFamily: fontsLoaded ? 'BebasNeue_400Regular' : undefined,
+                fontSize: 24,
+                letterSpacing: 5,
+                color: COLORS.textLight,
+                lineHeight: 26,
+              }}
+            >
+              RED STRING
+            </Text>
+            <Text
+              style={{
+                fontFamily: fontsLoaded ? 'CourierPrime_400Regular' : undefined,
+                fontSize: 8,
+                letterSpacing: 4,
+                color: COLORS.red,
+                marginTop: 1,
+              }}
+            >
+              RESEARCH PLATFORM
+            </Text>
+          </View>
+
+          {/* Avatar circle */}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAccountModal(true); }}
+            style={{ width: 42, height: 42, borderRadius: 21, overflow: 'hidden' }}
+          >
+            <LinearGradient
+              colors={[COLORS.red, COLORS.redDark]}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '800' }}>{avatarLetter}</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+
+        {/* ── MAIN SCROLL ── */}
         <FlatList
           testID="investigations-list"
-          data={sortedInvestigations}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingTop: 4, paddingBottom: 20 }}
+          data={[]}
+          renderItem={null}
+          keyExtractor={() => ''}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={!isDemoMode ? <DemoCard onLaunch={handleLaunchDemo} /> : null}
-          ListEmptyComponent={<EmptyState />}
+          contentContainerStyle={{ paddingBottom: 30 }}
+          ListHeaderComponent={
+            <>
+              {/* Hero Card */}
+              {heroInv ? (
+                <HeroCard
+                  inv={heroInv}
+                  collabSession={collabSessionMap.get(heroInv.id) ?? null}
+                  onPress={() => handleCardPress(heroInv.id)}
+                  onLongPress={() => handleCardLongPress(heroInv.id, heroInv.title)}
+                  onCollabPress={() => handleCollabPress(heroInv.id)}
+                />
+              ) : !isDemoMode ? (
+                <DemoCard onLaunch={handleLaunchDemo} />
+              ) : null}
+
+              {/* ALL CASES section header */}
+              {sortedInvestigations.length > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    marginBottom: 16,
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: fontsLoaded ? 'CourierPrime_700Bold' : undefined,
+                      fontSize: 9,
+                      letterSpacing: 3,
+                      color: COLORS.muted,
+                    }}
+                  >
+                    ALL CASES
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: COLORS.surface2,
+                      borderRadius: 5,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                    }}
+                  >
+                    <Text style={{ color: COLORS.muted, fontSize: 9, fontFamily: fontsLoaded ? 'CourierPrime_400Regular' : undefined }}>
+                      {nonDemoInvestigationCount}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+                </View>
+              ) : null}
+
+              {/* 3-column grid */}
+              {(() => {
+                const rows: GridItem[][] = [];
+                for (let i = 0; i < gridData.length; i += 3) {
+                  rows.push(gridData.slice(i, i + 3));
+                }
+                return rows.map((row, ri) => (
+                  <View key={ri} style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 0 }}>
+                    {row.map((cell, ci) => {
+                      if (cell.type === 'add') {
+                        // Only show one add button — the first add cell is the real one
+                        const isFirstAdd = ri * 3 + ci === gridInvestigations.length;
+                        if (!isFirstAdd) {
+                          return <View key={ci} style={{ flex: 1 }} />;
+                        }
+                        return (
+                          <AddCaseCell
+                            key={ci}
+                            onPress={handleNewInvestigationPress}
+                          />
+                        );
+                      }
+                      const inv = cell.inv;
+                      const hasUnreadTips = ((inv as any).tips ?? []).some((t: any) => t.status === 'unread');
+                      return (
+                        <CaseCell
+                          key={inv.id}
+                          inv={inv}
+                          index={ri * 3 + ci}
+                          hasUnreadTips={hasUnreadTips}
+                          onPress={() => handleCardPress(inv.id)}
+                          onLongPress={() => handleCardLongPress(inv.id, inv.title)}
+                        />
+                      );
+                    })}
+                  </View>
+                ));
+              })()}
+
+              {/* Empty state when no investigations at all */}
+              {sortedInvestigations.length === 0 && isDemoMode ? null : sortedInvestigations.length === 0 ? (
+                <EmptyState />
+              ) : null}
+
+              {/* Demo card at bottom if there's already a hero */}
+              {heroInv && !isDemoMode ? (
+                <DemoCard onLaunch={handleLaunchDemo} />
+              ) : null}
+            </>
+          }
         />
       </SafeAreaView>
 
-      {/* Undo Toast */}
+      {/* ── UNDO TOAST ── */}
       {showUndoToast ? (
         <Animated.View
           entering={SlideInDown.springify().damping(20)}
@@ -968,16 +1608,8 @@ export default function InvestigationsDashboard() {
           }}
           testID="undo-toast"
         >
-          <Trash2 size={18} color={COLORS.red} strokeWidth={2} />
-          <Text
-            style={{
-              flex: 1,
-              color: COLORS.textLight,
-              fontSize: 14,
-              fontWeight: '600',
-              marginLeft: 10,
-            }}
-          >
+          <Trash2 size={17} color={COLORS.red} strokeWidth={2} />
+          <Text style={{ flex: 1, color: COLORS.textLight, fontSize: 13, fontWeight: '600', marginLeft: 10 }}>
             Investigation deleted
           </Text>
           <Pressable
@@ -986,427 +1618,150 @@ export default function InvestigationsDashboard() {
             style={({ pressed }) => ({
               backgroundColor: pressed ? 'rgba(212,165,116,0.2)' : 'rgba(212,165,116,0.12)',
               borderRadius: 8,
-              paddingHorizontal: 14,
+              paddingHorizontal: 13,
               paddingVertical: 7,
               borderWidth: 1,
               borderColor: 'rgba(212,165,116,0.35)',
             })}
           >
-            <Text style={{ color: COLORS.pin, fontSize: 13, fontWeight: '700' }}>
-              Undo
-            </Text>
+            <Text style={{ color: COLORS.pin, fontSize: 12, fontWeight: '700' }}>Undo</Text>
           </Pressable>
         </Animated.View>
       ) : null}
 
-      {/* Help Menu Modal */}
-      <Modal
-        visible={showHelpMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowHelpMenu(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
-          onPress={() => setShowHelpMenu(false)}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 340,
-              backgroundColor: COLORS.surface,
-              borderRadius: 20,
-              overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
-              <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '800', letterSpacing: 0.3 }}>
-                Help & Explore
-              </Text>
-            </View>
+      {/* ── HAMBURGER MENU ── */}
+      <HamburgerMenu
+        visible={showHamburger}
+        onClose={() => setShowHamburger(false)}
+        session={session}
+        sessions={sessions}
+        tier={tier}
+        tierLabel={tierLabel}
+        tierColor={tierColor}
+        nonDemoCount={nonDemoInvestigationCount}
+        setShowAccountModal={setShowAccountModal}
+        setCollabSheetVisible={setCollabSheetVisible}
+        router={router}
+      />
 
-            {/* Take the Tour */}
+      {/* ── HELP MENU MODAL ── */}
+      <Modal visible={showHelpMenu} transparent animationType="fade" onRequestClose={() => setShowHelpMenu(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowHelpMenu(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 340, backgroundColor: COLORS.surface, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
+            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+              <Text style={{ color: COLORS.textLight, fontSize: 17, fontWeight: '800', letterSpacing: 0.3 }}>Help & Explore</Text>
+            </View>
             <Pressable
               testID="help-start-tour"
-              onPress={() => {
-                setShowHelpMenu(false);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setTimeout(() => startTour(), 200);
-              }}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 14,
-                padding: 16,
-                backgroundColor: pressed ? COLORS.border : 'transparent',
-                borderBottomWidth: 1,
-                borderBottomColor: COLORS.border,
-              })}
+              onPress={() => { setShowHelpMenu(false); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTimeout(() => startTour(), 200); }}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, backgroundColor: pressed ? COLORS.border : 'transparent', borderBottomWidth: 1, borderBottomColor: COLORS.border })}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(196,30,58,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(196,30,58,0.25)' }}>
-                <Play size={18} color={COLORS.red} strokeWidth={2} />
+              <View style={{ width: 36, height: 36, borderRadius: 9, backgroundColor: 'rgba(196,30,58,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(196,30,58,0.25)' }}>
+                <Play size={17} color={COLORS.red} strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Take the Tour</Text>
-                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>18-step guided walkthrough</Text>
+                <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '700' }}>Take the Tour</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 11, marginTop: 1, fontFamily: 'CourierPrime_400Regular' }}>18-step guided walkthrough</Text>
               </View>
-              {!hasCompletedTour ? (
-                <View style={{ backgroundColor: COLORS.red, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>NEW</Text>
-                </View>
-              ) : null}
+              {!hasCompletedTour ? (<View style={{ backgroundColor: COLORS.red, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 }}><Text style={{ color: '#FFF', fontSize: 9, fontWeight: '700' }}>NEW</Text></View>) : null}
             </Pressable>
-
-            {/* Load Demo */}
             <Pressable
               testID="help-load-demo"
               onPress={handleLaunchDemo}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 14,
-                padding: 16,
-                backgroundColor: pressed ? COLORS.border : 'transparent',
-                borderBottomWidth: 1,
-                borderBottomColor: COLORS.border,
-              })}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, backgroundColor: pressed ? COLORS.border : 'transparent', borderBottomWidth: 1, borderBottomColor: COLORS.border })}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(212,165,116,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212,165,116,0.25)' }}>
-                <Play size={18} color={COLORS.pin} strokeWidth={2} />
+              <View style={{ width: 36, height: 36, borderRadius: 9, backgroundColor: 'rgba(212,165,116,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212,165,116,0.25)' }}>
+                <Play size={17} color={COLORS.pin} strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>Load Demo Investigation</Text>
-                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>15 nodes, 12 strings, full data</Text>
+                <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '700' }}>Load Demo Investigation</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 11, marginTop: 1, fontFamily: 'CourierPrime_400Regular' }}>15 nodes, 12 strings, full data</Text>
               </View>
             </Pressable>
-
-            {/* What's New */}
             <Pressable
               testID="help-whats-new"
-              onPress={() => {
-                setShowHelpMenu(false);
-                setTimeout(() => setShowWhatsNew(true), 200);
-              }}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 14,
-                padding: 16,
-                backgroundColor: pressed ? COLORS.border : 'transparent',
-              })}
+              onPress={() => { setShowHelpMenu(false); setTimeout(() => setShowWhatsNew(true), 200); }}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, backgroundColor: pressed ? COLORS.border : 'transparent' })}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(34,197,94,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' }}>
-                <Inbox size={18} color="#22C55E" strokeWidth={2} />
+              <View style={{ width: 36, height: 36, borderRadius: 9, backgroundColor: 'rgba(34,197,94,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' }}>
+                <Inbox size={17} color="#22C55E" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.textLight, fontSize: 15, fontWeight: '700' }}>What's New</Text>
-                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 1 }}>v2.0 — Bezier strings, timeline & more</Text>
+                <Text style={{ color: COLORS.textLight, fontSize: 14, fontWeight: '700' }}>What's New</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 11, marginTop: 1, fontFamily: 'CourierPrime_400Regular' }}>v2.0 — Bezier strings, timeline & more</Text>
               </View>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Exit Demo Confirm Modal */}
-      <Modal
-        visible={showExitDemoConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowExitDemoConfirm(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
-          onPress={() => setShowExitDemoConfirm(false)}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 360,
-              backgroundColor: COLORS.surface,
-              borderRadius: 20,
-              padding: 24,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '700', marginBottom: 10 }}>
-              Exit Demo Mode?
-            </Text>
-            <Text style={{ color: COLORS.muted, fontSize: 14, lineHeight: 20, marginBottom: 24 }}>
-              Your real investigations are safe. The demo data will be removed.
-            </Text>
+      {/* ── EXIT DEMO CONFIRM ── */}
+      <Modal visible={showExitDemoConfirm} transparent animationType="fade" onRequestClose={() => setShowExitDemoConfirm(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowExitDemoConfirm(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 360, backgroundColor: COLORS.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: COLORS.border }}>
+            <Text style={{ color: COLORS.textLight, fontSize: 17, fontWeight: '700', marginBottom: 10 }}>Exit Demo Mode?</Text>
+            <Text style={{ color: COLORS.muted, fontSize: 13, lineHeight: 20, marginBottom: 22 }}>Your real investigations are safe. The demo data will be removed.</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable
-                onPress={() => setShowExitDemoConfirm(false)}
-                style={({ pressed }) => ({
-                  flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                  backgroundColor: pressed ? COLORS.border : 'transparent',
-                  borderWidth: 1, borderColor: COLORS.border,
-                })}
-              >
-                <Text style={{ color: COLORS.muted, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+              <Pressable onPress={() => setShowExitDemoConfirm(false)} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? COLORS.border : 'transparent', borderWidth: 1, borderColor: COLORS.border })}>
+                <Text style={{ color: COLORS.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
               </Pressable>
-              <Pressable
-                testID="confirm-exit-demo-button"
-                onPress={handleExitDemo}
-                style={({ pressed }) => ({
-                  flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                  backgroundColor: pressed ? '#A3162E' : COLORS.red,
-                })}
-              >
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>Exit Demo</Text>
+              <Pressable testID="confirm-exit-demo-button" onPress={handleExitDemo} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? COLORS.redDark : COLORS.red })}>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Exit Demo</Text>
               </Pressable>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Account Modal */}
-      <Modal
-        visible={showAccountModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAccountModal(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 24,
-          }}
-          onPress={() => setShowAccountModal(false)}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 360,
-              backgroundColor: COLORS.surface,
-              borderRadius: 20,
-              padding: 24,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
-            {/* Avatar */}
+      {/* ── ACCOUNT MODAL ── */}
+      <Modal visible={showAccountModal} transparent animationType="fade" onRequestClose={() => setShowAccountModal(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowAccountModal(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 360, backgroundColor: COLORS.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: COLORS.border }}>
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: 'rgba(196,30,58,0.15)',
-                  borderWidth: 2,
-                  borderColor: 'rgba(196,30,58,0.3)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 12,
-                }}
-              >
-                <User size={28} color={COLORS.red} strokeWidth={1.5} />
-              </View>
-              <Text style={{ color: COLORS.textLight, fontSize: 16, fontWeight: '700' }}>
-                {session?.user?.name || 'Investigator'}
-              </Text>
-              <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
-                {session?.user?.email || ''}
-              </Text>
+              <LinearGradient colors={[COLORS.red, COLORS.redDark]} style={{ width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Text style={{ color: '#FFF', fontSize: 26, fontWeight: '800' }}>{avatarLetter}</Text>
+              </LinearGradient>
+              <Text style={{ color: COLORS.textLight, fontSize: 16, fontWeight: '700' }}>{session?.user?.name || 'Investigator'}</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2, fontFamily: 'CourierPrime_400Regular' }}>{session?.user?.email || ''}</Text>
             </View>
-
-            {/* Plan badge */}
-            <View
-              style={{
-                backgroundColor: tierColor + '15',
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 20,
-                borderWidth: 1,
-                borderColor: tierColor + '33',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-            >
-              <Text style={{ color: tierColor, fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>
-                {tierLabel} PLAN
-              </Text>
-              {tier !== 'free' ? null : (
-                <Pressable
-                  onPress={() => {
-                    setShowAccountModal(false);
-                    router.push('/paywall');
-                  }}
-                >
-                  <Text style={{ color: COLORS.red, fontSize: 12, fontWeight: '600' }}>
-                    Upgrade
-                  </Text>
+            <View style={{ backgroundColor: tierColor + '15', borderRadius: 10, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: tierColor + '33', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Text style={{ color: tierColor, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>{tierLabel} PLAN</Text>
+              {tier === 'free' ? (
+                <Pressable onPress={() => { setShowAccountModal(false); router.push('/paywall'); }}>
+                  <Text style={{ color: COLORS.red, fontSize: 11, fontWeight: '600' }}>Upgrade</Text>
                 </Pressable>
-              )}
+              ) : null}
             </View>
-
-            {/* Sign out */}
             <Pressable
               testID="sign-out-button"
               onPress={handleSignOut}
               disabled={isSigningOut}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                paddingVertical: 14,
-                borderRadius: 12,
-                backgroundColor: pressed ? 'rgba(196,30,58,0.15)' : 'rgba(196,30,58,0.08)',
-                borderWidth: 1,
-                borderColor: 'rgba(196,30,58,0.25)',
-                opacity: isSigningOut ? 0.7 : 1,
-              })}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: pressed ? 'rgba(196,30,58,0.15)' : 'rgba(196,30,58,0.08)', borderWidth: 1, borderColor: 'rgba(196,30,58,0.25)', opacity: isSigningOut ? 0.7 : 1 })}
             >
-              <LogOut size={16} color={COLORS.red} strokeWidth={2} />
-              <Text style={{ color: COLORS.red, fontSize: 15, fontWeight: '700' }}>
-                {isSigningOut ? 'Signing out...' : 'Sign Out'}
-              </Text>
+              <LogOut size={15} color={COLORS.red} strokeWidth={2} />
+              <Text style={{ color: COLORS.red, fontSize: 14, fontWeight: '700' }}>{isSigningOut ? 'Signing out...' : 'Sign Out'}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Create Investigation Modal */}
-      <Modal
-        visible={showCreateModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <Pressable
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: 24,
-            }}
-            onPress={() => setShowCreateModal(false)}
-          >
-            <Pressable
-              onPress={() => {}}
-              style={{
-                width: '100%',
-                maxWidth: 400,
-                backgroundColor: COLORS.surface,
-                borderRadius: 16,
-                padding: 24,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-              }}
-            >
-              <Text
-                className="text-xl font-bold"
-                style={{ color: COLORS.textLight, marginBottom: 4 }}
-              >
-                New Investigation
-              </Text>
-              <Text
-                className="text-sm"
-                style={{ color: COLORS.muted, marginBottom: 20 }}
-              >
-                Start unraveling the truth
-              </Text>
-
-              <Text className="text-xs font-semibold" style={{ color: COLORS.muted, marginBottom: 6, letterSpacing: 1 }}>
-                TITLE
-              </Text>
-              <TextInput
-                testID="investigation-title-input"
-                value={newTitle}
-                onChangeText={setNewTitle}
-                placeholder="e.g., The Roswell Incident"
-                placeholderTextColor={COLORS.muted}
-                autoFocus
-                style={{
-                  backgroundColor: COLORS.background,
-                  borderRadius: 10,
-                  padding: 14,
-                  color: COLORS.textLight,
-                  fontSize: 16,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  marginBottom: 16,
-                }}
-              />
-
-              <Text className="text-xs font-semibold" style={{ color: COLORS.muted, marginBottom: 6, letterSpacing: 1 }}>
-                DESCRIPTION (OPTIONAL)
-              </Text>
-              <TextInput
-                testID="investigation-description-input"
-                value={newDescription}
-                onChangeText={setNewDescription}
-                placeholder="Brief overview of the case..."
-                placeholderTextColor={COLORS.muted}
-                multiline
-                numberOfLines={3}
-                style={{
-                  backgroundColor: COLORS.background,
-                  borderRadius: 10,
-                  padding: 14,
-                  color: COLORS.textLight,
-                  fontSize: 16,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  marginBottom: 24,
-                  minHeight: 80,
-                  textAlignVertical: 'top',
-                }}
-              />
-
+      {/* ── CREATE INVESTIGATION MODAL ── */}
+      <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowCreateModal(false)}>
+            <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 400, backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, borderWidth: 1, borderColor: COLORS.border }}>
+              <Text style={{ color: COLORS.textLight, fontSize: 20, fontWeight: '800', marginBottom: 4 }}>New Investigation</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', marginBottom: 20 }}>Start unraveling the truth</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 10, fontWeight: '600', marginBottom: 5, letterSpacing: 1, fontFamily: 'CourierPrime_700Bold' }}>TITLE</Text>
+              <TextInput testID="investigation-title-input" value={newTitle} onChangeText={setNewTitle} placeholder="e.g., The Roswell Incident" placeholderTextColor={COLORS.muted} autoFocus style={{ backgroundColor: COLORS.background, borderRadius: 10, padding: 13, color: COLORS.textLight, fontSize: 15, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 }} />
+              <Text style={{ color: COLORS.muted, fontSize: 10, fontWeight: '600', marginBottom: 5, letterSpacing: 1, fontFamily: 'CourierPrime_700Bold' }}>DESCRIPTION (OPTIONAL)</Text>
+              <TextInput testID="investigation-description-input" value={newDescription} onChangeText={setNewDescription} placeholder="Brief overview of the case..." placeholderTextColor={COLORS.muted} multiline numberOfLines={3} style={{ backgroundColor: COLORS.background, borderRadius: 10, padding: 13, color: COLORS.textLight, fontSize: 15, borderWidth: 1, borderColor: COLORS.border, marginBottom: 22, minHeight: 76, textAlignVertical: 'top' }} />
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable
-                  testID="cancel-create-button"
-                  onPress={() => {
-                    setNewTitle('');
-                    setNewDescription('');
-                    setShowCreateModal(false);
-                  }}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    backgroundColor: pressed ? COLORS.border : 'transparent',
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                  })}
-                >
-                  <Text className="text-base font-semibold" style={{ color: COLORS.muted }}>
-                    Cancel
-                  </Text>
+                <Pressable testID="cancel-create-button" onPress={() => { setNewTitle(''); setNewDescription(''); setShowCreateModal(false); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? COLORS.border : 'transparent', borderWidth: 1, borderColor: COLORS.border })}>
+                  <Text style={{ color: COLORS.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
-                <Pressable
-                  testID="confirm-create-button"
-                  onPress={handleCreate}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    backgroundColor: newTitle.trim() ? (pressed ? '#A3162E' : COLORS.red) : COLORS.border,
-                  })}
-                >
-                  <Text className="text-base font-bold" style={{ color: newTitle.trim() ? '#FFFFFF' : COLORS.muted }}>
-                    Create
-                  </Text>
+                <Pressable testID="confirm-create-button" onPress={handleCreate} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: newTitle.trim() ? (pressed ? COLORS.redDark : COLORS.red) : COLORS.border })}>
+                  <Text style={{ color: newTitle.trim() ? '#FFF' : COLORS.muted, fontSize: 14, fontWeight: '700' }}>Create</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -1414,188 +1769,53 @@ export default function InvestigationsDashboard() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Limit Reached Modal */}
-      <Modal
-        visible={showLimitModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLimitModal(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 24,
-          }}
-          onPress={() => setShowLimitModal(false)}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 400,
-              backgroundColor: COLORS.surface,
-              borderRadius: 20,
-              padding: 28,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              alignItems: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: 'rgba(196, 30, 58, 0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <Lock size={24} color={COLORS.red} strokeWidth={2} />
+      {/* ── LIMIT MODAL ── */}
+      <Modal visible={showLimitModal} transparent animationType="fade" onRequestClose={() => setShowLimitModal(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowLimitModal(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 400, backgroundColor: COLORS.surface, borderRadius: 20, padding: 28, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}>
+            <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(196,30,58,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 15 }}>
+              <Lock size={22} color={COLORS.red} strokeWidth={2} />
             </View>
-            <Text className="text-xl font-bold" style={{ color: COLORS.textLight, marginBottom: 8, textAlign: 'center' }}>
-              Investigation Limit Reached
+            <Text style={{ color: COLORS.textLight, fontSize: 18, fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>Investigation Limit Reached</Text>
+            <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', lineHeight: 19, marginBottom: 22, textAlign: 'center' }}>
+              {tier === 'free' ? `Free accounts are limited to ${maxInvestigationsCount} investigations. Upgrade to Pro for up to 25, or Plus for unlimited.` : `You've reached the ${maxInvestigationsCount} investigation limit for your plan. Upgrade to Plus for unlimited investigations.`}
             </Text>
-            <Text className="text-sm" style={{ color: COLORS.muted, lineHeight: 20, marginBottom: 24, textAlign: 'center' }}>
-              {tier === 'free'
-                ? `Free accounts are limited to ${maxInvestigationsCount} investigations. Upgrade to Pro for up to 25, or Plus for unlimited.`
-                : `You've reached the ${maxInvestigationsCount} investigation limit for your plan. Upgrade to Plus for unlimited investigations.`}
-            </Text>
-            <Pressable
-              testID="upgrade-from-limit-button"
-              onPress={() => {
-                setShowLimitModal(false);
-                router.push('/paywall');
-              }}
-              style={({ pressed }) => ({
-                width: '100%',
-                paddingVertical: 14,
-                borderRadius: 12,
-                alignItems: 'center',
-                backgroundColor: pressed ? '#A3162E' : COLORS.red,
-                marginBottom: 12,
-                shadowColor: COLORS.red,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 4,
-              })}
-            >
-              <Text className="text-base font-bold" style={{ color: '#FFFFFF' }}>
-                Upgrade Now
-              </Text>
+            <Pressable testID="upgrade-from-limit-button" onPress={() => { setShowLimitModal(false); router.push('/paywall'); }} style={({ pressed }) => ({ width: '100%', paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: pressed ? COLORS.redDark : COLORS.red, marginBottom: 11, shadowColor: COLORS.red, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 })}>
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>Upgrade Now</Text>
             </Pressable>
-            <Pressable
-              testID="dismiss-limit-modal-button"
-              onPress={() => setShowLimitModal(false)}
-              style={({ pressed }) => ({
-                paddingVertical: 10,
-                opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Text style={{ color: COLORS.muted, fontSize: 14 }}>Not now</Text>
+            <Pressable testID="dismiss-limit-modal-button" onPress={() => setShowLimitModal(false)} style={({ pressed }) => ({ paddingVertical: 9, opacity: pressed ? 0.6 : 1 })}>
+              <Text style={{ color: COLORS.muted, fontSize: 13 }}>Not now</Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDeleteModal(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 24,
-          }}
-          onPress={() => setShowDeleteModal(false)}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 400,
-              backgroundColor: COLORS.surface,
-              borderRadius: 16,
-              padding: 24,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-            }}
-          >
+      {/* ── DELETE MODAL ── */}
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowDeleteModal(false)}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 400, backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, borderWidth: 1, borderColor: COLORS.border }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: 'rgba(196, 30, 58, 0.15)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Trash2 size={20} color={COLORS.red} strokeWidth={2} />
+              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(196,30,58,0.13)', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 size={18} color={COLORS.red} strokeWidth={2} />
               </View>
-              <Text className="text-lg font-bold" style={{ color: COLORS.textLight }}>
-                Delete Investigation
-              </Text>
+              <Text style={{ color: COLORS.textLight, fontSize: 17, fontWeight: '800' }}>Delete Investigation</Text>
             </View>
-            <Text className="text-sm" style={{ color: COLORS.muted, lineHeight: 20, marginBottom: 24 }}>
+            <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', lineHeight: 19, marginBottom: 22 }}>
               Are you sure you want to delete "{deleteTargetTitle}"? All nodes and connections will be permanently removed.
             </Text>
-
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable
-                testID="cancel-delete-button"
-                onPress={() => {
-                  setDeleteTargetId(null);
-                  setDeleteTargetTitle('');
-                  setShowDeleteModal(false);
-                }}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  paddingVertical: 14,
-                  borderRadius: 10,
-                  alignItems: 'center',
-                  backgroundColor: pressed ? COLORS.border : 'transparent',
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                })}
-              >
-                <Text className="text-base font-semibold" style={{ color: COLORS.muted }}>
-                  Cancel
-                </Text>
+              <Pressable testID="cancel-delete-button" onPress={() => { setDeleteTargetId(null); setDeleteTargetTitle(''); setShowDeleteModal(false); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? COLORS.border : 'transparent', borderWidth: 1, borderColor: COLORS.border })}>
+                <Text style={{ color: COLORS.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
               </Pressable>
-              <Pressable
-                testID="confirm-delete-button"
-                onPress={handleDelete}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  paddingVertical: 14,
-                  borderRadius: 10,
-                  alignItems: 'center',
-                  backgroundColor: pressed ? '#A3162E' : COLORS.red,
-                })}
-              >
-                <Text className="text-base font-bold" style={{ color: '#FFFFFF' }}>
-                  Delete
-                </Text>
+              <Pressable testID="confirm-delete-button" onPress={handleDelete} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? COLORS.redDark : COLORS.red })}>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Delete</Text>
               </Pressable>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Collab Sheet */}
+      {/* ── COLLAB SHEET ── */}
       <CollabSheet
         investigationId={collabSheetInvestigationId ?? ''}
         session={activeCollabSession}
@@ -1604,20 +1824,17 @@ export default function InvestigationsDashboard() {
         currentUserId={session?.user?.id}
       />
 
-      {/* Tour Overlay */}
+      {/* ── TOUR OVERLAY ── */}
       <TourOverlay />
 
-      {/* Video Onboarding Modal */}
+      {/* ── VIDEO ONBOARDING ── */}
       <VideoOnboardingModal
         visible={showVideoOnboarding}
         onClose={() => { setShowVideoOnboarding(false); completeTour(); }}
       />
 
-      {/* What's New Modal */}
-      <WhatsNewModal
-        visible={showWhatsNew}
-        onClose={() => setShowWhatsNew(false)}
-      />
+      {/* ── WHAT'S NEW ── */}
+      <WhatsNewModal visible={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
     </View>
   );
 }
