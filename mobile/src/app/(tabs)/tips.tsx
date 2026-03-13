@@ -196,8 +196,9 @@ export default function TipsTabScreen() {
   const { data: session } = useSession();
   const userId = session?.user?.id ?? '';
 
-  const [bebasLoaded] = useFonts({ BebasNeue_400Regular });
-  const [courierLoaded] = useFonts({ CourierPrime_400Regular, CourierPrime_700Bold });
+  const [fontsLoaded] = useFonts({ BebasNeue_400Regular, CourierPrime_400Regular, CourierPrime_700Bold });
+  const bebasLoaded = fontsLoaded;
+  const courierLoaded = fontsLoaded;
 
   const { data: tips, isLoading, refetch, isRefetching } = useQuery<Tip[]>({
     queryKey: ['tips'],

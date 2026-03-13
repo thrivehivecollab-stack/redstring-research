@@ -172,8 +172,9 @@ export default function CollabTabScreen() {
   const sessions = useCollabStore((s) => s.sessions);
   const fetchSessions = useCollabStore((s) => s.fetchSessions);
 
-  const [bebasLoaded] = useFonts({ BebasNeue_400Regular });
-  const [courierLoaded] = useFonts({ CourierPrime_400Regular, CourierPrime_700Bold });
+  const [fontsLoaded] = useFonts({ BebasNeue_400Regular, CourierPrime_400Regular, CourierPrime_700Bold });
+  const bebasLoaded = fontsLoaded;
+  const courierLoaded = fontsLoaded;
 
   useEffect(() => {
     fetchSessions();
