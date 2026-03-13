@@ -1146,7 +1146,6 @@ export default function InvestigationsDashboard() {
   const setSessionStart = useTourStore((s) => s.setSessionStart);
   const sessionStartedAt = useTourStore((s) => s.sessionStartedAt);
 
-  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
@@ -1225,17 +1224,6 @@ export default function InvestigationsDashboard() {
   const heroInv = sortedInvestigations[0] ?? null;
   const gridInvestigations = sortedInvestigations.slice(1);
 
-  const handleCreate = useCallback(() => {
-    const trimmedTitle = newTitle.trim();
-    if (!trimmedTitle) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    createInvestigation(trimmedTitle, newDescription.trim() || undefined);
-    setNewTitle('');
-    setNewDescription('');
-    setShowCreateModal(false);
-    router.push('/(tabs)/two');
-  }, [newTitle, newDescription, createInvestigation, router]);
-
   const handleNewInvestigationPress = useCallback(() => {
     const nonDemoCount = investigations.filter((inv) => !inv.isDemo).length;
     if (nonDemoCount >= maxInvestigationsCount) {
@@ -1244,8 +1232,8 @@ export default function InvestigationsDashboard() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowCreateModal(true);
-  }, [investigations, maxInvestigationsCount]);
+    router.push('/new-case');
+  }, [investigations, maxInvestigationsCount, router]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -1739,29 +1727,6 @@ export default function InvestigationsDashboard() {
         </Pressable>
       </Modal>
 
-      {/* ── CREATE INVESTIGATION MODAL ── */}
-      <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowCreateModal(false)}>
-            <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 400, backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, borderWidth: 1, borderColor: COLORS.border }}>
-              <Text style={{ color: COLORS.textLight, fontSize: 20, fontWeight: '800', marginBottom: 4 }}>New Investigation</Text>
-              <Text style={{ color: COLORS.muted, fontSize: 12, fontFamily: 'CourierPrime_400Regular', marginBottom: 20 }}>Start unraveling the truth</Text>
-              <Text style={{ color: COLORS.muted, fontSize: 10, fontWeight: '600', marginBottom: 5, letterSpacing: 1, fontFamily: 'CourierPrime_700Bold' }}>TITLE</Text>
-              <TextInput testID="investigation-title-input" value={newTitle} onChangeText={setNewTitle} placeholder="e.g., The Roswell Incident" placeholderTextColor={COLORS.muted} autoFocus style={{ backgroundColor: COLORS.background, borderRadius: 10, padding: 13, color: COLORS.textLight, fontSize: 15, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 }} />
-              <Text style={{ color: COLORS.muted, fontSize: 10, fontWeight: '600', marginBottom: 5, letterSpacing: 1, fontFamily: 'CourierPrime_700Bold' }}>DESCRIPTION (OPTIONAL)</Text>
-              <TextInput testID="investigation-description-input" value={newDescription} onChangeText={setNewDescription} placeholder="Brief overview of the case..." placeholderTextColor={COLORS.muted} multiline numberOfLines={3} style={{ backgroundColor: COLORS.background, borderRadius: 10, padding: 13, color: COLORS.textLight, fontSize: 15, borderWidth: 1, borderColor: COLORS.border, marginBottom: 22, minHeight: 76, textAlignVertical: 'top' }} />
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable testID="cancel-create-button" onPress={() => { setNewTitle(''); setNewDescription(''); setShowCreateModal(false); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? COLORS.border : 'transparent', borderWidth: 1, borderColor: COLORS.border })}>
-                  <Text style={{ color: COLORS.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
-                </Pressable>
-                <Pressable testID="confirm-create-button" onPress={handleCreate} style={({ pressed }) => ({ flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', backgroundColor: newTitle.trim() ? (pressed ? COLORS.redDark : COLORS.red) : COLORS.border })}>
-                  <Text style={{ color: newTitle.trim() ? '#FFF' : COLORS.muted, fontSize: 14, fontWeight: '700' }}>Create</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* ── LIMIT MODAL ── */}
       <Modal visible={showLimitModal} transparent animationType="fade" onRequestClose={() => setShowLimitModal(false)}>
