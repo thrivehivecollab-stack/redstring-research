@@ -1712,15 +1712,27 @@ export default function AIResearchScreen() {
   );
 
   // ─── Pin ─────────────────────────────────────────────────────────────────
+  const addNode = useInvestigationStore((s) => s.addNode);
   const handlePinMessage = useCallback(
     (id: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const msg = messages.find((m) => m.id === id);
+      if (!msg) return;
+      const alreadyPinned = msg.pinned;
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, pinned: !m.pinned } : m))
       );
-      showToast('Pinned to investigation board');
+      if (!alreadyPinned && activeInvestigationId && msg.role === 'ai') {
+        const title = msg.text.split(' ').slice(0, 8).join(' ') + (msg.text.split(' ').length > 8 ? '…' : '');
+        const colorMap: Record<string, string> = { critical: 'red', lead: 'amber', confirmed: 'green', background: 'blue', suspect: 'red', timeline: 'amber' };
+        const nodeColor = msg.highlight ? (colorMap[msg.highlight.id] ?? 'teal') : 'teal';
+        addNode(activeInvestigationId, 'note', title, { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }, { content: msg.text, color: nodeColor as any, sources: [{ id: Date.now().toString(), sourceType: 'other', sourceName: 'Red String AI', contentType: 'article', contentSummary: title, credibility: 'unverified', addedAt: Date.now() }] });
+        showToast('📌 Added to investigation board');
+      } else if (alreadyPinned) {
+        showToast('Unpinned');
+      }
     },
-    [showToast]
+    [messages, activeInvestigationId, addNode, showToast]
   );
 
   // ─── Highlight long-press ─────────────────────────────────────────────

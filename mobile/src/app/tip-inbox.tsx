@@ -30,6 +30,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  MapPin,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
@@ -37,6 +38,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import type { Tip, TipStatus, TipMessage } from '@/lib/types';
+import useInvestigationStore from '@/lib/state/investigation-store';
 
 const C = {
   bg: '#1A1614',
@@ -463,6 +465,23 @@ function TipDetail({
   const [replyText, setReplyText] = useState<string>('');
   const [messages, setMessages] = useState<TipMessage[]>(tip.messages ?? []);
 
+  const addNode = useInvestigationStore((s) => s.addNode);
+  const investigations = useInvestigationStore((s) => s.investigations);
+  const activeInvestigationId = useInvestigationStore((s) => s.activeInvestigationId);
+
+  const addToBoardMutation = useMutation({
+    mutationFn: () => api.post<{ suggestedNode: any }>(`/api/tips/${tip.id}/merge`, {}),
+    onSuccess: (result) => {
+      if (result?.suggestedNode && activeInvestigationId) {
+        const n = result.suggestedNode;
+        addNode(activeInvestigationId, n.type ?? 'note', n.title, { x: 120 + Math.random() * 200, y: 120 + Math.random() * 200 }, { content: n.content, tags: n.tags ?? [], color: 'amber' });
+      }
+      queryClient.invalidateQueries({ queryKey: ['tips'] });
+      onRefresh();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+  });
+
   const vetMutation = useMutation({
     mutationFn: () => api.post<Tip>(`/api/tips/${tip.id}/vet`, {}),
     onSuccess: () => {
@@ -484,7 +503,7 @@ function TipDetail({
 
   const sendReplyMutation = useMutation({
     mutationFn: (text: string) =>
-      api.post<TipMessage>(`/api/tips/${tip.id}/messages`, { text }),
+      api.post<TipMessage>(`/api/tips/${tip.id}/messages`, { content: text }),
     onSuccess: (msg) => {
       if (msg) {
         setMessages((prev) => [...prev, msg]);
@@ -653,6 +672,34 @@ function TipDetail({
           ) : null}
 
           <Pressable
+            testID="add-to-board-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              addToBoardMutation.mutate();
+            }}
+            disabled={addToBoardMutation.isPending}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? '#A3162E' : '#D4A574',
+              borderRadius: 10,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              opacity: addToBoardMutation.isPending ? 0.7 : 1,
+            })}
+          >
+            {addToBoardMutation.isPending ? (
+              <ActivityIndicator color="#1A1614" size="small" />
+            ) : (
+              <MapPin size={16} color="#1A1614" strokeWidth={2} />
+            )}
+            <Text style={{ color: '#1A1614', fontSize: 14, fontWeight: '700' }}>
+              {addToBoardMutation.isPending ? 'Adding…' : 'Add to Board'}
+            </Text>
+          </Pressable>
+
+          <Pressable
             testID="dismiss-tip-button"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -703,23 +750,23 @@ function TipDetail({
                 key={msg.id}
                 style={{
                   marginBottom: 10,
-                  alignItems: msg.fromInvestigator ? 'flex-end' : 'flex-start',
+                  alignItems: ((msg as any).isFromInvestigator ?? msg.fromInvestigator) ? 'flex-end' : 'flex-start',
                 }}
               >
                 <View
                   style={{
                     maxWidth: '80%',
-                    backgroundColor: msg.fromInvestigator ? C.red : C.surfaceAlt,
+                    backgroundColor: ((msg as any).isFromInvestigator ?? msg.fromInvestigator) ? C.red : C.surfaceAlt,
                     borderRadius: 12,
                     padding: 10,
                     borderWidth: 1,
-                    borderColor: msg.fromInvestigator ? C.red : C.border,
+                    borderColor: ((msg as any).isFromInvestigator ?? msg.fromInvestigator) ? C.red : C.border,
                   }}
                 >
-                  <Text style={{ color: msg.fromInvestigator ? '#FFF' : C.text, fontSize: 13, lineHeight: 18 }}>
-                    {msg.text}
+                  <Text style={{ color: ((msg as any).isFromInvestigator ?? msg.fromInvestigator) ? '#FFF' : C.text, fontSize: 13, lineHeight: 18 }}>
+                    {(msg as any).content ?? msg.text}
                   </Text>
-                  <Text style={{ color: msg.fromInvestigator ? 'rgba(255,255,255,0.6)' : C.muted, fontSize: 10, marginTop: 4 }}>
+                  <Text style={{ color: ((msg as any).isFromInvestigator ?? msg.fromInvestigator) ? 'rgba(255,255,255,0.6)' : C.muted, fontSize: 10, marginTop: 4 }}>
                     {timeAgo(msg.sentAt)}
                   </Text>
                 </View>

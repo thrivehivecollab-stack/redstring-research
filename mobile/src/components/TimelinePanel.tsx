@@ -24,14 +24,14 @@ const C = {
 const CURRENT_YEAR = new Date().getFullYear();
 
 function getYears(start: number, end: number): number[] {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [start || new Date().getFullYear()];
   const years: number[] = [];
-  // For wide ranges show decades, for short ranges show years
   const range = end - start;
   const step = range > 100 ? 10 : range > 30 ? 5 : 1;
   for (let y = start; y <= end; y += step) {
     years.push(y);
   }
-  if (years[years.length - 1] !== end) years.push(end);
+  if (years.length > 0 && years[years.length - 1] !== end) years.push(end);
   return years;
 }
 
@@ -77,14 +77,15 @@ function TimelineRow({
 
   // Auto-derive effective start/end from node timestamps, with padding
   const { effectiveStart, effectiveEnd } = useMemo(() => {
-    if (timedNodes.length === 0) {
-      return { effectiveStart: timeline.startYear, effectiveEnd: timeline.endYear };
+    if (!timedNodes || timedNodes.length === 0) {
+      const s = Number.isFinite(timeline.startYear) ? timeline.startYear : new Date().getFullYear() - 5;
+      const e = Number.isFinite(timeline.endYear) && timeline.endYear > s ? timeline.endYear : s + 10;
+      return { effectiveStart: s, effectiveEnd: e };
     }
-    const years = timedNodes.map((n) => new Date(n.timestamp!).getFullYear());
+    const years = timedNodes.map((n) => new Date(n.timestamp!).getFullYear()).filter(Number.isFinite);
+    if (years.length === 0) return { effectiveStart: new Date().getFullYear() - 5, effectiveEnd: new Date().getFullYear() + 5 };
     const minYear = Math.min(...years);
     const maxYear = Math.max(...years);
-    // 5-year padding on each side, at least a 10-year span
-    const padded = Math.max(10, maxYear - minYear + 10);
     const start = minYear - 5;
     const end = Math.max(maxYear + 5, CURRENT_YEAR);
     return { effectiveStart: start, effectiveEnd: end };

@@ -69,6 +69,7 @@ import ColorLegend from '@/components/ColorLegend';
 import ColorSuggestionSheet from '@/components/ColorSuggestionSheet';
 import TourOverlay from '@/components/TourOverlay';
 import { useAutomationEngine } from '@/components/AutomationEngine';
+import * as burnt from 'burnt';
 
 // ---- Color constants ----
 const C = {
@@ -533,7 +534,11 @@ export default function InvestigationCanvas() {
   const bumpCanvas = useCallback(() => setCanvasVersion((v) => v + 1), []);
 
   // Automation engine — auto-tags and auto-connects nodes on save
-  useAutomationEngine(activeId);
+  useAutomationEngine(activeId, (msg) => {
+    if (typeof burnt !== 'undefined') {
+      burnt.toast({ title: msg, preset: 'done' });
+    }
+  });
 
   // Derive active investigation
   const investigation = useMemo(
