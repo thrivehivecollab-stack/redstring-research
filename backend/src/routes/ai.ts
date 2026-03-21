@@ -70,12 +70,19 @@ aiRouter.post(
 
     try {
       let reply = '';
+      // Only user/assistant turns for the Responses API input (strip system role)
+      const inputMessages = messages.map(
+        (m): { role: 'user' | 'assistant'; content: string } => ({
+          role: m.role,
+          content: m.content,
+        })
+      );
       try {
         const response = await (openai as any).responses.create({
           model: 'gpt-4o',
           tools: [{ type: 'web_search_preview' }],
-          input: openaiMessages.map((m) => ({ role: m.role as any, content: m.content as string })),
-          system: systemContent,
+          instructions: systemContent,
+          input: inputMessages,
         });
         reply = response.output
           .filter((b: any) => b.type === 'message')
@@ -83,17 +90,22 @@ aiRouter.post(
           .filter((c: any) => c.type === 'output_text')
           .map((c: any) => c.text)
           .join('');
-      } catch {
+      } catch (responsesErr) {
+        console.error('Responses API error, falling back to chat completions:', responsesErr);
         const completion = await openai.chat.completions.create({
           model: 'gpt-4o',
           messages: openaiMessages,
         });
         reply = completion.choices[0]?.message?.content ?? '';
       }
+      if (!reply) {
+        return c.json({ error: { message: 'AI returned an empty response. Please try again.' } }, 502);
+      }
       return c.json({ data: { message: reply, role: 'assistant' as const } });
     } catch (err) {
       console.error('AI chat error:', err);
-      return c.json({ error: { message: 'AI request failed' } }, 500);
+      const message = err instanceof Error ? err.message : 'AI request failed';
+      return c.json({ error: { message } }, 500);
     }
   }
 );

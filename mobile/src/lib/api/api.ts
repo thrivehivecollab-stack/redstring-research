@@ -36,11 +36,18 @@ const request = async <T>(
   // 2. JSON responses: parse and unwrap { data }
   const contentType = response.headers.get("content-type");
   if (contentType?.includes("application/json")) {
-    const json: ApiResponse<T> = await response.json();
-    return json.data;
+    const json = await response.json() as any;
+    if (!response.ok) {
+      const message = json?.error?.message ?? `Request failed with status ${response.status}`;
+      throw new Error(message);
+    }
+    return (json as ApiResponse<T>).data;
   }
 
-  // 3. Non-JSON: return undefined
+  // 3. Non-JSON: throw on error status
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
   return undefined as T;
 };
 
