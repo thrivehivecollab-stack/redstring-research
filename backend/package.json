@@ -17,6 +17,7 @@
   "dependencies": {
     "@better-auth/expo": "^1.5.3",
     "@better-auth/prisma-adapter": "^1.5.3",
+    "@google/genai": "^1.46.0",
     "@hono/node-server": "1.12.0",
     "@hono/zod-validator": "^0.7.6",
     "@paralleldrive/cuid2": "^3.3.0",
