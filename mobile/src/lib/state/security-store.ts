@@ -1,103 +1,107 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-// ─── SecureStore adapter for Zustand persist ──────────────────────────────────
+// SecureStore is not available on web
 const secureStorage = {
-  getItem: async (name: string): Promise<string | null> => {
-    try {
-      return await SecureStore.getItemAsync(name);
-    } catch {
-      return null;
-    }
+  getItem: async (key: string) => {
+    if (Platform.OS === 'web') return null;
+    return SecureStore.getItemAsync(key);
   },
-  setItem: async (name: string, value: string): Promise<void> => {
-    try {
-      await SecureStore.setItemAsync(name, value);
-    } catch {
-      // silently fail — security store write errors should not crash app
-    }
+  setItem: async (key: string, value: string) => {
+    if (Platform.OS === 'web') return;
+    return SecureStore.setItemAsync(key, value);
   },
-  removeItem: async (name: string): Promise<void> => {
-    try {
-      await SecureStore.deleteItemAsync(name);
-    } catch {
-      // silently fail
-    }
+  removeItem: async (key: string) => {
+    if (Platform.OS === 'web') return;
+    return SecureStore.deleteItemAsync(key);
   },
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-export type AppLockMethod = 'biometric' | 'pin' | 'both';
-export type HiddenEntryMethod = 'logo_tap' | 'decoy_pin' | 'tap_sequence' | 'shake';
+export type AppLockMethod = 'biometric' | 'pin' | 'none';
+export type HiddenEntryMethod = 'logo_tap' | 'decoy_pin' | 'shake' | 'none';
 
-export interface SecurityState {
+interface SecurityState {
+  // Screenshot / recording protection
   screenshotBlocked: boolean;
   screenRecordBlocked: boolean;
+
+  // App lock
   appLockEnabled: boolean;
   appLockMethod: AppLockMethod;
   appPinHash: string | null;
+  decoyPinHash: string | null;
+
+  // Hidden entry
   hiddenEntryMethod: HiddenEntryMethod;
   hiddenEntryConfigured: boolean;
-  decoyPinHash: string | null;
-  sessionUnlocked: boolean;
-}
 
-interface SecurityStore extends SecurityState {
-  setScreenshotBlocked: (blocked: boolean) => void;
-  setScreenRecordBlocked: (blocked: boolean) => void;
-  setAppLock: (enabled: boolean, method?: AppLockMethod, pinHash?: string | null) => void;
-  setHiddenEntryMethod: (method: HiddenEntryMethod, configured?: boolean, decoyPinHash?: string | null) => void;
+  // Session
+  sessionUnlocked: boolean;
+  logoTapCount: number;
+
+  // Actions
+  setScreenshotBlocked: (val: boolean) => void;
+  setScreenRecordBlocked: (val: boolean) => void;
+  setAppLockEnabled: (val: boolean) => void;
+  setAppLockMethod: (method: AppLockMethod) => void;
+  setAppPinHash: (hash: string | null) => void;
+  setDecoyPinHash: (hash: string | null) => void;
+  setHiddenEntryMethod: (method: HiddenEntryMethod) => void;
+  setHiddenEntryConfigured: (val: boolean) => void;
   unlockSession: () => void;
   lockSession: () => void;
+  incrementLogoTap: () => void;
+  resetLogoTap: () => void;
 }
 
-const DEFAULTS: SecurityState = {
-  screenshotBlocked: true,
-  screenRecordBlocked: true,
-  appLockEnabled: false,
-  appLockMethod: 'biometric',
-  appPinHash: null,
-  hiddenEntryMethod: 'logo_tap',
-  hiddenEntryConfigured: false,
-  decoyPinHash: null,
-  sessionUnlocked: false,
-};
-
-const useSecurityStore = create<SecurityStore>()(
+const useSecurityStore = create<SecurityState>()(
   persist(
-    (set) => ({
-      ...DEFAULTS,
+    (set, get) => ({
+      screenshotBlocked: true,
+      screenRecordBlocked: true,
+      appLockEnabled: false,
+      appLockMethod: 'none',
+      appPinHash: null,
+      decoyPinHash: null,
+      hiddenEntryMethod: 'none',
+      hiddenEntryConfigured: false,
+      sessionUnlocked: true,
+      logoTapCount: 0,
 
-      setScreenshotBlocked: (blocked) => set({ screenshotBlocked: blocked }),
-      setScreenRecordBlocked: (blocked) => set({ screenRecordBlocked: blocked }),
-
-      setAppLock: (enabled, method, pinHash) =>
-        set((s) => ({
-          appLockEnabled: enabled,
-          appLockMethod: method ?? s.appLockMethod,
-          appPinHash: pinHash !== undefined ? pinHash : s.appPinHash,
-        })),
-
-      setHiddenEntryMethod: (method, configured, decoyPinHash) =>
-        set((s) => ({
-          hiddenEntryMethod: method,
-          hiddenEntryConfigured: configured ?? s.hiddenEntryConfigured,
-          decoyPinHash: decoyPinHash !== undefined ? decoyPinHash : s.decoyPinHash,
-        })),
-
+      setScreenshotBlocked: (screenshotBlocked) => set({ screenshotBlocked }),
+      setScreenRecordBlocked: (screenRecordBlocked) => set({ screenRecordBlocked }),
+      setAppLockEnabled: (appLockEnabled) => set({ appLockEnabled }),
+      setAppLockMethod: (appLockMethod) => set({ appLockMethod }),
+      setAppPinHash: (appPinHash) => set({ appPinHash }),
+      setDecoyPinHash: (decoyPinHash) => set({ decoyPinHash }),
+      setHiddenEntryMethod: (hiddenEntryMethod) => set({ hiddenEntryMethod }),
+      setHiddenEntryConfigured: (hiddenEntryConfigured) => set({ hiddenEntryConfigured }),
       unlockSession: () => set({ sessionUnlocked: true }),
-
       lockSession: () => set({ sessionUnlocked: false }),
+      incrementLogoTap: () => {
+        const count = get().logoTapCount + 1;
+        set({ logoTapCount: count });
+        // Reset after 2 seconds
+        setTimeout(() => set({ logoTapCount: 0 }), 2000);
+      },
+      resetLogoTap: () => set({ logoTapCount: 0 }),
     }),
     {
       name: 'security-storage',
       storage: createJSONStorage(() => secureStorage),
-      // sessionUnlocked must never be persisted — it resets on every cold start
-      partialize: (state) => {
-        const { sessionUnlocked: _su, ...rest } = state as SecurityStore;
-        return rest;
-      },
+      // Only persist non-session fields
+      partialize: (state) => ({
+        screenshotBlocked: state.screenshotBlocked,
+        screenRecordBlocked: state.screenRecordBlocked,
+        appLockEnabled: state.appLockEnabled,
+        appLockMethod: state.appLockMethod,
+        appPinHash: state.appPinHash,
+        decoyPinHash: state.decoyPinHash,
+        hiddenEntryMethod: state.hiddenEntryMethod,
+        hiddenEntryConfigured: state.hiddenEntryConfigured,
+      }),
     }
   )
 );

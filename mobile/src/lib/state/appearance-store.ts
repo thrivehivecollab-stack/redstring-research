@@ -1,35 +1,22 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { HeroTitleFont, AccentColorKey } from '@/lib/theme';
+import type { HeroFont, CorkIntensity, AccentColor } from '../theme';
 
-export interface AppearancePrefs {
-  heroFont: HeroTitleFont;
+interface AppearanceState {
+  heroFont: HeroFont;
   themeMode: 'dark' | 'sepia' | 'light';
-  accentColor: AccentColorKey;
-  corkIntensity: 0 | 1 | 2 | 3;
+  accentColor: AccentColor;
+  corkIntensity: CorkIntensity;
   tapeColor: string;
   pushpinColor: string;
   highlighterColor: string;
   fineLinkerColor: string;
-}
 
-const DEFAULTS: AppearancePrefs = {
-  heroFont: 'playfair',
-  themeMode: 'dark',
-  accentColor: 'crimson',
-  corkIntensity: 3,
-  tapeColor: '#D4C5A9',
-  pushpinColor: '#C8934A',
-  highlighterColor: '#F59E0B',
-  fineLinkerColor: '#C41E3A',
-};
-
-interface AppearanceStore extends AppearancePrefs {
-  setHeroFont: (font: HeroTitleFont) => void;
+  setHeroFont: (font: HeroFont) => void;
   setThemeMode: (mode: 'dark' | 'sepia' | 'light') => void;
-  setAccentColor: (color: AccentColorKey) => void;
-  setCorkIntensity: (intensity: 0 | 1 | 2 | 3) => void;
+  setAccentColor: (color: AccentColor) => void;
+  setCorkIntensity: (intensity: CorkIntensity) => void;
   setTapeColor: (color: string) => void;
   setPushpinColor: (color: string) => void;
   setHighlighterColor: (color: string) => void;
@@ -37,19 +24,30 @@ interface AppearanceStore extends AppearancePrefs {
   resetToDefaults: () => void;
 }
 
-const useAppearanceStore = create<AppearanceStore>()(
+const DEFAULTS = {
+  heroFont: 'playfair' as HeroFont,
+  themeMode: 'dark' as const,
+  accentColor: 'crimson' as AccentColor,
+  corkIntensity: 2 as CorkIntensity,
+  tapeColor: '#D4C5A9',
+  pushpinColor: '#C8934A',
+  highlighterColor: '#FFF176',
+  fineLinkerColor: '#C41E3A',
+};
+
+const useAppearanceStore = create<AppearanceState>()(
   persist(
     (set) => ({
       ...DEFAULTS,
 
-      setHeroFont: (font) => set({ heroFont: font }),
-      setThemeMode: (mode) => set({ themeMode: mode }),
-      setAccentColor: (color) => set({ accentColor: color }),
-      setCorkIntensity: (intensity) => set({ corkIntensity: intensity }),
-      setTapeColor: (color) => set({ tapeColor: color }),
-      setPushpinColor: (color) => set({ pushpinColor: color }),
-      setHighlighterColor: (color) => set({ highlighterColor: color }),
-      setFineLinkerColor: (color) => set({ fineLinkerColor: color }),
+      setHeroFont: (heroFont) => set({ heroFont }),
+      setThemeMode: (themeMode) => set({ themeMode }),
+      setAccentColor: (accentColor) => set({ accentColor }),
+      setCorkIntensity: (corkIntensity) => set({ corkIntensity }),
+      setTapeColor: (tapeColor) => set({ tapeColor }),
+      setPushpinColor: (pushpinColor) => set({ pushpinColor }),
+      setHighlighterColor: (highlighterColor) => set({ highlighterColor }),
+      setFineLinkerColor: (fineLinkerColor) => set({ fineLinkerColor }),
       resetToDefaults: () => set({ ...DEFAULTS }),
     }),
     {

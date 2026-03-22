@@ -1,77 +1,45 @@
-// ─── Red String Research — Central Theme System ───────────────────────────────
-
-export const accentColors = {
-  crimson: '#C41E3A',
-  navy: '#1E3A5F',
-  forest: '#1A4731',
-  amber: '#C47A1E',
-  slate: '#3A4A5C',
-} as const;
-
-export type AccentColorKey = keyof typeof accentColors;
-
-// ─── Master color palette (all hardcoded values from index.tsx + two.tsx) ─────
 export const COLORS = {
   // Backgrounds
-  background: '#1A1614',
-  surface: '#231F1C',
-  surface2: '#2D2825',
-  card: '#F5ECD7',
-
-  // Reds
-  red: '#C41E3A',
-  redDark: '#A3162E',
-  redLight: '#E8445A',
-
-  // Pins & gold
-  pin: '#C8934A',
-  pinDark: '#9B6020',
-  pinLegacy: '#D4A574', // original warm tone kept for card accents
-  gold: '#F0C060',
+  bg: '#0F0D0B',
+  bg2: '#141210',
+  surface: '#1A1714',
+  surface2: '#211E1A',
+  surface3: '#2A2520',
 
   // Text
-  textLight: '#E8DCC8',
-  muted: '#6B5B4F',
-  cardText: '#2C1810',
+  text: '#EDE0CC',
+  text2: '#C4B49A',
+  muted: '#6B5D4F',
 
-  // Border
-  border: '#3D332C',
+  // Borders
+  border: '#272320',
+  border2: '#322D28',
 
-  // Tag / accent shades
-  blue: '#3B82F6',
-  green: '#22C55E',
-  amber: '#F59E0B',
-  purple: '#A855F7',
-  teal: '#14B8A6',
-  orange: '#F97316',
-  pink: '#EC4899',
+  // Brand
+  red: '#C41E3A',
+  redDim: 'rgba(196,30,58,0.12)',
+  redGlow: 'rgba(196,30,58,0.25)',
 
-  // Cork texture tones
-  corkLight: '#D4B896',
-  corkMid: '#B8966A',
-  corkDark: '#8C6E40',
+  // Accents
+  pin: '#C8934A',
+  gold: '#D4A832',
+  amber: '#D4962A',
 
-  // Tape variants
-  tapeBeige: '#D4C5A9',
-  tapeRed: '#C41E3A',
-  tapeBlue: '#3B82F6',
-  tapeYellow: '#F59E0B',
-  tapePink: '#EC4899',
-  tapeBlack: '#1A1A1A',
+  // Card (paper/cork)
+  card: '#F2E8D5',
+  cardDark: '#E8D9BE',
+  cardText: '#1C1008',
+  cardMuted: 'rgba(44,24,16,0.5)',
 
-  // Accent map
-  accentColors,
+  // Status
+  green: '#4CAF72',
+  blue: '#4A90D9',
 } as const;
 
-// ─── Fonts ────────────────────────────────────────────────────────────────────
-export const FONTS = {
-  display: 'BebasNeue_400Regular',
-  mono: 'CourierPrime_400Regular',
-  monoBold: 'CourierPrime_700Bold',
-} as const;
-
-// ─── Hero title font system ───────────────────────────────────────────────────
-export type HeroTitleFont =
+export type ThemeMode = 'dark';
+export type AccentColor = 'crimson' | 'navy' | 'forest' | 'amber' | 'slate';
+export type CorkIntensity = 0 | 1 | 2 | 3;
+export type HeroFont =
   | 'playfair'
   | 'abril'
   | 'specialElite'
@@ -80,109 +48,36 @@ export type HeroTitleFont =
   | 'libreBaskerville'
   | 'teko';
 
-export const HERO_FONTS: Record<HeroTitleFont, string> = {
-  playfair: 'PlayfairDisplay_700Bold',
-  abril: 'AbrilFatface_400Regular',
-  specialElite: 'SpecialElite_400Regular',
-  fjalla: 'FjallaOne_400Regular',
-  crimsonPro: 'CrimsonPro_700Bold',
-  libreBaskerville: 'LibreBaskerville_700Bold',
-  teko: 'Teko_600SemiBold',
+export const HERO_FONT_STYLES: Record<HeroFont, object> = {
+  playfair:         { fontWeight: '700' as const },
+  abril:            { fontWeight: '900' as const, fontSize: 24 },
+  specialElite:     { fontFamily: 'Courier New', fontStyle: 'italic' as const },
+  fjalla:           { fontWeight: '800' as const, letterSpacing: 1 },
+  crimsonPro:       { fontWeight: '700' as const, fontStyle: 'italic' as const },
+  libreBaskerville: { fontWeight: '700' as const },
+  teko:             { fontWeight: '900' as const, letterSpacing: 2, textTransform: 'uppercase' as const },
 };
 
-// ─── Appearance prefs (matches appearance-store shape) ───────────────────────
-export interface AppearancePrefs {
-  heroFont: HeroTitleFont;
-  themeMode: 'dark' | 'sepia' | 'light';
-  accentColor: AccentColorKey;
-  corkIntensity: 0 | 1 | 2 | 3;
-  tapeColor: string;
-  pushpinColor: string;
-  highlighterColor: string;
-  fineLinkerColor: string;
-}
-
-// ─── Theme object shape ───────────────────────────────────────────────────────
-export interface Theme {
-  bg: string;
-  surface: string;
-  surface2: string;
-  card: string;
-  text: string;
-  muted: string;
-  border: string;
-  cardText: string;
-  accent: string;
-  pin: string;
-  tape: string;
-  red: string;
-  redDark: string;
-  heroFontFamily: string;
-  corkOpacity: number;
-  colors: typeof COLORS;
-  fonts: typeof FONTS;
-}
-
-const DARK_BASE: Omit<Theme, 'accent' | 'pin' | 'tape' | 'red' | 'redDark' | 'heroFontFamily' | 'corkOpacity' | 'colors' | 'fonts'> = {
-  bg: '#1A1614',
-  surface: '#231F1C',
-  surface2: '#2D2825',
-  card: '#F5ECD7',
-  text: '#E8DCC8',
-  muted: '#6B5B4F',
-  border: '#3D332C',
-  cardText: '#2C1810',
+export const HERO_FONT_LABELS: Record<HeroFont, string> = {
+  playfair:         'Playfair Display',
+  abril:            'Abril Fatface',
+  specialElite:     'Special Elite',
+  fjalla:           'Fjalla One',
+  crimsonPro:       'Crimson Pro',
+  libreBaskerville: 'Libre Baskerville',
+  teko:             'Teko Bold',
 };
 
-const SEPIA_BASE: typeof DARK_BASE = {
-  bg: '#2B2318',
-  surface: '#352B1F',
-  surface2: '#3E3226',
-  card: '#F0E6CC',
-  text: '#D4C8A8',
-  muted: '#7A6A55',
-  border: '#4A3C2C',
-  cardText: '#2C1810',
+// Backward-compat aliases used by existing screens
+export type HeroTitleFont = HeroFont;
+export type AccentColorKey = AccentColor;
+
+export const HERO_FONT_VIBES: Record<HeroFont, string> = {
+  playfair:         'editorial · dramatic',
+  abril:            'bold · commanding',
+  specialElite:     'typewriter · gritty',
+  fjalla:           'condensed · urgent',
+  crimsonPro:       'elegant · case-file',
+  libreBaskerville: 'authoritative · press',
+  teko:             'military · all-caps',
 };
-
-const LIGHT_BASE: typeof DARK_BASE = {
-  bg: '#F5ECD7',
-  surface: '#EDE3CB',
-  surface2: '#E5D9C0',
-  card: '#FFFFFF',
-  text: '#2C1810',
-  muted: '#8C7B6A',
-  border: '#D4C5A9',
-  cardText: '#2C1810',
-};
-
-const CORK_OPACITY_MAP: Record<0 | 1 | 2 | 3, number> = {
-  0: 0,
-  1: 0.08,
-  2: 0.18,
-  3: 0.32,
-};
-
-export function getTheme(prefs: AppearancePrefs): Theme {
-  const base =
-    prefs.themeMode === 'sepia'
-      ? SEPIA_BASE
-      : prefs.themeMode === 'light'
-      ? LIGHT_BASE
-      : DARK_BASE;
-
-  const accent = accentColors[prefs.accentColor] ?? COLORS.red;
-
-  return {
-    ...base,
-    accent,
-    red: accent,
-    redDark: accent + 'CC',
-    pin: prefs.pushpinColor ?? COLORS.pin,
-    tape: prefs.tapeColor ?? COLORS.tapeBeige,
-    heroFontFamily: HERO_FONTS[prefs.heroFont] ?? FONTS.display,
-    corkOpacity: CORK_OPACITY_MAP[prefs.corkIntensity],
-    colors: COLORS,
-    fonts: FONTS,
-  };
-}
