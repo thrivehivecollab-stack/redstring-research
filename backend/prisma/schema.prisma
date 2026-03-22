@@ -112,6 +112,8 @@ model CollabMember {
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([collabSessionId, userId])
+  @@index([collabSessionId])
+  @@index([userId])
 }
 
 // Invite links/codes
@@ -145,6 +147,10 @@ model PendingNode {
   createdAt       DateTime @default(now())
 
   collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
+
+  @@index([collabSessionId])
+  @@index([contributorId])
+  @@index([createdAt])
 }
 
 // Attribution record for approved contributions
@@ -158,6 +164,9 @@ model NodeContribution {
 
   collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
   contributor     User          @relation(fields: [contributorId], references: [id])
+
+  @@index([collabSessionId])
+  @@index([contributorId])
 }
 
 // Full audit trail
@@ -171,6 +180,10 @@ model AuditLog {
 
   collabSession   CollabSession @relation(fields: [collabSessionId], references: [id], onDelete: Cascade)
   user            User          @relation(fields: [userId], references: [id])
+
+  @@index([collabSessionId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -210,6 +223,10 @@ model NodeSource {
   updatedAt       DateTime @updatedAt
 
   owner           User     @relation("NodeSourceOwner", fields: [ownerId], references: [id])
+
+  @@index([investigationId])
+  @@index([ownerId])
+  @@index([nodeId])
 }
 
 // ============================================
@@ -255,6 +272,10 @@ model Tip {
   recipient       User     @relation("TipRecipient", fields: [recipientId], references: [id])
   tipper          User?    @relation("TipSender", fields: [tipperUserId], references: [id])
   messages        TipMessage[]
+
+  @@index([recipientId])
+  @@index([investigationId])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -287,6 +308,9 @@ model DataRequest {
   createdAt     DateTime @default(now())
 
   warRoom       WarRoom  @relation(fields: [warRoomId], references: [id], onDelete: Cascade)
+
+  @@index([warRoomId])
+  @@index([requesterId])
 }
 
 // ============================================
@@ -304,4 +328,7 @@ model TipMessage {
   createdAt          DateTime @default(now())
 
   tip                Tip      @relation(fields: [tipId], references: [id], onDelete: Cascade)
+
+  @@index([tipId])
+  @@index([createdAt])
 }

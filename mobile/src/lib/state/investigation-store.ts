@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker, ChatHistoryMessage } from '@/lib/types';
 import { api } from '@/lib/api/api';
 
 function generateId(): string {
@@ -74,6 +74,12 @@ interface InvestigationStore {
   addSticker: (investigationId: string, nodeId: string, sticker: Omit<NodeSticker, 'id'>) => void;
   removeSticker: (investigationId: string, nodeId: string, stickerId: string) => void;
   toggleInvisibleInk: (investigationId: string, nodeId: string) => void;
+
+  // ─── Chat history ──────────────────────────────────────────────────────────
+  saveChatMessage: (investigationId: string, message: ChatHistoryMessage) => void;
+  updateMessageFeedback: (investigationId: string, messageId: string, feedback: 'up' | 'down' | null) => void;
+  updateChatMessage: (investigationId: string, messageId: string, updates: Partial<ChatHistoryMessage>) => void;
+  clearChatHistory: (investigationId: string) => void;
 }
 
 const useInvestigationStore = create<InvestigationStore>()(
@@ -550,6 +556,55 @@ const useInvestigationStore = create<InvestigationStore>()(
                   updatedAt: now,
                 }
               : inv
+          ),
+        }));
+      },
+
+      // ─── Chat history ──────────────────────────────────────────────────────
+      saveChatMessage: (investigationId, message) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? { ...inv, chatHistory: [...(inv.chatHistory ?? []), message] }
+              : inv
+          ),
+        }));
+      },
+
+      updateMessageFeedback: (investigationId, messageId, feedback) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  chatHistory: (inv.chatHistory ?? []).map((m) =>
+                    m.id === messageId ? { ...m, feedback } : m
+                  ),
+                }
+              : inv
+          ),
+        }));
+      },
+
+      updateChatMessage: (investigationId, messageId, updates) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId
+              ? {
+                  ...inv,
+                  chatHistory: (inv.chatHistory ?? []).map((m) =>
+                    m.id === messageId ? { ...m, ...updates } : m
+                  ),
+                }
+              : inv
+          ),
+        }));
+      },
+
+      clearChatHistory: (investigationId) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === investigationId ? { ...inv, chatHistory: [] } : inv
           ),
         }));
       },

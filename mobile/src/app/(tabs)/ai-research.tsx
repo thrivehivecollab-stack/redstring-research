@@ -31,8 +31,14 @@ import {
   Check,
   ShieldCheck,
   AlertTriangle,
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
+  StopCircle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import Animated, {
   FadeInDown,
@@ -49,6 +55,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { api } from '@/lib/api/api';
 import useInvestigationStore from '@/lib/state/investigation-store';
+import type { ChatHistoryMessage } from '@/lib/types';
 
 // ─── Color constants ────────────────────────────────────────────────────────
 const COLORS = {
@@ -99,6 +106,7 @@ interface Message {
   pinned?: boolean;
   highlight?: HighlightCategory;
   autoTag?: string;
+  feedback?: 'up' | 'down' | null;
 }
 
 interface AIChatResponse {
@@ -570,7 +578,7 @@ function ConfirmNewConvoModal({
               marginBottom: 24,
             }}
           >
-            This will clear the current conversation. Highlights will also be cleared. This cannot
+            This will permanently clear the conversation history for this investigation. This cannot
             be undone.
           </Text>
           <Pressable
@@ -849,6 +857,10 @@ function MessageBubble({
   onLongPress,
   onSpeak,
   isSpeaking,
+  onCopy,
+  onFeedback,
+  onNativeSpeak,
+  isNativeSpeaking,
 }: {
   message: Message;
   index: number;
@@ -856,6 +868,10 @@ function MessageBubble({
   onLongPress: (id: string) => void;
   onSpeak: (text: string) => void;
   isSpeaking: boolean;
+  onCopy: (text: string) => void;
+  onFeedback: (id: string, feedback: 'up' | 'down') => void;
+  onNativeSpeak: (text: string, id: string) => void;
+  isNativeSpeaking: boolean;
 }) {
   const isUser = message.role === 'user';
   const timeStr = message.timestamp.toLocaleTimeString('en-US', {
@@ -1030,17 +1046,18 @@ function MessageBubble({
           </Text>
         ) : null}
 
-        {/* Auto-tag + Pin + Speak row for AI messages */}
+        {/* Action row for AI messages */}
         {!isUser ? (
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 8,
+              gap: 6,
               marginTop: 7,
               flexWrap: 'wrap',
             }}
           >
+            {/* Auto-tag badge */}
             {message.autoTag ? (
               <View
                 style={{
@@ -1061,54 +1078,137 @@ function MessageBubble({
                 </Text>
               </View>
             ) : null}
+
+            {/* Thumbs up */}
+            <Pressable
+              testID={`thumbs-up-${message.id}`}
+              onPress={() => onFeedback(message.id, 'up')}
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                backgroundColor: message.feedback === 'up'
+                  ? 'rgba(34,197,94,0.2)'
+                  : pressed ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.04)',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: message.feedback === 'up' ? 'rgba(34,197,94,0.5)' : 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              })}
+            >
+              <ThumbsUp
+                size={13}
+                color={message.feedback === 'up' ? '#22C55E' : COLORS.muted}
+                strokeWidth={2.5}
+                fill={message.feedback === 'up' ? '#22C55E' : 'none'}
+              />
+            </Pressable>
+
+            {/* Thumbs down */}
+            <Pressable
+              testID={`thumbs-down-${message.id}`}
+              onPress={() => onFeedback(message.id, 'down')}
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                backgroundColor: message.feedback === 'down'
+                  ? 'rgba(196,30,58,0.2)'
+                  : pressed ? 'rgba(196,30,58,0.1)' : 'rgba(255,255,255,0.04)',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: message.feedback === 'down' ? 'rgba(196,30,58,0.5)' : 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              })}
+            >
+              <ThumbsDown
+                size={13}
+                color={message.feedback === 'down' ? COLORS.red : COLORS.muted}
+                strokeWidth={2.5}
+                fill={message.feedback === 'down' ? COLORS.red : 'none'}
+              />
+            </Pressable>
+
+            {/* Copy */}
+            <Pressable
+              testID={`copy-message-${message.id}`}
+              onPress={() => onCopy(message.text)}
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                backgroundColor: pressed ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              })}
+            >
+              <Copy size={13} color={COLORS.muted} strokeWidth={2.5} />
+            </Pressable>
+
+            {/* Speak (native expo-speech) */}
+            <Pressable
+              testID={`native-speak-${message.id}`}
+              onPress={() => onNativeSpeak(message.text, message.id)}
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                backgroundColor: isNativeSpeaking
+                  ? 'rgba(196,30,58,0.18)'
+                  : pressed ? 'rgba(196,30,58,0.1)' : 'rgba(255,255,255,0.04)',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: isNativeSpeaking ? 'rgba(196,30,58,0.5)' : 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              })}
+            >
+              {isNativeSpeaking ? (
+                <StopCircle size={13} color={COLORS.red} strokeWidth={2.5} />
+              ) : (
+                <Volume2 size={13} color={COLORS.muted} strokeWidth={2.5} />
+              )}
+            </Pressable>
+
+            {/* ElevenLabs voice pin button (existing) */}
             <Pressable
               testID={`pin-message-${message.id}`}
               onPress={() => onPin(message.id)}
               style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-                width: 32,
-                height: 32,
+                width: 30,
+                height: 30,
                 backgroundColor: message.pinned
                   ? 'rgba(212,165,116,0.18)'
-                  : pressed
-                  ? 'rgba(212,165,116,0.12)'
-                  : 'rgba(212,165,116,0.07)',
+                  : pressed ? 'rgba(212,165,116,0.12)' : 'rgba(212,165,116,0.07)',
                 borderRadius: 8,
                 borderWidth: 1,
-                borderColor: message.pinned
-                  ? 'rgba(212,165,116,0.5)'
-                  : 'rgba(212,165,116,0.2)',
+                borderColor: message.pinned ? 'rgba(212,165,116,0.5)' : 'rgba(212,165,116,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
               })}
             >
-              <Pin size={14} color={COLORS.pin} strokeWidth={2.5} />
+              <Pin size={13} color={COLORS.pin} strokeWidth={2.5} />
             </Pressable>
-            {/* Speak button per message */}
+
+            {/* ElevenLabs speak button (voice-enabled feature) */}
             <Pressable
               testID={`speak-message-${message.id}`}
               onPress={() => onSpeak(message.text)}
               style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-                width: 32,
-                height: 32,
+                width: 30,
+                height: 30,
                 backgroundColor: isSpeaking
                   ? 'rgba(196,30,58,0.18)'
-                  : pressed
-                  ? 'rgba(196,30,58,0.12)'
-                  : 'rgba(196,30,58,0.06)',
+                  : pressed ? 'rgba(196,30,58,0.1)' : 'rgba(212,165,116,0.06)',
                 borderRadius: 8,
                 borderWidth: 1,
-                borderColor: isSpeaking
-                  ? 'rgba(196,30,58,0.5)'
-                  : 'rgba(196,30,58,0.2)',
+                borderColor: isSpeaking ? 'rgba(196,30,58,0.5)' : 'rgba(212,165,116,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
               })}
             >
-              <Volume2 size={14} color={COLORS.red} strokeWidth={2.5} />
+              <Headphones size={13} color={isSpeaking ? COLORS.red : COLORS.pin} strokeWidth={2.5} />
             </Pressable>
           </View>
         ) : null}
@@ -1204,10 +1304,16 @@ function VerifyModal({
 
 // ─── Main screen ────────────────────────────────────────────────────────────
 export default function AIResearchScreen() {
-  // Investigation context
+  // Investigation context — defined BEFORE all useState calls so WELCOME and
+  // the lazy initialiser for messages can reference activeInvestigation.
   const activeInvestigationId = useInvestigationStore((s) => s.activeInvestigationId);
   const investigations = useInvestigationStore((s) => s.investigations);
   const activeInvestigation = investigations.find((i) => i.id === activeInvestigationId);
+  const saveChatMessage = useInvestigationStore((s) => s.saveChatMessage);
+  const updateMessageFeedback = useInvestigationStore((s) => s.updateMessageFeedback);
+  const updateChatMessage = useInvestigationStore((s) => s.updateChatMessage);
+  const clearChatHistory = useInvestigationStore((s) => s.clearChatHistory);
+  const addNode = useInvestigationStore((s) => s.addNode);
 
   const WELCOME: Message = {
     id: 'welcome',
@@ -1218,7 +1324,21 @@ export default function AIResearchScreen() {
     timestamp: new Date(),
   };
 
-  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const history = activeInvestigation?.chatHistory ?? [];
+    if (history.length === 0) return [WELCOME];
+    return history.map((m): Message => ({
+      id: m.id,
+      role: m.role === 'assistant' ? 'ai' : 'user',
+      text: m.content,
+      timestamp: new Date(m.timestamp),
+      pinned: m.pinned,
+      highlight: m.highlight as HighlightCategory | undefined,
+      autoTag: m.autoTag,
+      feedback: m.feedback,
+    }));
+  });
+
   const [inputText, setInputText] = useState<string>('');
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -1226,6 +1346,9 @@ export default function AIResearchScreen() {
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
+  // Native expo-speech speaking state
+  const [nativeSpeakingId, setNativeSpeakingId] = useState<string | null>(null);
 
   // Voice picker state
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>('pNInz6obpgDQGcFmaJgB');
@@ -1281,6 +1404,27 @@ export default function AIResearchScreen() {
     }
   }, [handsFreeActive]);
   const hfDotStyle = useAnimatedStyle(() => ({ opacity: hfDotOpacity.value }));
+
+  // ─── Reload history when active investigation changes ──────────────────
+  useEffect(() => {
+    const history = activeInvestigation?.chatHistory ?? [];
+    if (history.length === 0) {
+      setMessages([{ ...WELCOME, timestamp: new Date() }]);
+    } else {
+      setMessages(
+        history.map((m): Message => ({
+          id: m.id,
+          role: m.role === 'assistant' ? 'ai' : 'user',
+          text: m.content,
+          timestamp: new Date(m.timestamp),
+          pinned: m.pinned,
+          highlight: m.highlight as HighlightCategory | undefined,
+          autoTag: m.autoTag,
+          feedback: m.feedback,
+        }))
+      );
+    }
+  }, [activeInvestigationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startMicAnimation = useCallback(() => {
     micPulse.value = withRepeat(
@@ -1520,6 +1664,16 @@ export default function AIResearchScreen() {
         timestamp: new Date(),
       };
 
+      // Save user message to investigation store
+      if (activeInvestigationId) {
+        saveChatMessage(activeInvestigationId, {
+          id: userMsg.id,
+          role: 'user',
+          content: userMsg.text,
+          timestamp: userMsg.timestamp.getTime(),
+        });
+      }
+
       // If this looks like a verify/debunk request, also run structured verification
       if (trimmed.toLowerCase().startsWith('verify this claim:') || trimmed.toLowerCase().startsWith('debunk this claim:')) {
         const claimText = trimmed.replace(/^(verify this claim:|debunk this claim:)\s*/i, '');
@@ -1563,6 +1717,16 @@ export default function AIResearchScreen() {
               timestamp: new Date(),
             };
 
+            // Save AI response to investigation store
+            if (activeInvestigationId) {
+              saveChatMessage(activeInvestigationId, {
+                id: aiMsgId,
+                role: 'assistant',
+                content: aiText,
+                timestamp: aiMsg.timestamp.getTime(),
+              });
+            }
+
             setIsThinking(false);
             setMessages((p) => [...p, aiMsg]);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1600,7 +1764,9 @@ export default function AIResearchScreen() {
         return prev;
       });
     },
-    [isThinking, scrollToBottom, buildHistory, buildInvestigationContext, handleVerifyClaim, voiceEnabled, speakTextInternal, startHandsFreeRecording]
+    [isThinking, scrollToBottom, buildHistory, buildInvestigationContext, handleVerifyClaim,
+     voiceEnabled, speakTextInternal, startHandsFreeRecording, activeInvestigationId, saveChatMessage,
+     selectedVoice]
   );
 
   const handleSend = useCallback(() => {
@@ -1718,7 +1884,6 @@ export default function AIResearchScreen() {
   );
 
   // ─── Pin ─────────────────────────────────────────────────────────────────
-  const addNode = useInvestigationStore((s) => s.addNode);
   const handlePinMessage = useCallback(
     (id: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1728,6 +1893,9 @@ export default function AIResearchScreen() {
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, pinned: !m.pinned } : m))
       );
+      if (activeInvestigationId) {
+        updateChatMessage(activeInvestigationId, id, { pinned: !alreadyPinned });
+      }
       if (!alreadyPinned && activeInvestigationId && msg.role === 'ai') {
         const title = msg.text.split(' ').slice(0, 8).join(' ') + (msg.text.split(' ').length > 8 ? '…' : '');
         const colorMap: Record<string, string> = { critical: 'red', lead: 'amber', confirmed: 'green', background: 'blue', suspect: 'red', timeline: 'amber' };
@@ -1738,7 +1906,7 @@ export default function AIResearchScreen() {
         showToast('Unpinned');
       }
     },
-    [messages, activeInvestigationId, addNode, showToast]
+    [messages, activeInvestigationId, addNode, showToast, updateChatMessage]
   );
 
   // ─── Highlight long-press ─────────────────────────────────────────────
@@ -1762,10 +1930,21 @@ export default function AIResearchScreen() {
         })
       );
 
+      if (activeInvestigationId && targetMessageId) {
+        const msg = messages.find((m) => m.id === targetMessageId);
+        if (msg) {
+          updateChatMessage(activeInvestigationId, targetMessageId, {
+            highlight: cat,
+            autoTag: `${msg.text.split(' ').slice(0, 8).join(' ')}... [${cat.name}]`,
+            pinned: true,
+          });
+        }
+      }
+
       showToast(`Highlighted as "${cat.name}" — Pinned to Board`);
       setTargetMessageId(null);
     },
-    [targetMessageId, showToast]
+    [targetMessageId, showToast, activeInvestigationId, messages, updateChatMessage]
   );
 
   // ─── Highlights panel ────────────────────────────────────────────────
@@ -1794,9 +1973,12 @@ export default function AIResearchScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setConfirmNewConvoVisible(false);
     stopCurrentAudio();
+    if (activeInvestigationId) {
+      clearChatHistory(activeInvestigationId);
+    }
     setMessages([{ ...WELCOME, timestamp: new Date() }]);
     showToast('New conversation started');
-  }, [showToast, stopCurrentAudio]);
+  }, [showToast, stopCurrentAudio, activeInvestigationId, clearChatHistory]);
 
   // ─── Handle speak for a specific message ─────────────────────────────
   const handleSpeakMessage = useCallback(
@@ -1886,6 +2068,50 @@ export default function AIResearchScreen() {
     }
   }, [handsFreeActive, isListening, stopMicAnimation, stopCurrentAudio, showToast, startHandsFreeRecording]);
 
+  // ─── Copy message handler ─────────────────────────────────────────────
+  const handleCopyMessage = useCallback(async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    showToast('Copied to clipboard');
+  }, [showToast]);
+
+  // ─── Feedback handler ─────────────────────────────────────────────────
+  const handleFeedback = useCallback(
+    (messageId: string, feedback: 'up' | 'down') => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          const newFeedback = m.feedback === feedback ? null : feedback;
+          if (activeInvestigationId) {
+            updateMessageFeedback(activeInvestigationId, messageId, newFeedback);
+          }
+          return { ...m, feedback: newFeedback };
+        })
+      );
+    },
+    [activeInvestigationId, updateMessageFeedback]
+  );
+
+  // ─── Native expo-speech handler ───────────────────────────────────────
+  const handleNativeSpeak = useCallback(
+    (text: string, messageId: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (nativeSpeakingId === messageId) {
+        Speech.stop();
+        setNativeSpeakingId(null);
+      } else {
+        Speech.stop();
+        setNativeSpeakingId(messageId);
+        Speech.speak(text, {
+          onDone: () => setNativeSpeakingId(null),
+          onError: () => setNativeSpeakingId(null),
+          onStopped: () => setNativeSpeakingId(null),
+        });
+      }
+    },
+    [nativeSpeakingId]
+  );
+
   // ─── Render message ──────────────────────────────────────────────────
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => (
@@ -1896,9 +2122,14 @@ export default function AIResearchScreen() {
         onLongPress={handleLongPress}
         onSpeak={(text) => handleSpeakMessage(text, item.id)}
         isSpeaking={!!(isSpeaking && speakingMessageId === item.id)}
+        onCopy={handleCopyMessage}
+        onFeedback={handleFeedback}
+        onNativeSpeak={handleNativeSpeak}
+        isNativeSpeaking={nativeSpeakingId === item.id}
       />
     ),
-    [handlePinMessage, handleLongPress, handleSpeakMessage, isSpeaking, speakingMessageId]
+    [handlePinMessage, handleLongPress, handleSpeakMessage, isSpeaking, speakingMessageId,
+     handleCopyMessage, handleFeedback, handleNativeSpeak, nativeSpeakingId]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);

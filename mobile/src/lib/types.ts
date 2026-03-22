@@ -111,6 +111,17 @@ export interface ColorLegendEntry {
   label: string;
 }
 
+export interface ChatHistoryMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  feedback?: 'up' | 'down' | null;
+  pinned?: boolean;
+  highlight?: { id: string; color: string; name: string };
+  autoTag?: string;
+}
+
 export interface Investigation {
   id: string;
   title: string;
@@ -130,6 +141,7 @@ export interface Investigation {
   filingTabLabel?: string;
   investigationPin?: string;   // bcrypt hash of invisible-ink PIN for this investigation
   accessLog?: AccessLogEntry[];
+  chatHistory?: ChatHistoryMessage[];
 }
 
 export interface AISuggestion {

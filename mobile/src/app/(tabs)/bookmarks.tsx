@@ -479,6 +479,8 @@ export default function BookmarksScreen() {
         }
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        windowSize={10}
+        removeClippedSubviews={true}
       />
 
       {/* Import from File button (bottom) */}

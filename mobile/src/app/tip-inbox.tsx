@@ -1009,6 +1009,8 @@ export default function TipInboxScreen() {
             keyExtractor={keyExtractor}
             contentContainerStyle={{ paddingTop: 8, paddingBottom: 20 }}
             showsVerticalScrollIndicator={false}
+            windowSize={10}
+            removeClippedSubviews={true}
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching}

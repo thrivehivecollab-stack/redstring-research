@@ -140,7 +140,7 @@ function Pushpin({ color = COLORS.pin }: { color?: string }) {
 }
 
 // ---- Script Card ----
-function ScriptCard({
+const ScriptCard = React.memo(function ScriptCard({
   script,
   onEdit,
   onCopy,
@@ -218,7 +218,7 @@ function ScriptCard({
       </View>
     </View>
   );
-}
+});
 
 // ---- Variable Use Modal ----
 function UseScriptModal({
@@ -256,7 +256,6 @@ function UseScriptModal({
   // Render body with highlighted variables
   const renderHighlighted = () => {
     const parts: React.ReactNode[] = [];
-    let remaining = script.body;
     let idx = 0;
     const varRegex = /\[([A-Z_]+)\]/g;
     let match;
@@ -733,6 +732,8 @@ export default function ScriptsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        windowSize={10}
+        removeClippedSubviews={true}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
             <FileText size={40} color={COLORS.muted} strokeWidth={1.5} />

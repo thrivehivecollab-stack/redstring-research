@@ -27,7 +27,7 @@ const C = {
   border: '#3D332C',
 } as const;
 
-function SessionCard({ session, index }: { session: CollabSession; index: number }) {
+const SessionCard = React.memo(function SessionCard({ session, index }: { session: CollabSession; index: number }) {
   const memberCount = session.members?.length ?? 0;
 
   return (
@@ -126,7 +126,7 @@ function SessionCard({ session, index }: { session: CollabSession; index: number
       </View>
     </Animated.View>
   );
-}
+});
 
 function EmptyState() {
   return (
@@ -173,8 +173,6 @@ export default function CollabTabScreen() {
   const fetchSessions = useCollabStore((s) => s.fetchSessions);
 
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular, CourierPrime_400Regular, CourierPrime_700Bold });
-  const bebasLoaded = fontsLoaded;
-  const courierLoaded = fontsLoaded;
 
   useEffect(() => {
     fetchSessions();
@@ -203,7 +201,7 @@ export default function CollabTabScreen() {
             style={{
               color: C.text,
               fontSize: 34,
-              fontFamily: bebasLoaded ? 'BebasNeue_400Regular' : undefined,
+              fontFamily: fontsLoaded ? 'BebasNeue_400Regular' : undefined,
               letterSpacing: 2,
               lineHeight: 36,
             }}
@@ -214,7 +212,7 @@ export default function CollabTabScreen() {
             style={{
               color: C.muted,
               fontSize: 11,
-              fontFamily: courierLoaded ? 'CourierPrime_400Regular' : undefined,
+              fontFamily: fontsLoaded ? 'CourierPrime_400Regular' : undefined,
               letterSpacing: 1.5,
               textTransform: 'uppercase',
               marginTop: 2,
@@ -236,6 +234,8 @@ export default function CollabTabScreen() {
             flexGrow: 1,
           }}
           showsVerticalScrollIndicator={false}
+          windowSize={10}
+          removeClippedSubviews={true}
           ListEmptyComponent={<EmptyState />}
         />
 
@@ -276,7 +276,7 @@ export default function CollabTabScreen() {
                 color: '#FFF',
                 fontSize: 15,
                 fontWeight: '800',
-                fontFamily: courierLoaded ? 'CourierPrime_700Bold' : undefined,
+                fontFamily: fontsLoaded ? 'CourierPrime_700Bold' : undefined,
                 letterSpacing: 0.5,
               }}
             >

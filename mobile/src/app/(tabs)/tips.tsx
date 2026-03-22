@@ -197,8 +197,6 @@ export default function TipsTabScreen() {
   const userId = session?.user?.id ?? '';
 
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular, CourierPrime_400Regular, CourierPrime_700Bold });
-  const bebasLoaded = fontsLoaded;
-  const courierLoaded = fontsLoaded;
 
   const { data: tips, isLoading, refetch, isRefetching } = useQuery<Tip[]>({
     queryKey: ['tips'],
@@ -263,7 +261,7 @@ export default function TipsTabScreen() {
               style={{
                 color: C.text,
                 fontSize: 34,
-                fontFamily: bebasLoaded ? 'BebasNeue_400Regular' : undefined,
+                fontFamily: fontsLoaded ? 'BebasNeue_400Regular' : undefined,
                 letterSpacing: 2,
                 lineHeight: 36,
               }}
@@ -274,7 +272,7 @@ export default function TipsTabScreen() {
               style={{
                 color: C.muted,
                 fontSize: 11,
-                fontFamily: courierLoaded ? 'CourierPrime_400Regular' : undefined,
+                fontFamily: fontsLoaded ? 'CourierPrime_400Regular' : undefined,
                 letterSpacing: 1.5,
                 textTransform: 'uppercase',
                 marginTop: 2,
@@ -302,7 +300,7 @@ export default function TipsTabScreen() {
                   color: '#FFF',
                   fontSize: 13,
                   fontWeight: '800',
-                  fontFamily: courierLoaded ? 'CourierPrime_700Bold' : undefined,
+                  fontFamily: fontsLoaded ? 'CourierPrime_700Bold' : undefined,
                 }}
               >
                 {unreadCount}
@@ -329,6 +327,8 @@ export default function TipsTabScreen() {
               flexGrow: 1,
             }}
             showsVerticalScrollIndicator={false}
+            windowSize={10}
+            removeClippedSubviews={true}
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching}
@@ -374,7 +374,7 @@ export default function TipsTabScreen() {
                 color: '#FFF',
                 fontSize: 15,
                 fontWeight: '800',
-                fontFamily: courierLoaded ? 'CourierPrime_700Bold' : undefined,
+                fontFamily: fontsLoaded ? 'CourierPrime_700Bold' : undefined,
                 letterSpacing: 0.5,
               }}
             >
