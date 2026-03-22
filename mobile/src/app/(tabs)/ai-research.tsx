@@ -994,24 +994,53 @@ function MessageBubble({
         ) : null}
 
         {/* Bubble body */}
-        <Pressable
-          testID={`message-bubble-${message.id}`}
-          onLongPress={!isUser ? () => onLongPress(message.id) : undefined}
-          delayLongPress={380}
-        >
+        {isUser ? (
+          <Pressable
+            testID={`message-bubble-${message.id}`}
+          >
+            <View
+              style={{
+                backgroundColor: COLORS.red,
+                borderRadius: 18,
+                borderBottomRightRadius: 4,
+                borderBottomLeftRadius: 18,
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+                borderWidth: 0,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                elevation: 3,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#FFF',
+                  fontSize: 15,
+                  lineHeight: 24,
+                  fontWeight: '400',
+                }}
+              >
+                {message.text}
+              </Text>
+            </View>
+          </Pressable>
+        ) : (
           <View
+            testID={`message-bubble-${message.id}`}
             style={{
-              backgroundColor: isUser ? COLORS.red : COLORS.surface,
+              backgroundColor: COLORS.surface,
               borderRadius: 18,
-              borderBottomRightRadius: isUser ? 4 : 18,
-              borderBottomLeftRadius: isUser ? 18 : 4,
-              paddingHorizontal: isUser ? 14 : 16,
-              paddingVertical: isUser ? 14 : 16,
-              borderWidth: message.highlight ? 0 : isUser ? 0 : 1,
+              borderBottomRightRadius: 18,
+              borderBottomLeftRadius: 4,
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              borderWidth: message.highlight ? 0 : 1,
               borderColor: COLORS.border,
-              borderLeftWidth: message.highlight && !isUser ? 4 : isUser ? 0 : 1,
+              borderLeftWidth: message.highlight ? 4 : 1,
               borderLeftColor:
-                message.highlight && !isUser ? message.highlight.color : COLORS.border,
+                message.highlight ? message.highlight.color : COLORS.border,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.15,
@@ -1020,8 +1049,9 @@ function MessageBubble({
             }}
           >
             <Text
+              selectable={true}
               style={{
-                color: isUser ? '#FFF' : COLORS.textLight,
+                color: COLORS.textLight,
                 fontSize: 15,
                 lineHeight: 24,
                 fontWeight: '400',
@@ -1030,7 +1060,7 @@ function MessageBubble({
               {message.text}
             </Text>
           </View>
-        </Pressable>
+        )}
 
         {/* User timestamp */}
         {isUser ? (
