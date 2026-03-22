@@ -45,8 +45,8 @@ aiRouter.post(
       return c.json({ error: { message: 'Request payload too large', code: 'PAYLOAD_TOO_LARGE' } }, 413);
     }
 
-    if (!env.PERPLEXITY_API_KEY) {
-      return c.json({ error: { message: "Perplexity API key is not configured. Add PERPLEXITY_API_KEY in the ENV tab." } }, 500);
+    if (!env.PERPLEXITY_API_KEY && !env.OPENAI_API_KEY) {
+      return c.json({ error: { message: "No AI API key configured. Add PERPLEXITY_API_KEY or OPENAI_API_KEY in the ENV tab." } }, 500);
     }
 
     const systemContent = [
@@ -56,46 +56,59 @@ aiRouter.post(
     ].filter(Boolean).join('\n\n');
 
     try {
-      const perplexityMessages = [
-        { role: "system", content: systemContent },
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
-      ];
+      let finalReply = "";
 
-      const response = await fetch("https://api.perplexity.ai/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${env.PERPLEXITY_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "sonar-pro",
-          messages: perplexityMessages,
-          return_citations: true,
-          search_recency_filter: "year",
-        }),
-      });
+      if (env.PERPLEXITY_API_KEY) {
+        const perplexityMessages = [
+          { role: "system", content: systemContent },
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ];
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("Perplexity API error:", errText);
-        return c.json({ error: { message: `Perplexity API error: ${response.status}` } }, 502);
+        const response = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${env.PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "sonar-pro",
+            messages: perplexityMessages,
+            return_citations: true,
+            search_recency_filter: "year",
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error("Perplexity API error:", errText);
+          return c.json({ error: { message: `Perplexity API error: ${response.status}` } }, 502);
+        }
+
+        const result = await response.json() as {
+          choices: Array<{ message: { content: string } }>;
+          citations?: string[];
+        };
+
+        finalReply = result.choices[0]?.message?.content ?? "";
+
+        if (result.citations && result.citations.length > 0) {
+          finalReply += "\n\n**Sources:**\n" + result.citations.map((url, i) => `${i + 1}. ${url}`).join("\n");
+        }
+      } else {
+        // Fallback to OpenAI gpt-4o-mini
+        const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemContent },
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+          ],
+        });
+        finalReply = completion.choices[0]?.message?.content ?? "";
       }
 
-      const result = await response.json() as {
-        choices: Array<{ message: { content: string } }>;
-        citations?: string[];
-      };
-
-      const reply = result.choices[0]?.message?.content ?? "";
-
-      if (!reply) {
+      if (!finalReply) {
         return c.json({ error: { message: 'AI returned an empty response. Please try again.' } }, 502);
-      }
-
-      // Append citations to the reply so user can see sources
-      let finalReply = reply;
-      if (result.citations && result.citations.length > 0) {
-        finalReply += "\n\n**Sources:**\n" + result.citations.map((url, i) => `${i + 1}. ${url}`).join("\n");
       }
 
       return c.json({ data: { message: finalReply, role: 'assistant' as const } });
