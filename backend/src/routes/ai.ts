@@ -98,12 +98,12 @@ aiRouter.post(
         // Fallback to OpenAI gpt-4o-mini
         const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gpt-4o-search-preview",
           messages: [
             { role: "system", content: systemContent },
             ...messages.map((m) => ({ role: m.role, content: m.content })),
           ],
-        });
+        } as Parameters<typeof openai.chat.completions.create>[0]) as Awaited<ReturnType<typeof openai.chat.completions.create>> & { choices: Array<{ message: { content: string } }> };
         finalReply = completion.choices[0]?.message?.content ?? "";
       }
 
