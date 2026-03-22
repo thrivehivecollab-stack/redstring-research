@@ -266,19 +266,23 @@ function InvestigationCard({
     }
   }, [onDelete]);
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
-    .failOffsetY([-15, 15])
-    .onUpdate((e) => {
-      if (e.translationX < 0) translateX.value = e.translationX;
-    })
-    .onEnd((e) => {
-      if (e.translationX < -SWIPE_THRESHOLD) {
-        translateX.value = withTiming(-500, { duration: 250 }, () => runOnJS(triggerDelete)());
-      } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
-      }
-    });
+  const panGesture = React.useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-10, 10])
+        .failOffsetY([-15, 15])
+        .onUpdate((e) => {
+          if (e.translationX < 0) translateX.value = e.translationX;
+        })
+        .onEnd((e) => {
+          if (e.translationX < -SWIPE_THRESHOLD) {
+            translateX.value = withTiming(-500, { duration: 250 }, () => runOnJS(triggerDelete)());
+          } else {
+            translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+          }
+        }),
+    [translateX, triggerDelete]
+  );
 
   const cardAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],

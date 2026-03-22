@@ -4,10 +4,6 @@ import Svg, {
   Path,
   Circle as SvgCircle,
   Text as SvgText,
-  Defs,
-  Filter,
-  FeGaussianBlur,
-  FeComposite,
 } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -309,13 +305,7 @@ export default function MindMapCanvas({
             style={{ position: 'absolute', left: 0, top: 0, width: screenW * 4, height: screenH * 4 }}
             pointerEvents="none"
           >
-            <Defs>
-              <Filter id="glow">
-                <FeGaussianBlur stdDeviation="3" result="blur" />
-                <FeComposite in="SourceGraphic" in2="blur" operator="over" />
-              </Filter>
-            </Defs>
-            {strings.map((s) => {
+{strings.map((s) => {
               const fromL = layoutMap[s.fromNodeId];
               const toL = layoutMap[s.toNodeId];
               if (!fromL || !toL) return null;
