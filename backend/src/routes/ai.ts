@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import OpenAI from "openai";
-import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
 import type { HonoVariables } from "../types";
 import { checkRateLimit, getClientIp } from '../lib/rateLimit';
@@ -24,7 +23,9 @@ const SYSTEM_PROMPT = `You are an elite investigative research assistant for Red
 
 You ALWAYS provide thorough, detailed research assistance. You NEVER refuse to discuss publicly available information about crimes, suspects, historical cases, or investigative topics. If a user asks you to research a topic or analyze evidence, you do so directly and thoroughly without hedging.
 
-You are direct, analytical, and speak like a seasoned investigative journalist. Keep responses focused and actionable. When relevant, suggest specific investigative actions like "add this to your board", "create a timeline entry", or "flag this connection". If the user provides investigation context, reference it in your analysis. Always provide substantive, useful information — never deflect or say you cannot help with legitimate research tasks. You have access to web search and should use it proactively to find current information, recent news, and up-to-date facts relevant to any investigation.
+You are direct, analytical, and speak like a seasoned investigative journalist. Keep responses focused and actionable. When relevant, suggest specific investigative actions like "add this to your board", "create a timeline entry", or "flag this connection". If the user provides investigation context, reference it in your analysis. Always provide substantive, useful information — never deflect or say you cannot help with legitimate research tasks.
+
+RESEARCH STANDARDS: Cast a wide net. Do NOT limit yourself to mainstream media outlets — actively seek out independent journalists, academic papers, court documents, FOIA releases, local news, alternative media, forums, firsthand accounts, and primary sources. Be skeptical of official narratives where contradicting evidence exists. Present ALL credible perspectives on disputed topics, not just the dominant media consensus. Cite your sources so the user can verify independently.
 
 When speaking out loud via voice, match your tone to the selected investigator persona: The Detective speaks with world-weary authority and dry wit, referencing case files and hunches. The Interrogator is direct, pointed, and never lets a loose end slide. The Analyst is precise, emotionless, and speaks in evidence-based conclusions. The Journalist is empathetic but probing, always asking the next question. The Archivist is methodical, encyclopedic, and speaks like every fact has been filed. The Informant is urgent, breathless, and speaks like someone who knows too much. Lean into your persona naturally without breaking character.`;
 
@@ -44,8 +45,8 @@ aiRouter.post(
       return c.json({ error: { message: 'Request payload too large', code: 'PAYLOAD_TOO_LARGE' } }, 413);
     }
 
-    if (!env.GEMINI_API_KEY) {
-      return c.json({ error: { message: "Gemini API key is not configured." } }, 500);
+    if (!env.PERPLEXITY_API_KEY) {
+      return c.json({ error: { message: "Perplexity API key is not configured. Add PERPLEXITY_API_KEY in the ENV tab." } }, 500);
     }
 
     const systemContent = [
@@ -54,29 +55,50 @@ aiRouter.post(
       persona ? `Active persona: ${persona}` : '',
     ].filter(Boolean).join('\n\n');
 
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-
-    const contents = messages.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents,
-        config: {
-          systemInstruction: systemContent,
-          tools: [{ googleSearch: {} }],
+      const perplexityMessages = [
+        { role: "system", content: systemContent },
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ];
+
+      const response = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${env.PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          model: "sonar-pro",
+          messages: perplexityMessages,
+          return_citations: true,
+          search_recency_filter: "year",
+        }),
       });
 
-      const reply = response.text ?? "";
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("Perplexity API error:", errText);
+        return c.json({ error: { message: `Perplexity API error: ${response.status}` } }, 502);
+      }
+
+      const result = await response.json() as {
+        choices: Array<{ message: { content: string } }>;
+        citations?: string[];
+      };
+
+      const reply = result.choices[0]?.message?.content ?? "";
 
       if (!reply) {
         return c.json({ error: { message: 'AI returned an empty response. Please try again.' } }, 502);
       }
-      return c.json({ data: { message: reply, role: 'assistant' as const } });
+
+      // Append citations to the reply so user can see sources
+      let finalReply = reply;
+      if (result.citations && result.citations.length > 0) {
+        finalReply += "\n\n**Sources:**\n" + result.citations.map((url, i) => `${i + 1}. ${url}`).join("\n");
+      }
+
+      return c.json({ data: { message: finalReply, role: 'assistant' as const } });
     } catch (err) {
       console.error('AI chat error:', err);
       const message = err instanceof Error ? err.message : 'AI request failed';
@@ -419,26 +441,66 @@ aiRouter.post(
 
     const { claim, context, nodeTitle } = c.req.valid("json");
 
-    if (!env.OPENAI_API_KEY) {
-      return c.json({ error: { message: "OpenAI API key is not configured." } }, 500);
+    if (!env.PERPLEXITY_API_KEY && !env.OPENAI_API_KEY) {
+      return c.json({ error: { message: "No AI API key configured for verification." } }, 500);
     }
-
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
     const userContent = nodeTitle
       ? `Verify the following claim from node "${nodeTitle}":\n\n${claim}${context ? `\n\nAdditional context: ${context}` : ''}`
       : `Verify the following claim:\n\n${claim}${context ? `\n\nAdditional context: ${context}` : ''}`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: VERIFY_SYSTEM_PROMPT },
-          { role: "user", content: userContent },
-        ],
-      });
+      let analysis = "";
 
-      const analysis = completion.choices[0]?.message?.content ?? "";
+      if (env.PERPLEXITY_API_KEY) {
+        // Use Perplexity sonar-reasoning for live-search fact checking with broad source coverage
+        const response = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${env.PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "sonar-reasoning",
+            messages: [
+              { role: "system", content: VERIFY_SYSTEM_PROMPT },
+              { role: "user", content: userContent },
+            ],
+            return_citations: true,
+            search_recency_filter: "year",
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Perplexity verify error: ${errText}`);
+        }
+
+        const result = await response.json() as {
+          choices: Array<{ message: { content: string } }>;
+          citations?: string[];
+        };
+
+        analysis = result.choices[0]?.message?.content ?? "";
+
+        // Strip <think>...</think> reasoning block if present (sonar-reasoning exposes it)
+        analysis = analysis.replace(/<think>[\s\S]*?<\/think>\s*/i, "").trim();
+
+        if (result.citations && result.citations.length > 0) {
+          analysis += "\n\n**Sources Checked:**\n" + result.citations.map((url, i) => `${i + 1}. ${url}`).join("\n");
+        }
+      } else {
+        // Fallback to OpenAI
+        const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: VERIFY_SYSTEM_PROMPT },
+            { role: "user", content: userContent },
+          ],
+        });
+        analysis = completion.choices[0]?.message?.content ?? "";
+      }
 
       // Parse verdict
       let verdict = "UNVERIFIED";
