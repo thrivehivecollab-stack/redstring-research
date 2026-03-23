@@ -28,6 +28,7 @@ import Animated, {
 import useInvestigationStore, { seedMockInvestigations } from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import useCollabStore from '@/lib/state/collab-store';
+import useSecurityStore from '@/lib/state/security-store';
 import useTourStore from '@/lib/state/tour-store';
 import { useSession } from '@/lib/auth/use-session';
 import { useInvalidateSession } from '@/lib/auth/use-session';
@@ -346,6 +347,8 @@ export default function InvestigationsDashboard() {
 
   const sessions = useCollabStore((s) => s.sessions);
 
+  const isDecoyMode = useSecurityStore((s) => s.isDecoyMode);
+
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();
 
@@ -427,8 +430,10 @@ export default function InvestigationsDashboard() {
   }, []);
 
   const sortedInvestigations = useMemo(
-    () => [...investigations].filter((inv) => !inv.isDemo).sort((a, b) => b.updatedAt - a.updatedAt),
-    [investigations]
+    () => isDecoyMode
+      ? []
+      : [...investigations].filter((inv) => !inv.isDemo).sort((a, b) => b.updatedAt - a.updatedAt),
+    [investigations, isDecoyMode]
   );
 
   const collabSessionMap = useMemo(() => {
@@ -830,6 +835,7 @@ export default function InvestigationsDashboard() {
 
                     {[
                       { emoji: '👤', label: 'Account', sub: session?.user?.name ?? 'Signed in', onPress: () => { closeMenu(); setShowAccountModal(true); } },
+                      { emoji: '🔒', label: 'Security', sub: 'Locks, PIN & screenshot', onPress: () => { closeMenu(); router.push('/security' as any); } },
                       { emoji: '🔔', label: 'Notifications', sub: '', onPress: () => {} },
                       { emoji: '⭐', label: 'Subscription', sub: tierLabel, onPress: () => { closeMenu(); router.push('/paywall'); } },
                       { emoji: '❓', label: 'Help & Tour', sub: 'Guides and walkthrough', onPress: () => { closeMenu(); setShowHelpMenu(true); } },

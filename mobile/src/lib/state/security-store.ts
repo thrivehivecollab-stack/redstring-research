@@ -19,7 +19,7 @@ const secureStorage = {
   },
 };
 
-export type AppLockMethod = 'biometric' | 'pin' | 'none';
+export type AppLockMethod = 'biometric' | 'pin' | 'biometric_pin' | 'none';
 export type HiddenEntryMethod = 'logo_tap' | 'decoy_pin' | 'shake' | 'none';
 
 interface SecurityState {
@@ -32,14 +32,18 @@ interface SecurityState {
   appLockMethod: AppLockMethod;
   appPinHash: string | null;
   decoyPinHash: string | null;
+  biometricEnabled: boolean;
+  pinEnabled: boolean;
 
   // Hidden entry
   hiddenEntryMethod: HiddenEntryMethod;
   hiddenEntryConfigured: boolean;
 
-  // Session
+  // Session (ephemeral — not persisted)
   sessionUnlocked: boolean;
   logoTapCount: number;
+  isDecoyMode: boolean;
+  lastBackgroundTime: number | null;
 
   // Actions
   setScreenshotBlocked: (val: boolean) => void;
@@ -48,27 +52,35 @@ interface SecurityState {
   setAppLockMethod: (method: AppLockMethod) => void;
   setAppPinHash: (hash: string | null) => void;
   setDecoyPinHash: (hash: string | null) => void;
+  setBiometricEnabled: (val: boolean) => void;
+  setPinEnabled: (val: boolean) => void;
   setHiddenEntryMethod: (method: HiddenEntryMethod) => void;
   setHiddenEntryConfigured: (val: boolean) => void;
   unlockSession: () => void;
   lockSession: () => void;
   incrementLogoTap: () => void;
   resetLogoTap: () => void;
+  setIsDecoyMode: (val: boolean) => void;
+  setLastBackgroundTime: (time: number | null) => void;
 }
 
 const useSecurityStore = create<SecurityState>()(
   persist(
     (set, get) => ({
-      screenshotBlocked: true,
-      screenRecordBlocked: true,
+      screenshotBlocked: false,
+      screenRecordBlocked: false,
       appLockEnabled: false,
       appLockMethod: 'none',
       appPinHash: null,
       decoyPinHash: null,
+      biometricEnabled: false,
+      pinEnabled: false,
       hiddenEntryMethod: 'none',
       hiddenEntryConfigured: false,
       sessionUnlocked: true,
       logoTapCount: 0,
+      isDecoyMode: false,
+      lastBackgroundTime: null,
 
       setScreenshotBlocked: (screenshotBlocked) => set({ screenshotBlocked }),
       setScreenRecordBlocked: (screenRecordBlocked) => set({ screenRecordBlocked }),
@@ -76,6 +88,8 @@ const useSecurityStore = create<SecurityState>()(
       setAppLockMethod: (appLockMethod) => set({ appLockMethod }),
       setAppPinHash: (appPinHash) => set({ appPinHash }),
       setDecoyPinHash: (decoyPinHash) => set({ decoyPinHash }),
+      setBiometricEnabled: (biometricEnabled) => set({ biometricEnabled }),
+      setPinEnabled: (pinEnabled) => set({ pinEnabled }),
       setHiddenEntryMethod: (hiddenEntryMethod) => set({ hiddenEntryMethod }),
       setHiddenEntryConfigured: (hiddenEntryConfigured) => set({ hiddenEntryConfigured }),
       unlockSession: () => set({ sessionUnlocked: true }),
@@ -87,11 +101,13 @@ const useSecurityStore = create<SecurityState>()(
         setTimeout(() => set({ logoTapCount: 0 }), 2000);
       },
       resetLogoTap: () => set({ logoTapCount: 0 }),
+      setIsDecoyMode: (isDecoyMode) => set({ isDecoyMode }),
+      setLastBackgroundTime: (lastBackgroundTime) => set({ lastBackgroundTime }),
     }),
     {
       name: 'security-storage',
       storage: createJSONStorage(() => secureStorage),
-      // Only persist non-session fields
+      // Only persist settings, not ephemeral session state
       partialize: (state) => ({
         screenshotBlocked: state.screenshotBlocked,
         screenRecordBlocked: state.screenRecordBlocked,
@@ -99,6 +115,8 @@ const useSecurityStore = create<SecurityState>()(
         appLockMethod: state.appLockMethod,
         appPinHash: state.appPinHash,
         decoyPinHash: state.decoyPinHash,
+        biometricEnabled: state.biometricEnabled,
+        pinEnabled: state.pinEnabled,
         hiddenEntryMethod: state.hiddenEntryMethod,
         hiddenEntryConfigured: state.hiddenEntryConfigured,
       }),

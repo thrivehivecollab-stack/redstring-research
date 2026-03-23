@@ -5,9 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import { useSession } from '@/lib/auth/use-session';
+import useSecurityStore from '@/lib/state/security-store';
+import AppLockOverlay from '@/components/AppLockOverlay';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -30,9 +33,21 @@ const CorkboardTheme = {
   },
 };
 
+const BACKGROUND_LOCK_MS = 2 * 60 * 1000; // 2 minutes
+
 function RootLayoutNav() {
   const checkSubscription = useSubscriptionStore((s) => s.checkSubscription);
   const { data: session, isLoading } = useSession();
+
+  const appLockEnabled = useSecurityStore((s) => s.appLockEnabled);
+  const sessionUnlocked = useSecurityStore((s) => s.sessionUnlocked);
+  const lockSession = useSecurityStore((s) => s.lockSession);
+  const setLastBackgroundTime = useSecurityStore((s) => s.setLastBackgroundTime);
+
+  // Use a ref so the AppState handler always reads fresh values
+  const lockRef = useRef({ appLockEnabled, lockSession, setLastBackgroundTime });
+  lockRef.current = { appLockEnabled, lockSession, setLastBackgroundTime };
+  const backgroundTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     checkSubscription();
@@ -44,7 +59,35 @@ function RootLayoutNav() {
     }
   }, [isLoading]);
 
-  // Keep splash screen visible while loading session
+  // Lock on launch if app lock is enabled
+  useEffect(() => {
+    if (appLockEnabled) {
+      lockSession();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
+
+  // Background → foreground: lock after 2 min away
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      const { appLockEnabled: enabled, lockSession: lock } = lockRef.current;
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundTimeRef.current = Date.now();
+      } else if (nextState === 'active') {
+        if (enabled && backgroundTimeRef.current !== null) {
+          const elapsed = Date.now() - backgroundTimeRef.current;
+          if (elapsed >= BACKGROUND_LOCK_MS) {
+            lock();
+          }
+        }
+        backgroundTimeRef.current = null;
+      }
+    };
+
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+    return () => sub.remove();
+  }, []);
+
   if (isLoading) {
     return null;
   }
@@ -60,6 +103,8 @@ function RootLayoutNav() {
           <Stack.Screen name="tip-inbox" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="sources-panel" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="appearance" options={{ headerShown: false }} />
+          <Stack.Screen name="security" options={{ headerShown: false }} />
+          <Stack.Screen name="pin-setup" options={{ headerShown: false }} />
           <Stack.Screen name="live-broadcast" options={{ headerShown: false, presentation: 'modal' }} />
           <Stack.Screen name="live-streams" options={{ headerShown: false, presentation: 'modal' }} />
           <Stack.Screen name="new-case" options={{ headerShown: false }} />
@@ -73,6 +118,9 @@ function RootLayoutNav() {
         <Stack.Screen name="collab-session" options={{ headerShown: false }} />
         <Stack.Screen name="war-room" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack>
+
+      {/* App lock overlay — rendered over everything when session is locked */}
+      {appLockEnabled && !sessionUnlocked ? <AppLockOverlay /> : null}
     </ThemeProvider>
   );
 }

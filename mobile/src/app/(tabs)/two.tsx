@@ -11,7 +11,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import * as ScreenCapture from 'expo-screen-capture';
+import useSecurityStore from '@/lib/state/security-store';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -509,6 +511,19 @@ function TrashZone({
 export default function InvestigationCanvas() {
   const router = useRouter();
   const { width: screenW, height: screenH } = useWindowDimensions();
+
+  // Screenshot blocking — activate when this screen is focused
+  const screenshotBlocked = useSecurityStore((s) => s.screenshotBlocked);
+  useFocusEffect(
+    useCallback(() => {
+      if (screenshotBlocked) {
+        ScreenCapture.preventScreenCaptureAsync('canvas');
+      }
+      return () => {
+        ScreenCapture.allowScreenCaptureAsync('canvas');
+      };
+    }, [screenshotBlocked])
+  );
   const insets = useSafeAreaInsets();
 
   const canvasViewRef = React.useRef<View>(null);
