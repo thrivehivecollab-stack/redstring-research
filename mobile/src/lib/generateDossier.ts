@@ -1,0 +1,60 @@
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import type { Investigation } from './types';
+
+export async function generateDossier(investigation: Investigation): Promise<void> {
+  const date = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+  const nodes = investigation.nodes;
+  const strings = investigation.strings ?? [];
+  const suspects = nodes.filter(n=>n.color==='red');
+  const orgs = nodes.filter(n=>n.color==='purple');
+  const evidence = nodes.filter(n=>n.color==='green');
+  const sources = nodes.filter(n=>n.color==='blue');
+  const timeline = nodes.filter(n=>n.timestamp).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+  const other = nodes.filter(n=>!n.color);
+
+  const section = (title: string, items: typeof nodes) => items.length ? `
+    <h2>${title}</h2>
+    ${items.map(n=>`<div class="node"><div class="ntitle">${n.title}</div>${n.content?`<div class="ncontent">${n.content}</div>`:''}</div>`).join('')}` : '';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+    body{font-family:'Courier New',monospace;color:#1C1008;padding:48px;line-height:1.6}
+    .cover{text-align:center;padding:48px 0;border-bottom:3px solid #C41E3A;margin-bottom:40px}
+    .stamp{font-size:10px;letter-spacing:4px;color:#C41E3A;text-transform:uppercase;margin-bottom:16px}
+    h1{font-size:28px;font-weight:900;margin:0 0 8px}
+    .desc{font-size:12px;color:#6B5D4F;max-width:480px;margin:12px auto 0}
+    .meta{font-size:11px;color:#999;margin-top:16px}
+    h2{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#C41E3A;border-bottom:1px solid #C41E3A;padding-bottom:5px;margin-top:32px}
+    .node{padding:10px 0;border-bottom:1px solid #f0e8d5}
+    .ntitle{font-weight:700;font-size:12px}
+    .ncontent{font-size:11px;color:#6B5D4F;margin-top:3px}
+    .conn{font-size:11px;padding:5px 0;border-bottom:1px solid #f5f5f5;color:#444}
+    .footer{margin-top:48px;padding-top:16px;border-top:1px solid #ddd;font-size:9px;color:#999;text-align:center}
+  </style></head><body>
+    <div class="cover">
+      <div class="stamp">&#9632; Intelligence Report &#9632;</div>
+      <h1>${investigation.title}</h1>
+      ${investigation.description?`<div class="desc">${investigation.description}</div>`:''}
+      <div class="meta">Generated ${date} &middot; ${nodes.length} nodes &middot; ${strings.length} connections</div>
+    </div>
+    ${section('Key Subjects',suspects)}
+    ${section('Organizations',orgs)}
+    ${section('Evidence',evidence)}
+    ${section('Sources',sources)}
+    ${section('Timeline',timeline)}
+    ${section('Other Nodes',other)}
+    <h2>Connections</h2>
+    ${strings.map(s=>{
+      const f=nodes.find(n=>n.id===s.fromNodeId);
+      const t=nodes.find(n=>n.id===s.toNodeId);
+      return `<div class="conn">${f?.title||'?'} &rarr; ${t?.title||'?'}${s.label?` &middot; <em>${s.label}</em>`:''}</div>`;
+    }).join('')}
+    <div class="footer">Red String Research &middot; Independent Investigation &middot; ${date}</div>
+  </body></html>`;
+
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  await Sharing.shareAsync(uri, {
+    mimeType: 'application/pdf',
+    dialogTitle: `${investigation.title} — Intelligence Report`,
+  });
+}

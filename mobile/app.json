@@ -8,7 +8,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Red String uses your camera to add photo evidence to investigations.",
+        "NSPhotoLibraryUsageDescription": "Red String accesses your photo library to add image evidence to investigations.",
+        "NSMicrophoneUsageDescription": "Red String uses your microphone for voice input and live broadcasts.",
+        "NSFaceIDUsageDescription": "Red String uses Face ID to protect your private investigations."
+      }
     },
     "android": {
       "edgeToEdgeEnabled": true

@@ -67,7 +67,9 @@ import {
   BookOpen,
   Calendar,
   Users,
+  Share2,
 } from 'lucide-react-native';
+import { generateDossier } from '@/lib/generateDossier';
 import * as Haptics from 'expo-haptics';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
@@ -1302,6 +1304,29 @@ export default function InvestigationCanvas() {
               </Text>
             ) : null}
           </View>
+
+          {/* Export dossier */}
+          <Pressable
+            testID="canvas-export-button"
+            onPress={async () => {
+              try {
+                await generateDossier(investigation);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              } catch {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              }
+            }}
+            style={({ pressed }) => ({
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              backgroundColor: pressed ? C.border : C.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            <Share2 size={22} color={C.text} strokeWidth={2} />
+          </Pressable>
         </View>
       </SafeAreaView>
 
