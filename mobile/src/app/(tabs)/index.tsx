@@ -149,6 +149,16 @@ function GridCard({
             zIndex: 2,
           }} />
           <Text style={{ fontSize: 34 }}>{icon}</Text>
+          {(investigation as any).isSeeded ? (
+            <View style={{
+              position: 'absolute', bottom: -2, right: -2,
+              backgroundColor: '#F59E0B', borderRadius: 4,
+              paddingHorizontal: 4, paddingVertical: 1,
+              zIndex: 3,
+            }}>
+              <Text style={{ color: '#000', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 }}>DEMO</Text>
+            </View>
+          ) : null}
         </View>
         {/* Label */}
         <Text
@@ -376,6 +386,7 @@ export default function InvestigationsDashboard() {
   const [deleteTargetTitle, setDeleteTargetTitle] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [titleError, setTitleError] = useState<string>('');
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [undoItem, setUndoItem] = useState<Investigation | null>(null);
   const [showUndoToast, setShowUndoToast] = useState(false);
@@ -454,15 +465,23 @@ export default function InvestigationsDashboard() {
 
   // ── Handlers (all preserved exactly) ──────────────────────────────────────
   const handleCreate = useCallback(() => {
-    const trimmedTitle = newTitle.trim();
-    if (!trimmedTitle) return;
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    const isDuplicate = investigations.some(
+      (i) => i.title.toLowerCase() === trimmed.toLowerCase() && !i.isDemo
+    );
+    if (isDuplicate) {
+      setTitleError('An investigation with this name already exists');
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    createInvestigation(trimmedTitle, newDescription.trim() || undefined);
+    createInvestigation(trimmed, newDescription.trim() || undefined);
     setNewTitle('');
     setNewDescription('');
+    setTitleError('');
     setShowCreateModal(false);
     router.push('/(tabs)/two');
-  }, [newTitle, newDescription, createInvestigation, router]);
+  }, [newTitle, newDescription, investigations, createInvestigation, router]);
 
   const handleNewInvestigationPress = useCallback(() => {
     const nonDemoCount = investigations.filter((inv) => !inv.isDemo).length;
@@ -995,11 +1014,14 @@ export default function InvestigationsDashboard() {
               <Text style={{ color: C.text, fontSize: 20, fontWeight: '800', marginBottom: 4 }}>New Investigation</Text>
               <Text style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>Start unraveling the truth</Text>
               <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 6 }}>TITLE</Text>
-              <TextInput testID="investigation-title-input" value={newTitle} onChangeText={setNewTitle} placeholder="e.g., The Roswell Incident" placeholderTextColor={C.muted} autoFocus style={{ backgroundColor: C.bg, borderRadius: 10, padding: 14, color: C.text, fontSize: 16, borderWidth: 1, borderColor: C.border, marginBottom: 16 }} />
+              <TextInput testID="investigation-title-input" value={newTitle} onChangeText={(text) => { setNewTitle(text); setTitleError(''); }} placeholder="e.g., The Roswell Incident" placeholderTextColor={C.muted} autoFocus style={{ backgroundColor: C.bg, borderRadius: 10, padding: 14, color: C.text, fontSize: 16, borderWidth: 1, borderColor: titleError ? C.red : C.border, marginBottom: titleError ? 6 : 16 }} />
+              {titleError ? (
+                <Text style={{ color: C.red, fontSize: 13, marginBottom: 10 }}>{titleError}</Text>
+              ) : null}
               <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 6 }}>DESCRIPTION (OPTIONAL)</Text>
               <TextInput testID="investigation-description-input" value={newDescription} onChangeText={setNewDescription} placeholder="Brief overview of the case..." placeholderTextColor={C.muted} multiline numberOfLines={3} style={{ backgroundColor: C.bg, borderRadius: 10, padding: 14, color: C.text, fontSize: 16, borderWidth: 1, borderColor: C.border, marginBottom: 24, minHeight: 80, textAlignVertical: 'top' }} />
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable testID="cancel-create-button" onPress={() => { setNewTitle(''); setNewDescription(''); setShowCreateModal(false); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? C.border : 'transparent', borderWidth: 1, borderColor: C.border })}>
+                <Pressable testID="cancel-create-button" onPress={() => { setNewTitle(''); setNewDescription(''); setTitleError(''); setShowCreateModal(false); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: pressed ? C.border : 'transparent', borderWidth: 1, borderColor: C.border })}>
                   <Text style={{ color: C.muted, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
                 <Pressable testID="confirm-create-button" onPress={handleCreate} style={({ pressed }) => ({ flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: newTitle.trim() ? (pressed ? '#A3162E' : C.red) : C.border })}>

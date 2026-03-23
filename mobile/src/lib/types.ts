@@ -131,6 +131,7 @@ export interface Investigation {
   timelines: Timeline[];
   colorLegend?: ColorLegendEntry[];
   isDemo?: boolean;
+  isSeeded?: boolean;
   createdAt: number;
   updatedAt: number;
   // ─── New fields ─────────────────────────────────────────

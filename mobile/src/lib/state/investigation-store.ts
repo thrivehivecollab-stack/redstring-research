@@ -642,8 +642,13 @@ export async function seedMockInvestigations(): Promise<void> {
   // ── Investigation 1: Operation: Shadow Network ──
   const inv1Id = store.createInvestigation(
     'Operation: Shadow Network',
-    'Tracking financial connections between offshore entities and political figures.'
+    '[DEMO] Tracking financial connections between offshore entities and political figures.'
   );
+  useInvestigationStore.setState((state) => ({
+    investigations: state.investigations.map((inv) =>
+      inv.id === inv1Id ? { ...inv, isSeeded: true } : inv
+    ),
+  }));
   store.updateInvestigationMeta(inv1Id, { icon: '🕵️', iconUri: undefined, boardStyle: undefined, filingTabColor: undefined, filingTabLabel: undefined });
 
   store.addNode(inv1Id, 'note', 'John Mercer', { x: 400, y: 300 }, {
@@ -682,8 +687,13 @@ export async function seedMockInvestigations(): Promise<void> {
   // ── Investigation 2: Epstein Network ──
   const inv2Id = store.createInvestigation(
     'Epstein Network',
-    'Mapping the flight logs, island visitors, and financial connections.'
+    '[DEMO] Mapping the flight logs, island visitors, and financial connections.'
   );
+  useInvestigationStore.setState((state) => ({
+    investigations: state.investigations.map((inv) =>
+      inv.id === inv2Id ? { ...inv, isSeeded: true } : inv
+    ),
+  }));
   store.updateInvestigationMeta(inv2Id, { icon: '🔍', iconUri: undefined, boardStyle: undefined, filingTabColor: undefined, filingTabLabel: undefined });
 
   store.addNode(inv2Id, 'note', 'Jeffrey Epstein', { x: 500, y: 300 }, {
@@ -717,8 +727,13 @@ export async function seedMockInvestigations(): Promise<void> {
   // ── Investigation 3: Charlie Kirk — Follow The Money ──
   const inv3Id = store.createInvestigation(
     'Charlie Kirk — Follow The Money',
-    'Investigating funding sources and corporate connections of TPUSA.'
+    '[DEMO] Investigating funding sources and corporate connections of TPUSA.'
   );
+  useInvestigationStore.setState((state) => ({
+    investigations: state.investigations.map((inv) =>
+      inv.id === inv3Id ? { ...inv, isSeeded: true } : inv
+    ),
+  }));
   store.updateInvestigationMeta(inv3Id, { icon: '🎯', iconUri: undefined, boardStyle: undefined, filingTabColor: undefined, filingTabLabel: undefined });
 
   store.addNode(inv3Id, 'note', 'Charlie Kirk', { x: 500, y: 300 }, {

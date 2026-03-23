@@ -9,7 +9,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  TextInput,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -554,6 +556,8 @@ export default function InvestigationCanvas() {
   const storeUpdateTimeline = useInvestigationStore((s) => s.updateTimeline);
   const storeDeleteTimeline = useInvestigationStore((s) => s.deleteTimeline);
   const storeToggleTimelineMinimized = useInvestigationStore((s) => s.toggleTimelineMinimized);
+  const storeAddSource = useInvestigationStore((s) => s.addSource);
+  const storeRemoveSource = useInvestigationStore((s) => s.removeSource);
 
   // Subscription store
   const maxNodesPerInvestigation = useSubscriptionStore((s) => s.maxNodesPerInvestigation);
@@ -593,6 +597,14 @@ export default function InvestigationCanvas() {
   const [showSuggestionSheet, setShowSuggestionSheet] = useState<boolean>(false);
   const [colorToast, setColorToast] = useState<string | null>(null);
   const colorToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sources modal state
+  const [showAddSourceModal, setShowAddSourceModal] = useState<boolean>(false);
+  const [newSourceName, setNewSourceName] = useState<string>('');
+  const [newSourceUrl, setNewSourceUrl] = useState<string>('');
+  const [newSourcePlatform, setNewSourcePlatform] = useState<'x' | 'tiktok' | 'youtube' | 'website' | 'person' | 'document' | 'other'>('website');
+  const [newSourceCredibility, setNewSourceCredibility] = useState<'primary' | 'secondary' | 'unverified' | 'disputed' | 'confirmed'>('unverified');
+  const [newSourceContentType, setNewSourceContentType] = useState<'article' | 'video' | 'testimony' | 'tip' | 'evidence' | 'document'>('article');
 
   // Undo state for drag-to-trash
   const [undoNode, setUndoNode] = useState<{ node: CanvasNode; strings: RedString[] } | null>(null);
@@ -785,7 +797,7 @@ export default function InvestigationCanvas() {
 
   // Add node
   const handleAddNode = useCallback(
-    (type: NodeType) => {
+    async (type: NodeType) => {
       if (!activeId) return;
       if (nodes.length >= maxNodes) {
         setShowAddMenu(false);
@@ -804,7 +816,25 @@ export default function InvestigationCanvas() {
         dataset: 'New Dataset',
         investigation: 'Sub-Investigation',
       };
-      storeAddNode(activeId, type, typeLabels[type], { x: centerX, y: centerY });
+      if (type === 'image') {
+        setShowAddMenu(false);
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.8,
+        });
+        if (!result.canceled && result.assets[0]) {
+          const scatter = () => (Math.random() - 0.5) * 200;
+          const imgCenterX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
+          const imgCenterY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
+          storeAddNode(activeId, 'image', 'New Image', { x: imgCenterX + scatter(), y: imgCenterY + scatter() }, {
+            imageUri: result.assets[0].uri,
+          });
+        }
+        return;
+      }
+      const scatter = () => (Math.random() - 0.5) * 200;
+      storeAddNode(activeId, type, typeLabels[type], { x: centerX + scatter(), y: centerY + scatter() });
       setShowAddMenu(false);
     },
     [activeId, nodes.length, maxNodes, tX, tY, scaleVal, screenW, screenH, storeAddNode]
@@ -1969,11 +1999,120 @@ export default function InvestigationCanvas() {
                             />
                           ))}
                         </View>
+                        {/* Label input */}
+                        <BottomSheetTextInput
+                          value={s.label ?? ''}
+                          onChangeText={(text) => {
+                            if (activeId) storeUpdateString(activeId, s.id, { label: text || undefined });
+                          }}
+                          placeholder="Label (e.g. 'Known Associate')"
+                          placeholderTextColor={C.muted}
+                          style={[styles.sheetInput, { marginTop: 4, marginBottom: 8 }]}
+                        />
+                        {/* Style chips */}
+                        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                          {(['solid', 'dashed', 'dotted'] as const).map((styleVal) => (
+                            <Pressable
+                              key={styleVal}
+                              onPress={() => { if (activeId) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); storeUpdateString(activeId, s.id, { style: styleVal }); } }}
+                              style={{
+                                paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6,
+                                backgroundColor: (s.style ?? 'solid') === styleVal ? s.color + '33' : C.bg,
+                                borderWidth: 1, borderColor: (s.style ?? 'solid') === styleVal ? s.color : C.border,
+                              }}
+                            >
+                              <Text style={{ color: (s.style ?? 'solid') === styleVal ? s.color : C.muted, fontSize: 11, fontWeight: '600' }}>
+                                {styleVal}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                        {/* Thickness chips */}
+                        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                          {([1, 2, 3, 4] as const).map((thick) => (
+                            <Pressable
+                              key={thick}
+                              onPress={() => { if (activeId) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); storeUpdateString(activeId, s.id, { thickness: thick }); } }}
+                              style={{
+                                width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center',
+                                backgroundColor: (s.thickness ?? 2) === thick ? s.color + '33' : C.bg,
+                                borderWidth: 1, borderColor: (s.thickness ?? 2) === thick ? s.color : C.border,
+                              }}
+                            >
+                              <Text style={{ color: (s.thickness ?? 2) === thick ? s.color : C.muted, fontSize: 12, fontWeight: '700' }}>
+                                {thick}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
                       </View>
                     );
                   })}
                 </>
               ) : null}
+
+              {/* ---- SOURCES section ---- */}
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: C.muted, marginTop: 16, marginBottom: 8, letterSpacing: 1 }}
+              >
+                SOURCES ({(selectedNode.sources ?? []).length})
+              </Text>
+              {(selectedNode.sources ?? []).map((src) => (
+                <View
+                  key={src.id}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                    paddingVertical: 8, paddingHorizontal: 10, marginBottom: 6,
+                    backgroundColor: C.bg, borderRadius: 8, borderWidth: 1, borderColor: C.border,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>
+                      {src.sourceName}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 3 }}>
+                      {src.platform ? (
+                        <Text style={{ color: C.muted, fontSize: 10, fontWeight: '600' }}>
+                          {src.platform.toUpperCase()}
+                        </Text>
+                      ) : null}
+                      <Text style={{
+                        color: src.credibility === 'confirmed' ? '#22C55E' : src.credibility === 'disputed' ? '#C41E3A' : src.credibility === 'primary' ? '#3B82F6' : C.muted,
+                        fontSize: 10, fontWeight: '700',
+                      }}>
+                        {src.credibility.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      if (activeId && selectedNodeId) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        storeRemoveSource(activeId, selectedNodeId, src.id);
+                      }
+                    }}
+                    style={{ padding: 6 }}
+                  >
+                    <X size={14} color={C.muted} strokeWidth={2} />
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable
+                onPress={() => {
+                  setNewSourceName(''); setNewSourceUrl('');
+                  setNewSourcePlatform('website'); setNewSourceCredibility('unverified'); setNewSourceContentType('article');
+                  setShowAddSourceModal(true);
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderStyle: 'dashed' as const,
+                  borderColor: pressed ? C.red : C.border, marginBottom: 4,
+                })}
+              >
+                <Plus size={14} color={C.muted} strokeWidth={2} />
+                <Text style={{ color: C.muted, fontSize: 13, fontWeight: '600' }}>Add Source</Text>
+              </Pressable>
 
               {/* Actions */}
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
@@ -2025,6 +2164,123 @@ export default function InvestigationCanvas() {
           onClose={() => setShowSuggestionSheet(false)}
         />
       ) : null}
+
+      {/* Add Source Modal */}
+      <Modal
+        visible={showAddSourceModal}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowAddSourceModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
+          onPress={() => setShowAddSourceModal(false)}
+        >
+          <Pressable onPress={() => null}>
+            <View style={{
+              backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12, paddingHorizontal: 20, paddingBottom: 40,
+            }}>
+              {/* Grabber */}
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 16 }} />
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', letterSpacing: 0.5, marginBottom: 16 }}>ADD SOURCE</Text>
+
+              {/* Name */}
+              <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 6 }}>NAME *</Text>
+              <TextInput
+                value={newSourceName}
+                onChangeText={setNewSourceName}
+                placeholder="Source name"
+                placeholderTextColor={C.muted}
+                style={{ backgroundColor: C.bg, borderRadius: 8, padding: 12, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 12 }}
+              />
+
+              {/* URL */}
+              <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 6 }}>URL (optional)</Text>
+              <TextInput
+                value={newSourceUrl}
+                onChangeText={setNewSourceUrl}
+                placeholder="https://..."
+                placeholderTextColor={C.muted}
+                autoCapitalize="none"
+                keyboardType="url"
+                style={{ backgroundColor: C.bg, borderRadius: 8, padding: 12, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 12 }}
+              />
+
+              {/* Platform */}
+              <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>PLATFORM</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12, flexGrow: 0 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {(['x', 'tiktok', 'youtube', 'website', 'person', 'document', 'other'] as const).map((p) => (
+                    <Pressable
+                      key={p}
+                      onPress={() => setNewSourcePlatform(p)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+                        backgroundColor: newSourcePlatform === p ? C.red + '22' : C.bg,
+                        borderWidth: 1, borderColor: newSourcePlatform === p ? C.red : C.border,
+                      }}
+                    >
+                      <Text style={{ color: newSourcePlatform === p ? C.red : C.muted, fontSize: 12, fontWeight: '700' }}>
+                        {p.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              {/* Credibility */}
+              <Text style={{ color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>CREDIBILITY</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+                {(['primary', 'secondary', 'unverified', 'disputed', 'confirmed'] as const).map((cred) => {
+                  const credColor = cred === 'confirmed' ? '#22C55E' : cred === 'disputed' ? '#C41E3A' : cred === 'primary' ? '#3B82F6' : C.muted;
+                  return (
+                    <Pressable
+                      key={cred}
+                      onPress={() => setNewSourceCredibility(cred)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+                        backgroundColor: newSourceCredibility === cred ? credColor + '22' : C.bg,
+                        borderWidth: 1, borderColor: newSourceCredibility === cred ? credColor : C.border,
+                      }}
+                    >
+                      <Text style={{ color: newSourceCredibility === cred ? credColor : C.muted, fontSize: 12, fontWeight: '700' }}>
+                        {cred.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Confirm */}
+              <Pressable
+                onPress={() => {
+                  if (!newSourceName.trim() || !activeId || !selectedNodeId) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  storeAddSource(activeId, selectedNodeId, {
+                    sourceType: newSourcePlatform === 'person' ? 'person' : newSourcePlatform === 'document' ? 'document' : 'url',
+                    sourceName: newSourceName.trim(),
+                    sourceUrl: newSourceUrl.trim() || undefined,
+                    platform: (newSourcePlatform === 'person' || newSourcePlatform === 'document') ? undefined : newSourcePlatform,
+                    contentType: newSourceContentType,
+                    credibility: newSourceCredibility,
+                  });
+                  setShowAddSourceModal(false);
+                }}
+                style={({ pressed }) => ({
+                  paddingVertical: 14, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: newSourceName.trim() ? (pressed ? '#A3162E' : C.red) : C.border,
+                })}
+              >
+                <Text style={{ color: newSourceName.trim() ? '#FFF' : C.muted, fontSize: 15, fontWeight: '700' }}>
+                  Add Source
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ---- PRIVACY OVERLAY (screenshot / background protection) ---- */}
       {showPrivacyOverlay ? (

@@ -1398,6 +1398,11 @@ export default function AIResearchScreen() {
   const [highlightsPanelVisible, setHighlightsPanelVisible] = useState<boolean>(false);
   const [confirmNewConvoVisible, setConfirmNewConvoVisible] = useState<boolean>(false);
 
+  // Pin title modal
+  const [showPinTitleModal, setShowPinTitleModal] = useState<boolean>(false);
+  const [pinTitleDraft, setPinTitleDraft] = useState<string>('');
+  const [pendingPinMessageId, setPendingPinMessageId] = useState<string | null>(null);
+
   // Verify modal state
   const [verifyResult, setVerifyResult] = useState<{ analysis: string; verdict: string; confidence: number } | null>(null);
   const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
@@ -1484,23 +1489,25 @@ export default function AIResearchScreen() {
   // ─── Build rich investigation context ─────────────────────────────────
   const buildInvestigationContext = useCallback(() => {
     if (!activeInvestigation) return undefined;
+    const desc = activeInvestigation.description ? `\nDescription: ${activeInvestigation.description}` : '';
     const nodesSummary = activeInvestigation.nodes
+      .slice(0, 20)
       .map((n) => {
         const parts = [`[${n.type.toUpperCase()}] ${n.title}`];
-        if (n.content) parts.push(`Content: ${n.content.slice(0, 300)}`);
-        if (n.description) parts.push(`Notes: ${n.description.slice(0, 200)}`);
-        if (n.timestamp) parts.push(`Date: ${new Date(n.timestamp).toLocaleDateString()}`);
+        if (n.color) parts.push(`Color: ${n.color}`);
+        if (n.content) parts.push(`Content: ${n.content.slice(0, 200)}`);
+        else if (n.description) parts.push(`Notes: ${n.description.slice(0, 200)}`);
         return parts.join(' | ');
       })
       .join('\n');
     const stringsSummary = (activeInvestigation.strings ?? []).length > 0
-      ? `\nConnections: ${(activeInvestigation.strings ?? []).map((s) => {
+      ? `\n\nConnections:\n${(activeInvestigation.strings ?? []).slice(0, 15).map((s) => {
           const from = activeInvestigation.nodes.find((n) => n.id === s.fromNodeId)?.title ?? '?';
           const to = activeInvestigation.nodes.find((n) => n.id === s.toNodeId)?.title ?? '?';
           return `${from} → ${to}${s.label ? ` (${s.label})` : ''}`;
-        }).join(', ')}`
+        }).join('\n')}`
       : '';
-    return `Investigation: "${activeInvestigation.title}"\n\nEvidence Board:\n${nodesSummary}${stringsSummary}`;
+    return `Investigation: "${activeInvestigation.title}"${desc}\n\nEvidence Board (${activeInvestigation.nodes.length} nodes):\n${nodesSummary}${stringsSummary}`;
   }, [activeInvestigation]);
 
   // ─── Handle verify / fact-check a claim ───────────────────────────────
@@ -1927,17 +1934,49 @@ export default function AIResearchScreen() {
         updateChatMessage(activeInvestigationId, id, { pinned: !alreadyPinned });
       }
       if (!alreadyPinned && activeInvestigationId && msg.role === 'ai') {
-        const title = msg.text.split(' ').slice(0, 8).join(' ') + (msg.text.split(' ').length > 8 ? '…' : '');
-        const colorMap: Record<string, string> = { critical: 'red', lead: 'amber', confirmed: 'green', background: 'blue', suspect: 'red', timeline: 'amber' };
-        const nodeColor = msg.highlight ? (colorMap[msg.highlight.id] ?? 'teal') : 'teal';
-        addNode(activeInvestigationId, 'note', title, { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }, { content: msg.text, color: nodeColor as any, sources: [{ id: Date.now().toString(), sourceType: 'other', sourceName: 'Red String AI', contentType: 'article', contentSummary: title, credibility: 'unverified', addedAt: Date.now() }] });
-        showToast('📌 Added to investigation board');
+        // Prompt for title before pinning
+        const defaultTitle = msg.text.slice(0, 40).trim() + (msg.text.length > 40 ? '…' : '');
+        setPinTitleDraft(defaultTitle);
+        setPendingPinMessageId(id);
+        setShowPinTitleModal(true);
       } else if (alreadyPinned) {
         showToast('Unpinned');
       }
     },
-    [messages, activeInvestigationId, addNode, showToast, updateChatMessage]
+    [messages, activeInvestigationId, updateChatMessage, showToast]
   );
+
+  const handleConfirmPin = useCallback(() => {
+    if (!pendingPinMessageId || !activeInvestigationId) return;
+    const msg = messages.find((m) => m.id === pendingPinMessageId);
+    if (!msg) return;
+    const title = pinTitleDraft.trim() || msg.text.slice(0, 40);
+    const colorMap: Record<string, string> = { critical: 'red', lead: 'amber', confirmed: 'green', background: 'blue', suspect: 'red', timeline: 'amber' };
+    const nodeColor = msg.highlight ? (colorMap[msg.highlight.id] ?? 'teal') : 'teal';
+
+    // Find a position that avoids overlap (≥180px from all existing nodes)
+    const existingNodes = useInvestigationStore.getState().investigations.find((i) => i.id === activeInvestigationId)?.nodes ?? [];
+    let px = 100 + Math.random() * 300;
+    let py = 100 + Math.random() * 300;
+    let attempts = 0;
+    while (attempts < 20) {
+      const tooClose = existingNodes.some((n) => Math.hypot(n.position.x - px, n.position.y - py) < 180);
+      if (!tooClose) break;
+      px = 100 + Math.random() * 500;
+      py = 100 + Math.random() * 500;
+      attempts++;
+    }
+
+    addNode(activeInvestigationId, 'note', title, { x: px, y: py }, {
+      content: msg.text,
+      color: nodeColor as any,
+      sources: [{ id: Date.now().toString(), sourceType: 'other', sourceName: 'Red String AI', contentType: 'article', contentSummary: title, credibility: 'unverified', addedAt: Date.now() }],
+    });
+    showToast('📌 Added to investigation board');
+    setShowPinTitleModal(false);
+    setPendingPinMessageId(null);
+    setPinTitleDraft('');
+  }, [pendingPinMessageId, activeInvestigationId, messages, pinTitleDraft, addNode, showToast]);
 
   // ─── Highlight long-press ─────────────────────────────────────────────
   const handleLongPress = useCallback((id: string) => {
@@ -2779,6 +2818,64 @@ export default function AIResearchScreen() {
         result={verifyResult}
         onClose={() => { setShowVerifyModal(false); setVerifyResult(null); }}
       />
+
+      {/* Pin Title Modal */}
+      <Modal
+        visible={showPinTitleModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => { setShowPinTitleModal(false); setPendingPinMessageId(null); }}
+      >
+        <View style={{
+          flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32,
+        }}>
+          <View style={{
+            backgroundColor: COLORS.surface, borderRadius: 20, padding: 24,
+            width: '100%', borderWidth: 1, borderColor: COLORS.border,
+          }}>
+            <Text style={{ color: COLORS.textLight, fontSize: 16, fontWeight: '800', marginBottom: 6 }}>
+              NAME THIS NODE
+            </Text>
+            <Text style={{ color: COLORS.muted, fontSize: 13, marginBottom: 16 }}>
+              Edit the title before pinning to the board.
+            </Text>
+            <TextInput
+              value={pinTitleDraft}
+              onChangeText={setPinTitleDraft}
+              placeholder="Node title..."
+              placeholderTextColor={COLORS.muted}
+              style={{
+                backgroundColor: COLORS.background, borderRadius: 10, padding: 14,
+                color: COLORS.textLight, fontSize: 15, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16,
+              }}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Pressable
+                onPress={() => { setShowPinTitleModal(false); setPendingPinMessageId(null); }}
+                style={({ pressed }) => ({
+                  flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: pressed ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                  borderWidth: 1, borderColor: COLORS.border,
+                })}
+              >
+                <Text style={{ color: COLORS.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleConfirmPin}
+                style={({ pressed }) => ({
+                  flex: 2, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: pressed ? '#A3162E' : COLORS.red,
+                })}
+              >
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>📌 Pin to Board</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
