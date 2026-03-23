@@ -53,6 +53,7 @@ import Animated, {
   SlideInUp,
   SlideOutDown,
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import { api } from '@/lib/api/api';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import type { ChatHistoryMessage } from '@/lib/types';
@@ -1334,6 +1335,7 @@ function VerifyModal({
 
 // ─── Main screen ────────────────────────────────────────────────────────────
 export default function AIResearchScreen() {
+  const router = useRouter();
   // Investigation context — defined BEFORE all useState calls so WELCOME and
   // the lazy initialiser for messages can reference activeInvestigation.
   const activeInvestigationId = useInvestigationStore((s) => s.activeInvestigationId);
@@ -1946,7 +1948,7 @@ export default function AIResearchScreen() {
     [messages, activeInvestigationId, updateChatMessage, showToast]
   );
 
-  const handleConfirmPin = useCallback(() => {
+  const handleConfirmPin = useCallback((navigateToBoard = false) => {
     if (!pendingPinMessageId || !activeInvestigationId) return;
     const msg = messages.find((m) => m.id === pendingPinMessageId);
     if (!msg) return;
@@ -1972,11 +1974,14 @@ export default function AIResearchScreen() {
       color: nodeColor as any,
       sources: [{ id: Date.now().toString(), sourceType: 'other', sourceName: 'Red String AI', contentType: 'article', contentSummary: title, credibility: 'unverified', addedAt: Date.now() }],
     });
-    showToast('📌 Added to investigation board');
+    showToast('📌 Added to board — tap Canvas tab to view');
     setShowPinTitleModal(false);
     setPendingPinMessageId(null);
     setPinTitleDraft('');
-  }, [pendingPinMessageId, activeInvestigationId, messages, pinTitleDraft, addNode, showToast]);
+    if (navigateToBoard) {
+      router.push('/(tabs)/two');
+    }
+  }, [pendingPinMessageId, activeInvestigationId, messages, pinTitleDraft, addNode, showToast, router]);
 
   // ─── Highlight long-press ─────────────────────────────────────────────
   const handleLongPress = useCallback((id: string) => {
@@ -2852,25 +2857,34 @@ export default function AIResearchScreen() {
               }}
               autoFocus
             />
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ gap: 10 }}>
               <Pressable
-                onPress={() => { setShowPinTitleModal(false); setPendingPinMessageId(null); }}
+                onPress={() => handleConfirmPin(false)}
                 style={({ pressed }) => ({
-                  flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
-                  backgroundColor: pressed ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
-                  borderWidth: 1, borderColor: COLORS.border,
-                })}
-              >
-                <Text style={{ color: COLORS.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleConfirmPin}
-                style={({ pressed }) => ({
-                  flex: 2, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                  paddingVertical: 13, borderRadius: 10, alignItems: 'center',
                   backgroundColor: pressed ? '#A3162E' : COLORS.red,
                 })}
               >
                 <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>📌 Pin to Board</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleConfirmPin(true)}
+                style={({ pressed }) => ({
+                  paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: pressed ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                  borderWidth: 1, borderColor: COLORS.border,
+                })}
+              >
+                <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600' }}>Pin & View on Board →</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { setShowPinTitleModal(false); setPendingPinMessageId(null); }}
+                style={({ pressed }) => ({
+                  paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: 'transparent',
+                })}
+              >
+                <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '500' }}>Cancel</Text>
               </Pressable>
             </View>
           </View>

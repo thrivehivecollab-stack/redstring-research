@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   ScrollView,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -357,6 +360,7 @@ function StringsLayer({
   tY,
   selectedStringId,
   canvasVersion,
+  onStringTap,
 }: {
   strings: Array<{ id: string; fromNodeId: string; toNodeId: string; label?: string; color: string; thickness?: number; style?: 'solid' | 'dashed' | 'dotted' }>;
   nodeMap: Map<string, CanvasNode>;
@@ -365,6 +369,7 @@ function StringsLayer({
   tY: Animated.SharedValue<number>;
   selectedStringId: string | null;
   canvasVersion: number;
+  onStringTap?: (stringId: string) => void;
 }) {
   const [canvasState, setCanvasState] = useState<{ scale: number; tx: number; ty: number }>({
     scale: 1,
@@ -386,7 +391,7 @@ function StringsLayer({
   const curTY = canvasState.ty;
 
   return (
-    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+    <Svg style={StyleSheet.absoluteFill} pointerEvents={onStringTap ? 'box-none' : 'none'}>
       <Defs>
         <Filter id="stringGlow" x="-20%" y="-20%" width="140%" height="140%">
           <FeGaussianBlur stdDeviation="2" result="blur" />
@@ -432,6 +437,16 @@ function StringsLayer({
                   : undefined
               }
             />
+            {/* Invisible wide hit area for easier tapping */}
+            {onStringTap ? (
+              <Path
+                d={pathD}
+                stroke="transparent"
+                strokeWidth={20}
+                fill="none"
+                onPress={() => onStringTap(s.id)}
+              />
+            ) : null}
             {/* Endpoint circles */}
             <SvgCircle cx={fx} cy={fy} r={4 * curScale} fill={color} opacity={0.9} />
             <SvgCircle cx={tx2} cy={ty2} r={4 * curScale} fill={color} opacity={0.9} />
@@ -594,7 +609,11 @@ export default function InvestigationCanvas() {
   const [showStylePicker, setShowStylePicker] = useState<boolean>(false);
   const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
   const [selectedStringId, setSelectedStringId] = useState<string | null>(null);
+  const [showStringSheet, setShowStringSheet] = useState<boolean>(false);
   const [showSuggestionSheet, setShowSuggestionSheet] = useState<boolean>(false);
+  const [showNameNodeModal, setShowNameNodeModal] = useState<boolean>(false);
+  const [pendingNodeType, setPendingNodeType] = useState<NodeType | null>(null);
+  const [pendingNodeName, setPendingNodeName] = useState<string>('');
   const [colorToast, setColorToast] = useState<string | null>(null);
   const colorToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -805,17 +824,6 @@ export default function InvestigationCanvas() {
         setShowNodeLimitModal(true);
         return;
       }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const centerX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
-      const centerY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
-      const typeLabels: Record<NodeType, string> = {
-        note: 'New Note',
-        link: 'New Link',
-        image: 'New Image',
-        folder: 'New Folder',
-        dataset: 'New Dataset',
-        investigation: 'Sub-Investigation',
-      };
       if (type === 'image') {
         setShowAddMenu(false);
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -825,20 +833,39 @@ export default function InvestigationCanvas() {
         });
         if (!result.canceled && result.assets[0]) {
           const scatter = () => (Math.random() - 0.5) * 200;
-          const imgCenterX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
-          const imgCenterY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
-          storeAddNode(activeId, 'image', 'New Image', { x: imgCenterX + scatter(), y: imgCenterY + scatter() }, {
+          const centerX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
+          const centerY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
+          storeAddNode(activeId, 'image', 'New Image', { x: centerX + scatter(), y: centerY + scatter() }, {
             imageUri: result.assets[0].uri,
           });
         }
         return;
       }
-      const scatter = () => (Math.random() - 0.5) * 200;
-      storeAddNode(activeId, type, typeLabels[type], { x: centerX + scatter(), y: centerY + scatter() });
       setShowAddMenu(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setPendingNodeType(type);
+      setPendingNodeName('');
+      setShowNameNodeModal(true);
     },
     [activeId, nodes.length, maxNodes, tX, tY, scaleVal, screenW, screenH, storeAddNode]
   );
+
+  const handleConfirmNodeName = useCallback(() => {
+    if (!activeId || !pendingNodeType) return;
+    const typeLabels: Record<NodeType, string> = {
+      note: 'New Note', link: 'New Link', image: 'New Image',
+      folder: 'New Folder', dataset: 'New Dataset', investigation: 'Sub-Investigation',
+    };
+    const name = pendingNodeName.trim() || typeLabels[pendingNodeType];
+    const scatter = () => (Math.random() - 0.5) * 200;
+    const centerX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
+    const centerY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
+    storeAddNode(activeId, pendingNodeType, name, { x: centerX + scatter(), y: centerY + scatter() });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowNameNodeModal(false);
+    setPendingNodeType(null);
+    setPendingNodeName('');
+  }, [activeId, pendingNodeType, pendingNodeName, tX, tY, scaleVal, screenW, screenH, storeAddNode]);
 
   // Toggle connect mode
   const toggleConnectMode = useCallback(() => {
@@ -1038,6 +1065,13 @@ export default function InvestigationCanvas() {
                 tY={tY}
                 selectedStringId={selectedStringId}
                 canvasVersion={canvasVersion}
+                onStringTap={(stringId) => {
+                  if (!connectMode) {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedStringId(stringId);
+                    setShowStringSheet(true);
+                  }
+                }}
               />
 
               {/* Node cards */}
@@ -1709,6 +1743,74 @@ export default function InvestigationCanvas() {
         </Pressable>
       </Modal>
 
+      {/* ---- NAME NODE MODAL ---- */}
+      <Modal
+        visible={showNameNodeModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => { setShowNameNodeModal(false); setPendingNodeType(null); }}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <Pressable
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}
+            onPress={() => { setShowNameNodeModal(false); setPendingNodeType(null); }}
+          >
+            <Pressable onPress={() => {}}>
+              <View style={{
+                backgroundColor: C.surface, borderRadius: 20, padding: 24,
+                width: '100%', borderWidth: 1, borderColor: C.border,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 20,
+              }}>
+                <Text style={{ color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 12 }}>
+                  {pendingNodeType?.toUpperCase() ?? 'NODE'} TITLE
+                </Text>
+                <TextInput
+                  value={pendingNodeName}
+                  onChangeText={setPendingNodeName}
+                  placeholder={
+                    pendingNodeType === 'note' ? 'e.g. Jeffrey Epstein' :
+                    pendingNodeType === 'link' ? 'e.g. Lolita Express Flight Logs' :
+                    pendingNodeType === 'folder' ? 'e.g. Evidence Folder' :
+                    'Node name...'
+                  }
+                  placeholderTextColor={C.muted}
+                  style={{
+                    backgroundColor: C.bg, borderRadius: 10, padding: 14,
+                    color: C.text, fontSize: 17, fontWeight: '600',
+                    borderWidth: 1, borderColor: C.border, marginBottom: 20,
+                  }}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleConfirmNodeName}
+                />
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <Pressable
+                    onPress={() => { setShowNameNodeModal(false); setPendingNodeType(null); }}
+                    style={({ pressed }) => ({
+                      flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                      backgroundColor: pressed ? C.border : 'transparent',
+                      borderWidth: 1, borderColor: C.border,
+                    })}
+                  >
+                    <Text style={{ color: C.muted, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleConfirmNodeName}
+                    style={({ pressed }) => ({
+                      flex: 2, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                      backgroundColor: pressed ? '#A3162E' : C.red,
+                    })}
+                  >
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Add Node</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ---- BOTTOM SHEET (Node Detail) ---- */}
       <BottomSheet
         ref={bottomSheetRef}
@@ -2164,6 +2266,137 @@ export default function InvestigationCanvas() {
           onClose={() => setShowSuggestionSheet(false)}
         />
       ) : null}
+
+      {/* ---- STRING DETAIL SHEET ---- */}
+      <Modal
+        visible={showStringSheet}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowStringSheet(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+          onPress={() => setShowStringSheet(false)}
+        >
+          <Pressable onPress={() => {}}>
+            {(() => {
+              const str = strings.find((s) => s.id === selectedStringId);
+              if (!str) return null;
+              const fromNode = nodes.find((n) => n.id === str.fromNodeId);
+              const toNode = nodes.find((n) => n.id === str.toNodeId);
+              const STRING_COLORS_LIST = ['#C41E3A', '#E8844A', '#F5C518', '#4CAF50', '#2196F3', '#9C27B0', '#FFFFFF', '#6B5D4F'];
+              return (
+                <View style={{
+                  backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+                  borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12, paddingHorizontal: 20, paddingBottom: 40,
+                }}>
+                  {/* Grabber */}
+                  <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 16 }} />
+
+                  {/* Header */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.muted, fontSize: 9, fontWeight: '800', letterSpacing: 2 }}>CONNECTION</Text>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>
+                        {fromNode?.title ?? '?'} → {toNode?.title ?? '?'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        if (activeId && selectedStringId) {
+                          Alert.alert('Delete Connection', 'Remove this string?', [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Delete', style: 'destructive', onPress: () => {
+                              storeDeleteString(activeId, selectedStringId);
+                              setShowStringSheet(false);
+                            }},
+                          ]);
+                        }
+                      }}
+                      style={{ padding: 8 }}
+                    >
+                      <Trash2 size={18} color={C.red} strokeWidth={2} />
+                    </Pressable>
+                  </View>
+
+                  {/* Label */}
+                  <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>LABEL</Text>
+                  <TextInput
+                    value={str.label ?? ''}
+                    onChangeText={(text) => {
+                      if (activeId && selectedStringId) storeUpdateString(activeId, selectedStringId, { label: text || undefined });
+                    }}
+                    placeholder="e.g. Known Associate, Funded, Visited..."
+                    placeholderTextColor={C.muted}
+                    style={{
+                      backgroundColor: C.bg, borderRadius: 10, padding: 12,
+                      color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.border, marginBottom: 16,
+                    }}
+                  />
+
+                  {/* Color */}
+                  <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>COLOR</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {STRING_COLORS_LIST.map((col) => (
+                      <Pressable
+                        key={col}
+                        onPress={() => { if (activeId && selectedStringId) storeUpdateString(activeId, selectedStringId, { color: col }); }}
+                        style={{
+                          width: 32, height: 32, borderRadius: 16,
+                          backgroundColor: col,
+                          borderWidth: str.color === col ? 3 : 1.5,
+                          borderColor: str.color === col ? '#FFF' : 'rgba(255,255,255,0.15)',
+                        }}
+                      />
+                    ))}
+                  </View>
+
+                  {/* Style */}
+                  <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>STYLE</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                    {(['solid', 'dashed', 'dotted'] as const).map((styleVal) => (
+                      <Pressable
+                        key={styleVal}
+                        onPress={() => { if (activeId && selectedStringId) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); storeUpdateString(activeId, selectedStringId, { style: styleVal }); } }}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                          backgroundColor: (str.style ?? 'solid') === styleVal ? str.color + '33' : C.bg,
+                          borderWidth: 1.5, borderColor: (str.style ?? 'solid') === styleVal ? str.color : C.border,
+                        }}
+                      >
+                        <Text style={{ color: (str.style ?? 'solid') === styleVal ? str.color : C.muted, fontSize: 12, fontWeight: '700' }}>
+                          {styleVal}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Thickness */}
+                  <Text style={{ color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>THICKNESS</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {([1, 2, 3, 4] as const).map((thick) => (
+                      <Pressable
+                        key={thick}
+                        onPress={() => { if (activeId && selectedStringId) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); storeUpdateString(activeId, selectedStringId, { thickness: thick }); } }}
+                        style={{
+                          flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center',
+                          backgroundColor: (str.thickness ?? 2) === thick ? str.color + '33' : C.bg,
+                          borderWidth: 1.5, borderColor: (str.thickness ?? 2) === thick ? str.color : C.border,
+                        }}
+                      >
+                        <Text style={{ color: (str.thickness ?? 2) === thick ? str.color : C.muted, fontSize: 13, fontWeight: '800' }}>
+                          {thick}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Add Source Modal */}
       <Modal

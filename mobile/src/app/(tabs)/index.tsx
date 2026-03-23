@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -782,7 +784,7 @@ export default function InvestigationsDashboard() {
                     {[
                       { emoji: '📡', label: 'Start a Broadcast', sub: 'Go live', live: true, onPress: () => { closeMenu(); router.push('/live-broadcast' as any); } },
                       { emoji: '🎥', label: 'War Room', sub: 'Video collaboration', onPress: () => { closeMenu(); router.push('/war-room' as any); } },
-                      { emoji: '👥', label: 'Collaborations', sub: 'Active sessions', onPress: () => { closeMenu(); } },
+                      { emoji: '👥', label: 'Collaborations', sub: 'Active sessions', onPress: () => { closeMenu(); router.push('/collab' as any); } },
                     ].map(item => (
                       <Pressable
                         key={item.label}
@@ -823,14 +825,15 @@ export default function InvestigationsDashboard() {
                     }}>INTEL & SOURCES</Text>
 
                     {[
-                      { emoji: '🕸️', label: 'Webb.io', sub: 'AI document search — 3M+ files' },
-                      { emoji: '🔍', label: 'WhoKilledCK.com', sub: 'Crowdsourced investigation' },
-                      { emoji: '📜', label: 'FOIA.gov', sub: 'Request public records' },
-                      { emoji: '🏛️', label: 'NARA Document Releases', sub: 'National archives' },
-                      { emoji: '📡', label: 'Ian Carroll', sub: 'Independent research' },
+                      { emoji: '🕸️', label: 'Webb.io', sub: 'AI document search — 3M+ files', url: 'https://www.webb.io' },
+                      { emoji: '🔍', label: 'WhoKilledCK.com', sub: 'Crowdsourced investigation', url: 'https://www.whokilledck.com' },
+                      { emoji: '📜', label: 'FOIA.gov', sub: 'Request public records', url: 'https://www.foia.gov' },
+                      { emoji: '🏛️', label: 'NARA Document Releases', sub: 'National archives', url: 'https://www.archives.gov' },
+                      { emoji: '📡', label: 'Ian Carroll', sub: 'Independent research', url: 'https://www.iancarroll.com' },
                     ].map(item => (
                       <Pressable
                         key={item.label}
+                        onPress={() => { closeMenu(); Linking.openURL(item.url).catch(() => Alert.alert('Could not open link')); }}
                         style={({ pressed }) => ({
                           flexDirection: 'row', alignItems: 'center', gap: 12,
                           paddingHorizontal: 20, paddingVertical: 10,
@@ -839,7 +842,7 @@ export default function InvestigationsDashboard() {
                       >
                         <Text style={{ fontSize: 18, width: 30, textAlign: 'center' }}>{item.emoji}</Text>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ color: C.text2, fontSize: 13, fontWeight: '600' }}>{item.label}</Text>
+                          <Text style={{ color: C.text2, fontSize: 13, fontWeight: '600' }}>{item.label} ↗</Text>
                           <Text style={{ color: C.muted, fontSize: 10, marginTop: 1 }}>{item.sub}</Text>
                         </View>
                       </Pressable>
@@ -855,7 +858,7 @@ export default function InvestigationsDashboard() {
                     {[
                       { emoji: '👤', label: 'Account', sub: session?.user?.name ?? 'Signed in', onPress: () => { closeMenu(); setShowAccountModal(true); } },
                       { emoji: '🔒', label: 'Security', sub: 'Locks, PIN & screenshot', onPress: () => { closeMenu(); router.push('/security' as any); } },
-                      { emoji: '🔔', label: 'Notifications', sub: '', onPress: () => {} },
+                      { emoji: '🔔', label: 'Notifications', sub: '', onPress: () => { closeMenu(); router.push('/tip-inbox' as any); } },
                       { emoji: '⭐', label: 'Subscription', sub: tierLabel, onPress: () => { closeMenu(); router.push('/paywall'); } },
                       { emoji: '❓', label: 'Help & Tour', sub: 'Guides and walkthrough', onPress: () => { closeMenu(); setShowHelpMenu(true); } },
                     ].map(item => (

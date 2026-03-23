@@ -10,6 +10,7 @@ import {
   Linking,
   Share,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -472,6 +473,14 @@ function TipDetail({
   const addToBoardMutation = useMutation({
     mutationFn: () => api.post<{ suggestedNode: any }>(`/api/tips/${tip.id}/merge`, {}),
     onSuccess: (result) => {
+      if (!activeInvestigationId) {
+        Alert.alert(
+          'No Active Investigation',
+          'Open an investigation on the board first, then come back to add this tip.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       if (result?.suggestedNode && activeInvestigationId) {
         const n = result.suggestedNode;
         addNode(activeInvestigationId, n.type ?? 'note', n.title, { x: 120 + Math.random() * 200, y: 120 + Math.random() * 200 }, { content: n.content, tags: n.tags ?? [], color: 'amber' });
@@ -686,7 +695,7 @@ function TipDetail({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              opacity: addToBoardMutation.isPending ? 0.7 : 1,
+              opacity: addToBoardMutation.isPending ? 0.7 : activeInvestigationId ? 1 : 0.5,
             })}
           >
             {addToBoardMutation.isPending ? (
