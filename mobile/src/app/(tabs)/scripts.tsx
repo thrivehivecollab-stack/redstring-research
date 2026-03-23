@@ -29,7 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SCRIPTS_KEY = '@red_string_scripts';
 
 const COLORS = {
-  background: '#1A1614',
+  background: '#0F0D0B',
   surface: '#231F1C',
   card: '#F5ECD7',
   red: '#C41E3A',

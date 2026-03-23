@@ -59,8 +59,8 @@ import type { ChatHistoryMessage } from '@/lib/types';
 
 // ─── Color constants ────────────────────────────────────────────────────────
 const COLORS = {
-  background: '#1A1614',
-  surface: '#231F1C',
+  background: '#0F0D0B',
+  surface: '#1A1714',
   red: '#C41E3A',
   pin: '#D4A574',
   textLight: '#E8DCC8',

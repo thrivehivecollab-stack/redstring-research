@@ -27,7 +27,7 @@ import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import * as DocumentPicker from 'expo-document-picker';
 
 const COLORS = {
-  background: '#1A1614',
+  background: '#0F0D0B',
   surface: '#231F1C',
   card: '#F5ECD7',
   red: '#C41E3A',

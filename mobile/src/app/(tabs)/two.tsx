@@ -76,8 +76,8 @@ import * as burnt from 'burnt';
 
 // ---- Color constants ----
 const C = {
-  bg: '#1A1614',
-  surface: '#231F1C',
+  bg: '#0F0D0B',
+  surface: '#1A1714',
   card: '#F5ECD7',
   red: '#C41E3A',
   redLight: '#E8445A',
@@ -88,8 +88,8 @@ const C = {
   cardText: '#2C1810',
 } as const;
 
-const NODE_W = 180;
-const NODE_H = 110;
+const NODE_W = 155;
+const NODE_H = 95;
 
 const TAG_COLORS: Record<TagColor, string> = {
   red: '#C41E3A',
@@ -968,6 +968,9 @@ export default function InvestigationCanvas() {
           /* ---- CORKBOARD MODE ---- */
           <GestureDetector gesture={canvasGesture}>
             <View style={StyleSheet.absoluteFill}>
+              <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,opacity:0.06}} pointerEvents="none">
+                {Array.from({length:200}).map((_,i)=><View key={i} style={{position:'absolute',left:(i%20)*18+(Math.floor(i/20)%2)*9,top:Math.floor(i/20)*22,width:3,height:3,borderRadius:1.5,backgroundColor:'#C87828',opacity:i%2===0?0.7:1}}/>)}
+              </View>
               {/* Cork texture dots */}
               <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
                 {Array.from({ length: 40 }, (_, r) =>
@@ -1213,136 +1216,149 @@ export default function InvestigationCanvas() {
               </Text>
             ) : null}
           </View>
-
-          {/* Canvas mode toggle */}
-          <Pressable
-            testID="canvas-mode-toggle"
-            onPress={() => setShowStylePicker(true)}
-            style={({ pressed }) => ({
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              backgroundColor: pressed ? C.border : C.surface,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: C.border,
-            })}
-          >
-            {canvasMode === 'corkboard' ? (
-              <Network size={22} color={C.text} strokeWidth={2} />
-            ) : (
-              <LayoutGrid size={22} color={C.text} strokeWidth={2} />
-            )}
-          </Pressable>
-
-          {/* Sources button */}
-          <Pressable
-            testID="sources-button"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/sources-panel', params: { investigationId: investigation.id } });
-            }}
-            style={({ pressed }) => ({
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              backgroundColor: pressed ? C.border : C.surface,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: C.border,
-            })}
-          >
-            <BookOpen size={22} color={C.text} strokeWidth={2} />
-          </Pressable>
-
-          {/* Connect toggle (corkboard only) */}
-          {canvasMode === 'corkboard' ? (
-            <Pressable
-              testID="connect-toggle"
-              onPress={toggleConnectMode}
-              style={({ pressed }) => ({
-                width: 46,
-                height: 46,
-                borderRadius: 23,
-                backgroundColor: connectMode ? C.red : pressed ? C.border : C.surface,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: connectMode ? 0 : 1,
-                borderColor: C.border,
-              })}
-            >
-              <Cable size={22} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
-            </Pressable>
-          ) : null}
-
-          {/* Submit to Collab button */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              handleOpenCollabSheet();
-            }}
-            style={({ pressed }) => ({
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              backgroundColor: pressed ? C.border : C.surface,
-              borderWidth: 1,
-              borderColor: C.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <Users size={22} color={C.text} strokeWidth={2} />
-          </Pressable>
-
-          {/* Go Live button */}
-          <Pressable
-            onPress={() => setIsBroadcasting(true)}
-            style={({ pressed }) => ({
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              backgroundColor: isBroadcasting ? C.red : pressed ? C.border : C.surface,
-              borderWidth: isBroadcasting ? 0 : 1,
-              borderColor: C.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <Radio size={22} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
-          </Pressable>
-
-          {/* Add node */}
-          <Pressable
-            testID="add-node-button"
-            onPress={() => {
-              if (isAtNodeLimit) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                setShowNodeLimitModal(true);
-                return;
-              }
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowAddMenu(true);
-            }}
-            style={({ pressed }) => ({
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              backgroundColor: isAtNodeLimit ? C.border : pressed ? '#A3162E' : C.red,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            {isAtNodeLimit ? (
-              <Lock size={20} color={C.muted} strokeWidth={2} />
-            ) : (
-              <Plus size={22} color="#FFF" strokeWidth={2.5} />
-            )}
-          </Pressable>
         </View>
       </SafeAreaView>
+
+      {/* ---- VERTICAL SIDEBAR BUTTONS ---- */}
+      <View
+        style={{
+          position: 'absolute',
+          right: 14,
+          top: '30%',
+          flexDirection: 'column',
+          gap: 10,
+          zIndex: 100,
+        }}
+        pointerEvents="box-none"
+      >
+        {/* Canvas mode toggle */}
+        <Pressable
+          testID="canvas-mode-toggle"
+          onPress={() => setShowStylePicker(true)}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: pressed ? C.border : C.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: C.border,
+          })}
+        >
+          {canvasMode === 'corkboard' ? (
+            <Network size={22} color={C.text} strokeWidth={2} />
+          ) : (
+            <LayoutGrid size={22} color={C.text} strokeWidth={2} />
+          )}
+        </Pressable>
+
+        {/* Sources button */}
+        <Pressable
+          testID="sources-button"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push({ pathname: '/sources-panel', params: { investigationId: investigation.id } });
+          }}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: pressed ? C.border : C.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: C.border,
+          })}
+        >
+          <BookOpen size={22} color={C.text} strokeWidth={2} />
+        </Pressable>
+
+        {/* Connect toggle (corkboard only) */}
+        {canvasMode === 'corkboard' ? (
+          <Pressable
+            testID="connect-toggle"
+            onPress={toggleConnectMode}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: connectMode ? C.red : pressed ? C.border : C.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: connectMode ? 0 : 1,
+              borderColor: C.border,
+            })}
+          >
+            <Cable size={22} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
+          </Pressable>
+        ) : null}
+
+        {/* Submit to Collab button */}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handleOpenCollabSheet();
+          }}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: pressed ? C.border : C.surface,
+            borderWidth: 1,
+            borderColor: C.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Users size={22} color={C.text} strokeWidth={2} />
+        </Pressable>
+
+        {/* Go Live button */}
+        <Pressable
+          onPress={() => setIsBroadcasting(true)}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: isBroadcasting ? C.red : pressed ? C.border : C.surface,
+            borderWidth: isBroadcasting ? 0 : 1,
+            borderColor: C.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Radio size={22} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
+        </Pressable>
+
+        {/* Add node */}
+        <Pressable
+          testID="add-node-button"
+          onPress={() => {
+            if (isAtNodeLimit) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              setShowNodeLimitModal(true);
+              return;
+            }
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowAddMenu(true);
+          }}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: isAtNodeLimit ? C.border : pressed ? '#A3162E' : C.red,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          {isAtNodeLimit ? (
+            <Lock size={20} color={C.muted} strokeWidth={2} />
+          ) : (
+            <Plus size={22} color="#FFF" strokeWidth={2.5} />
+          )}
+        </Pressable>
+      </View>
 
       {/* ---- CANVAS STYLE PICKER MODAL ---- */}
       <Modal
@@ -2154,7 +2170,9 @@ export default function InvestigationCanvas() {
 const styles = StyleSheet.create({
   nodeCard: {
     backgroundColor: C.card,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(100,60,20,0.1)',
     padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },

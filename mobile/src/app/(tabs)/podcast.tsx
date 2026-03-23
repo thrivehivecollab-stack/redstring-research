@@ -39,8 +39,8 @@ import useInvestigationStore from '@/lib/state/investigation-store';
 
 // ─── Colors ─────────────────────────────────────────────────────────────────
 const C = {
-  bg: '#1A1614',
-  surface: '#231F1C',
+  bg: '#0F0D0B',
+  surface: '#1A1714',
   card: '#2C2420',
   red: '#C41E3A',
   pin: '#D4A574',
