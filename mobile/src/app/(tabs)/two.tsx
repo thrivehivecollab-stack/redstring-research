@@ -968,9 +968,6 @@ export default function InvestigationCanvas() {
           /* ---- CORKBOARD MODE ---- */
           <GestureDetector gesture={canvasGesture}>
             <View style={StyleSheet.absoluteFill}>
-              <View style={{position:'absolute',top:0,left:0,right:0,bottom:0,opacity:0.06}} pointerEvents="none">
-                {Array.from({length:200}).map((_,i)=><View key={i} style={{position:'absolute',left:(i%20)*18+(Math.floor(i/20)%2)*9,top:Math.floor(i/20)*22,width:3,height:3,borderRadius:1.5,backgroundColor:'#C87828',opacity:i%2===0?0.7:1}}/>)}
-              </View>
               {/* Cork texture dots */}
               <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
                 {Array.from({ length: 40 }, (_, r) =>
