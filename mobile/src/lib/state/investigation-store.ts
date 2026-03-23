@@ -630,3 +630,126 @@ const useInvestigationStore = create<InvestigationStore>()(
 );
 
 export default useInvestigationStore;
+
+// ─── One-time seed of demo investigations ────────────────────────────────────
+export async function seedMockInvestigations(): Promise<void> {
+  const seeded = await AsyncStorage.getItem('@redstring_seeded');
+  if (seeded !== null) return;
+  await AsyncStorage.setItem('@redstring_seeded', 'true');
+
+  const store = useInvestigationStore.getState();
+
+  // ── Investigation 1: Operation: Shadow Network ──
+  const inv1Id = store.createInvestigation(
+    'Operation: Shadow Network',
+    'Tracking financial connections between offshore entities and political figures.'
+  );
+  store.updateInvestigationMeta(inv1Id, { icon: '🕵️', iconUri: undefined, boardStyle: undefined, filingTabColor: undefined, filingTabLabel: undefined });
+
+  store.addNode(inv1Id, 'note', 'John Mercer', { x: 400, y: 300 }, {
+    id: 'sn1', content: 'Senior exec at Nexus Capital. Traveled to Geneva 3x in Q3.',
+    color: 'red', tags: [{ id: 't1', label: 'Suspect', color: 'red' }],
+  });
+  store.addNode(inv1Id, 'note', 'Viktor Sokolov', { x: 700, y: 200 }, {
+    id: 'sn2', content: 'Russian national. Shell company director. Named in 3 offshore leaks.',
+    color: 'red', tags: [{ id: 't2', label: 'Suspect', color: 'red' }],
+  });
+  store.addNode(inv1Id, 'note', 'Nexus Capital LLC', { x: 550, y: 500 }, {
+    id: 'sn3', content: 'Registered Delaware 2018. $47M traced to Cayman accounts.',
+    color: 'purple', tags: [{ id: 't3', label: 'Organization', color: 'purple' }],
+  });
+  store.addNode(inv1Id, 'link', 'Cayman Registry Leak', { x: 900, y: 450 }, {
+    id: 'sn4', content: 'Document showing Nexus as beneficial owner of 3 shell entities.',
+    color: 'green', tags: [{ id: 't4', label: 'Evidence', color: 'green' }],
+  });
+  store.addNode(inv1Id, 'note', 'Geneva Meeting Sept 14', { x: 300, y: 600 }, {
+    id: 'sn5', content: 'Mercer and Sokolov photographed outside Banque Privee Zurich.',
+    color: 'amber', tags: [{ id: 't5', label: 'Timeline', color: 'amber' }],
+  });
+  store.addNode(inv1Id, 'note', 'Sarah Chen — Whistleblower', { x: 150, y: 450 }, {
+    id: 'sn6', content: 'Former compliance officer at Nexus. Fired after flagging suspicious transfers.',
+    color: 'blue', tags: [{ id: 't6', label: 'Source', color: 'blue' }],
+  });
+
+  const s1a = store.addString(inv1Id, 'sn1', 'sn2', 'Known Associates', '#C41E3A');
+  store.updateString(inv1Id, s1a, { thickness: 3 });
+  store.addString(inv1Id, 'sn1', 'sn3', 'Executive', '#C41E3A');
+  store.addString(inv1Id, 'sn2', 'sn3', 'Director', '#C41E3A');
+  store.addString(inv1Id, 'sn3', 'sn4', 'Beneficial Owner', '#22C55E');
+  store.addString(inv1Id, 'sn6', 'sn3', 'Reported On', '#3B82F6');
+  store.addString(inv1Id, 'sn1', 'sn5', 'Attended', '#F59E0B');
+
+  // ── Investigation 2: Epstein Network ──
+  const inv2Id = store.createInvestigation(
+    'Epstein Network',
+    'Mapping the flight logs, island visitors, and financial connections.'
+  );
+  store.updateInvestigationMeta(inv2Id, { icon: '🔍', iconUri: undefined, boardStyle: undefined, filingTabColor: undefined, filingTabLabel: undefined });
+
+  store.addNode(inv2Id, 'note', 'Jeffrey Epstein', { x: 500, y: 300 }, {
+    id: 'ep1', content: 'Financier. Convicted 2008. Died in custody 2019. Case reopened.',
+    color: 'red', tags: [{ id: 't7', label: 'Subject', color: 'red' }],
+  });
+  store.addNode(inv2Id, 'note', 'Little St James Island', { x: 300, y: 500 }, {
+    id: 'ep2', content: 'Private island. Visited by heads of state, celebrities, academics.',
+    color: 'purple', tags: [{ id: 't8', label: 'Location', color: 'purple' }],
+  });
+  store.addNode(inv2Id, 'link', 'Flight Logs — Lolita Express', { x: 750, y: 400 }, {
+    id: 'ep3', content: '737 flight logs showing passenger manifests 1997-2005.',
+    color: 'green', tags: [{ id: 't9', label: 'Evidence', color: 'green' }],
+  });
+  store.addNode(inv2Id, 'note', 'Ghislaine Maxwell', { x: 700, y: 200 }, {
+    id: 'ep4', content: 'Convicted 2021. 20 year sentence. Named 8 co-conspirators.',
+    color: 'red', tags: [{ id: 't10', label: 'Convicted', color: 'red' }],
+  });
+  store.addNode(inv2Id, 'note', 'Deutsche Bank Settlement', { x: 900, y: 550 }, {
+    id: 'ep5', content: '$150M fine for processing Epstein transactions after 2008 conviction.',
+    color: 'amber', tags: [{ id: 't11', label: 'Financial', color: 'amber' }],
+  });
+
+  const ep1a = store.addString(inv2Id, 'ep1', 'ep2', 'Owned', '#C41E3A');
+  store.updateString(inv2Id, ep1a, { thickness: 2 });
+  const ep1b = store.addString(inv2Id, 'ep1', 'ep4', 'Associates', '#C41E3A');
+  store.updateString(inv2Id, ep1b, { thickness: 3 });
+  store.addString(inv2Id, 'ep3', 'ep1', 'Documents', '#22C55E');
+  store.addString(inv2Id, 'ep5', 'ep1', 'Processed Funds', '#F59E0B');
+
+  // ── Investigation 3: Charlie Kirk — Follow The Money ──
+  const inv3Id = store.createInvestigation(
+    'Charlie Kirk — Follow The Money',
+    'Investigating funding sources and corporate connections of TPUSA.'
+  );
+  store.updateInvestigationMeta(inv3Id, { icon: '🎯', iconUri: undefined, boardStyle: undefined, filingTabColor: undefined, filingTabLabel: undefined });
+
+  store.addNode(inv3Id, 'note', 'Charlie Kirk', { x: 500, y: 300 }, {
+    id: 'ck1', content: 'Founder TPUSA. 3.5M Twitter followers. Close Trump ally.',
+    color: 'red', tags: [{ id: 't12', label: 'Subject', color: 'red' }],
+  });
+  store.addNode(inv3Id, 'note', 'Turning Point USA', { x: 300, y: 200 }, {
+    id: 'ck2', content: 'Founded 2012. $80M+ annual revenue. Active on 3000+ campuses.',
+    color: 'purple', tags: [{ id: 't13', label: 'Organization', color: 'purple' }],
+  });
+  store.addNode(inv3Id, 'note', 'Desert Spirit Tech LLC', { x: 700, y: 400 }, {
+    id: 'ck3', content: 'Tech company linked to TPUSA operations. Shelly Reams named as agent.',
+    color: 'amber', tags: [{ id: 't14', label: 'Entity', color: 'amber' }],
+  });
+  store.addNode(inv3Id, 'link', 'IRS 990 Filing 2022', { x: 200, y: 500 }, {
+    id: 'ck4', content: 'TPUSA reported $84M revenue. Top donor identities redacted.',
+    color: 'green', tags: [{ id: 't15', label: 'Evidence', color: 'green' }],
+  });
+  store.addNode(inv3Id, 'note', '480-626-4800', { x: 800, y: 200 }, {
+    id: 'ck5', content: 'Phone number appearing in multiple TPUSA legal filings. Unverified owner.',
+    color: 'amber', tags: [{ id: 't16', label: 'Lead', color: 'amber' }],
+  });
+
+  const ck1a = store.addString(inv3Id, 'ck1', 'ck2', 'Founder', '#C41E3A');
+  store.updateString(inv3Id, ck1a, { thickness: 3 });
+  const ck2a = store.addString(inv3Id, 'ck2', 'ck3', 'Vendor', '#F59E0B');
+  store.updateString(inv3Id, ck2a, { style: 'dashed' });
+  store.addString(inv3Id, 'ck4', 'ck2', 'Filing', '#22C55E');
+  const ck3a = store.addString(inv3Id, 'ck3', 'ck5', 'Connected', '#F59E0B');
+  store.updateString(inv3Id, ck3a, { style: 'dotted' });
+
+  // Set active investigation to Investigation 1
+  store.setActiveInvestigation(inv1Id);
+}

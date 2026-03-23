@@ -25,7 +25,7 @@ import Animated, {
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
-import useInvestigationStore from '@/lib/state/investigation-store';
+import useInvestigationStore, { seedMockInvestigations } from '@/lib/state/investigation-store';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import useCollabStore from '@/lib/state/collab-store';
 import useTourStore from '@/lib/state/tour-store';
@@ -402,6 +402,10 @@ export default function InvestigationsDashboard() {
   }));
 
   // Auto-show tour on first session
+  useEffect(() => {
+    seedMockInvestigations();
+  }, []);
+
   useEffect(() => {
     if (!session?.user) return;
     if (!sessionStartedAt) { setSessionStart(); return; }
