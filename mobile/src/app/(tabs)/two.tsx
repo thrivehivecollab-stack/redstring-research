@@ -617,6 +617,11 @@ export default function InvestigationCanvas() {
   const [colorToast, setColorToast] = useState<string | null>(null);
   const colorToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // String label modal — appears right after connecting two nodes
+  const [showStringLabelModal, setShowStringLabelModal] = useState<boolean>(false);
+  const [pendingStringId, setPendingStringId] = useState<string | null>(null);
+  const [pendingStringLabel, setPendingStringLabel] = useState<string>('');
+
   // Sources modal state
   const [showAddSourceModal, setShowAddSourceModal] = useState<boolean>(false);
   const [newSourceName, setNewSourceName] = useState<string>('');
@@ -724,9 +729,13 @@ export default function InvestigationCanvas() {
         if (!freshConnectingFrom) {
           setConnectingFrom(nodeId);
         } else if (freshConnectingFrom !== nodeId) {
-          storeAddString(activeId, freshConnectingFrom, nodeId);
+          const newStringId = storeAddString(activeId, freshConnectingFrom, nodeId);
           setConnectingFrom(null);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          // Prompt for a label immediately
+          setPendingStringId(newStringId);
+          setPendingStringLabel('');
+          setShowStringLabelModal(true);
         }
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1121,7 +1130,8 @@ export default function InvestigationCanvas() {
         <Animated.View
           entering={SlideInDown.springify().damping(18)}
           exiting={SlideOutDown.duration(200)}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 200, paddingTop: 8, paddingHorizontal: 12, pointerEvents: 'none' }}
+          pointerEvents="box-none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 200, paddingTop: 8, paddingHorizontal: 12 }}
         >
           <View style={{ backgroundColor: 'rgba(196,30,58,0.95)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF' }} />
@@ -1741,6 +1751,82 @@ export default function InvestigationCanvas() {
             </Pressable>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* ---- STRING LABEL MODAL (appears right after connecting two nodes) ---- */}
+      <Modal
+        visible={showStringLabelModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => { setShowStringLabelModal(false); setPendingStringId(null); }}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <Pressable
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}
+            onPress={() => { setShowStringLabelModal(false); setPendingStringId(null); }}
+          >
+            <Pressable onPress={() => {}}>
+              <View style={{
+                backgroundColor: C.surface, borderRadius: 20, padding: 24,
+                width: '100%', borderWidth: 1, borderColor: C.border,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 20,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.red }} />
+                  <Text style={{ color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 2 }}>STRING LABEL</Text>
+                </View>
+                <TextInput
+                  value={pendingStringLabel}
+                  onChangeText={setPendingStringLabel}
+                  placeholder="e.g. Known Associate, Funded By, Witnessed..."
+                  placeholderTextColor={C.muted}
+                  style={{
+                    backgroundColor: C.bg, borderRadius: 10, padding: 14,
+                    color: C.text, fontSize: 16, fontWeight: '600',
+                    borderWidth: 1, borderColor: C.border, marginBottom: 20,
+                  }}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (activeId && pendingStringId && pendingStringLabel.trim()) {
+                      storeUpdateString(activeId, pendingStringId, { label: pendingStringLabel.trim() });
+                    }
+                    setShowStringLabelModal(false);
+                    setPendingStringId(null);
+                  }}
+                />
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <Pressable
+                    onPress={() => { setShowStringLabelModal(false); setPendingStringId(null); }}
+                    style={({ pressed }) => ({
+                      flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                      backgroundColor: pressed ? C.border : 'transparent',
+                      borderWidth: 1, borderColor: C.border,
+                    })}
+                  >
+                    <Text style={{ color: C.muted, fontSize: 14, fontWeight: '600' }}>Skip</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      if (activeId && pendingStringId && pendingStringLabel.trim()) {
+                        storeUpdateString(activeId, pendingStringId, { label: pendingStringLabel.trim() });
+                      }
+                      setShowStringLabelModal(false);
+                      setPendingStringId(null);
+                    }}
+                    style={({ pressed }) => ({
+                      flex: 2, paddingVertical: 13, borderRadius: 10, alignItems: 'center',
+                      backgroundColor: pressed ? '#A3162E' : C.red,
+                    })}
+                  >
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Add Label</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ---- NAME NODE MODAL ---- */}

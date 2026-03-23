@@ -2012,13 +2012,36 @@ export default function AIResearchScreen() {
             autoTag: `${msg.text.split(' ').slice(0, 8).join(' ')}... [${cat.name}]`,
             pinned: true,
           });
+
+          // Actually add a node to the investigation board
+          const colorMap: Record<string, string> = {
+            critical: 'red', lead: 'amber', confirmed: 'green',
+            background: 'blue', suspect: 'purple', timeline: 'amber',
+          };
+          const nodeColor = (colorMap[cat.id] ?? 'teal') as any;
+          const title = msg.text.slice(0, 45).trim() + (msg.text.length > 45 ? '…' : '');
+          const existingNodes = useInvestigationStore.getState().investigations.find((i) => i.id === activeInvestigationId)?.nodes ?? [];
+          let px = 100 + Math.random() * 300;
+          let py = 100 + Math.random() * 300;
+          let attempts = 0;
+          while (attempts < 20) {
+            const tooClose = existingNodes.some((n) => Math.hypot(n.position.x - px, n.position.y - py) < 180);
+            if (!tooClose) break;
+            px = 100 + Math.random() * 500;
+            py = 100 + Math.random() * 500;
+            attempts++;
+          }
+          addNode(activeInvestigationId, 'note', title, { x: px, y: py }, {
+            content: msg.text,
+            color: nodeColor,
+          });
         }
       }
 
-      showToast(`Highlighted as "${cat.name}" — Pinned to Board`);
+      showToast(`Highlighted as "${cat.name}" — Added to Board`);
       setTargetMessageId(null);
     },
-    [targetMessageId, showToast, activeInvestigationId, messages, updateChatMessage]
+    [targetMessageId, showToast, activeInvestigationId, messages, updateChatMessage, addNode]
   );
 
   // ─── Highlights panel ────────────────────────────────────────────────
