@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import OpenAI from "openai";
+
 import { env } from "../env";
 import type { HonoVariables } from "../types";
 import { checkRateLimit, getClientIp } from '../lib/rateLimit';
@@ -55,8 +55,8 @@ aiRouter.post(
       return c.json({ error: { message: 'Request payload too large', code: 'PAYLOAD_TOO_LARGE' } }, 413);
     }
 
-    if (!env.PERPLEXITY_API_KEY && !env.OPENAI_API_KEY) {
-      return c.json({ error: { message: "No AI API key configured. Add PERPLEXITY_API_KEY or OPENAI_API_KEY in the ENV tab." } }, 500);
+    if (!env.PERPLEXITY_API_KEY && !env.GROQ_API_KEY) {
+      return c.json({ error: { message: "No AI API key configured. Add PERPLEXITY_API_KEY or GROQ_API_KEY in the ENV tab." } }, 500);
     }
 
     const systemContent = [
@@ -105,16 +105,28 @@ aiRouter.post(
           finalReply += "\n\n**Sources:**\n" + result.citations.map((url, i) => `${i + 1}. ${url}`).join("\n");
         }
       } else {
-        // Fallback to OpenAI gpt-4o-mini
-        const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-search-preview",
-          messages: [
-            { role: "system", content: systemContent },
-            ...messages.map((m) => ({ role: m.role, content: m.content })),
-          ],
-        } as Parameters<typeof openai.chat.completions.create>[0]) as Awaited<ReturnType<typeof openai.chat.completions.create>> & { choices: Array<{ message: { content: string } }> };
-        finalReply = completion.choices[0]?.message?.content ?? "";
+        // Fallback to Groq
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: systemContent },
+              ...messages.map((m) => ({ role: m.role, content: m.content })),
+            ],
+          }),
+        });
+        if (!groqRes.ok) {
+          const errText = await groqRes.text();
+          console.error("Groq API error:", errText);
+          return c.json({ error: { message: `Groq API error: ${groqRes.status}` } }, 502);
+        }
+        const groqResult = await groqRes.json() as { choices: Array<{ message: { content: string } }> };
+        finalReply = groqResult.choices[0]?.message?.content ?? "";
       }
 
       if (!finalReply) {
@@ -132,8 +144,8 @@ aiRouter.post(
 
 // ─── Transcribe audio ──────────────────────────────────────────────────────
 aiRouter.post("/transcribe", async (c) => {
-  if (!env.OPENAI_API_KEY) {
-    return c.json({ error: { message: "OpenAI API key not configured." } }, 500);
+  if (!env.GROQ_API_KEY) {
+    return c.json({ error: { message: "Groq API key not configured." } }, 500);
   }
 
   const formData = await c.req.formData();
@@ -145,12 +157,12 @@ aiRouter.post("/transcribe", async (c) => {
 
   const apiForm = new FormData();
   apiForm.append("file", file);
-  apiForm.append("model", "gpt-4o-mini-transcribe");
+  apiForm.append("model", "whisper-large-v3");
   apiForm.append("response_format", "json");
 
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    headers: { Authorization: `Bearer ${env.GROQ_API_KEY}` },
     body: apiForm,
   });
 
@@ -464,7 +476,7 @@ aiRouter.post(
 
     const { claim, context, nodeTitle } = c.req.valid("json");
 
-    if (!env.PERPLEXITY_API_KEY && !env.OPENAI_API_KEY) {
+    if (!env.PERPLEXITY_API_KEY && !env.GROQ_API_KEY) {
       return c.json({ error: { message: "No AI API key configured for verification." } }, 500);
     }
 
@@ -513,16 +525,27 @@ aiRouter.post(
           analysis += "\n\n**Sources Checked:**\n" + result.citations.map((url, i) => `${i + 1}. ${url}`).join("\n");
         }
       } else {
-        // Fallback to OpenAI
-        const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: VERIFY_SYSTEM_PROMPT },
-            { role: "user", content: userContent },
-          ],
+        // Fallback to Groq
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: VERIFY_SYSTEM_PROMPT },
+              { role: "user", content: userContent },
+            ],
+          }),
         });
-        analysis = completion.choices[0]?.message?.content ?? "";
+        if (!groqRes.ok) {
+          const errText = await groqRes.text();
+          throw new Error(`Groq API error: ${errText}`);
+        }
+        const groqResult = await groqRes.json() as { choices: Array<{ message: { content: string } }> };
+        analysis = groqResult.choices[0]?.message?.content ?? "";
       }
 
       // Parse verdict
@@ -544,11 +567,10 @@ aiRouter.post(
         data: { analysis, verdict, confidence },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error calling OpenAI";
+      const message = err instanceof Error ? err.message : "Unknown error during verification";
       return c.json({ error: { message } }, 500);
     }
   }
 );
 
 export { aiRouter };
-

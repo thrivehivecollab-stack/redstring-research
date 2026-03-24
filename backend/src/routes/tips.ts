@@ -193,15 +193,15 @@ tipsRouter.post("/:id/vet", async (c) => {
       ? `Investigation ID: ${tip.investigationId}`
       : "General tip (no specific investigation)";
 
-    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o",
-        input: [
+        model: "llama-3.3-70b-versatile",
+        messages: [
           {
             role: "user",
             content: `You are an expert investigative journalist and fact-checker. Analyze this tip submitted to an investigator and provide a structured assessment.
@@ -226,18 +226,18 @@ Respond with ONLY a valid JSON object:
       }),
     });
 
-    if (!openAiResponse.ok) {
-      const errorBody = await openAiResponse.text();
-      console.error("OpenAI API error:", errorBody);
+    if (!groqResponse.ok) {
+      const errorBody = await groqResponse.text();
+      console.error("Groq API error:", errorBody);
       await prisma.tip.update({ where: { id: tip.id }, data: { aiVettingStatus: "failed" } });
       return c.json({ error: { message: "AI vetting failed", code: "AI_ERROR" } }, 502);
     }
 
-    const result = (await openAiResponse.json()) as {
-      output: Array<{ content: Array<{ text: string }> }>;
+    const result = (await groqResponse.json()) as {
+      choices: Array<{ message: { content: string } }>;
     };
 
-    const rawText = result?.output?.[0]?.content?.[0]?.text ?? "";
+    const rawText = result?.choices?.[0]?.message?.content ?? "";
 
     // Parse JSON from AI response — strip potential markdown fences
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);

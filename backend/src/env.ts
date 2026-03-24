@@ -17,8 +17,8 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
-  // OpenAI
-  OPENAI_API_KEY: z.string().optional(),
+  // Groq
+  GROQ_API_KEY: z.string().optional(),
   // Gemini
   GEMINI_API_KEY: z.string().optional(),
   // Perplexity (primary research AI — independent search, not Google)
