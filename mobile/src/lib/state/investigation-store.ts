@@ -21,6 +21,14 @@ interface InvestigationStore {
   viewMode: 'canvas' | 'list';
   canvasMode: 'corkboard' | 'mindmap';
 
+  // Undo/Redo
+  canvasHistory: { past: string[]; future: string[] };
+  pushHistory: (investigationId: string) => void;
+  undo: (investigationId: string) => void;
+  redo: (investigationId: string) => void;
+  canUndo: (investigationId: string) => boolean;
+  canRedo: (investigationId: string) => boolean;
+
   // Investigation CRUD
   createInvestigation: (title: string, description?: string) => string;
   deleteInvestigation: (id: string) => void;
@@ -92,6 +100,7 @@ const useInvestigationStore = create<InvestigationStore>()(
       connectingFromId: null,
       viewMode: 'canvas',
       canvasMode: 'corkboard',
+      canvasHistory: { past: [], future: [] },
 
       createInvestigation: (title, description) => {
         const id = generateId();
@@ -622,6 +631,64 @@ const useInvestigationStore = create<InvestigationStore>()(
             inv.id === id ? { ...inv, timelineSettings: settings } : inv
           ),
         }));
+      },
+
+      pushHistory: (investigationId) => {
+        const inv = get().investigations.find(i => i.id === investigationId);
+        if (!inv) return;
+        const snapshot = JSON.stringify({ nodes: inv.nodes, strings: inv.strings });
+        set((state) => ({
+          canvasHistory: {
+            past: [...state.canvasHistory.past.slice(-19), snapshot],
+            future: [],
+          }
+        }));
+      },
+
+      undo: (investigationId) => {
+        const { canvasHistory } = get();
+        if (canvasHistory.past.length === 0) return;
+        const inv = get().investigations.find(i => i.id === investigationId);
+        if (!inv) return;
+        const currentSnapshot = JSON.stringify({ nodes: inv.nodes, strings: inv.strings });
+        const previousSnapshot = canvasHistory.past[canvasHistory.past.length - 1];
+        const parsed = JSON.parse(previousSnapshot);
+        set((state) => ({
+          investigations: state.investigations.map(i =>
+            i.id === investigationId ? { ...i, nodes: parsed.nodes, strings: parsed.strings } : i
+          ),
+          canvasHistory: {
+            past: canvasHistory.past.slice(0, -1),
+            future: [currentSnapshot, ...canvasHistory.future.slice(0, 19)],
+          }
+        }));
+      },
+
+      redo: (investigationId) => {
+        const { canvasHistory } = get();
+        if (canvasHistory.future.length === 0) return;
+        const inv = get().investigations.find(i => i.id === investigationId);
+        if (!inv) return;
+        const currentSnapshot = JSON.stringify({ nodes: inv.nodes, strings: inv.strings });
+        const nextSnapshot = canvasHistory.future[0];
+        const parsed = JSON.parse(nextSnapshot);
+        set((state) => ({
+          investigations: state.investigations.map(i =>
+            i.id === investigationId ? { ...i, nodes: parsed.nodes, strings: parsed.strings } : i
+          ),
+          canvasHistory: {
+            past: [...canvasHistory.past.slice(-19), currentSnapshot],
+            future: canvasHistory.future.slice(1),
+          }
+        }));
+      },
+
+      canUndo: (_investigationId) => {
+        return get().canvasHistory.past.length > 0;
+      },
+
+      canRedo: (_investigationId) => {
+        return get().canvasHistory.future.length > 0;
       },
     }),
     {

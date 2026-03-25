@@ -129,40 +129,31 @@ const SessionCard = React.memo(function SessionCard({ session, index }: { sessio
 });
 
 function EmptyState() {
+  const router = useRouter();
+
   return (
     <Animated.View
       entering={FadeIn.duration(400)}
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 40,
-        paddingTop: 60,
-      }}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}
     >
-      <Text style={{ fontSize: 56, marginBottom: 16 }}>👥</Text>
-      <Text
-        style={{
-          color: C.text,
-          fontSize: 18,
-          fontWeight: '800',
-          marginBottom: 8,
-          textAlign: 'center',
-          letterSpacing: 0.5,
-        }}
-      >
-        No active collaborations
+      <Text style={{ fontSize: 48, marginBottom: 16 }}>🤝</Text>
+      <Text style={{ color: '#E8DCC8', fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 8 }}>
+        Your investigation team
       </Text>
-      <Text
-        style={{
-          color: C.muted,
-          fontSize: 13,
-          lineHeight: 20,
-          textAlign: 'center',
-        }}
-      >
-        Start a collaboration from any investigation
+      <Text style={{ color: '#6B5B4F', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>
+        Invite a co-investigator, contributor, or viewer to join your investigation
       </Text>
+      <Pressable
+        onPress={() => router.push('/collab')}
+        style={({ pressed }) => ({
+          backgroundColor: pressed ? '#A3162E' : '#C41E3A',
+          borderRadius: 12,
+          paddingHorizontal: 24,
+          paddingVertical: 14,
+        })}
+      >
+        <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Invite Someone</Text>
+      </Pressable>
     </Animated.View>
   );
 }

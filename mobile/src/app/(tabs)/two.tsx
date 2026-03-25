@@ -73,6 +73,9 @@ import {
   Users,
   Share2,
   EyeOff,
+  Bell,
+  RotateCcw,
+  RotateCw,
 } from 'lucide-react-native';
 import { generateDossier } from '@/lib/generateDossier';
 import * as Haptics from 'expo-haptics';
@@ -213,6 +216,7 @@ function NodeCard({
   onDragMove,
   onDragEndPosition,
   onProvenanceTap,
+  dimmed,
 }: {
   node: CanvasNode;
   scaleVal: Animated.SharedValue<number>;
@@ -226,6 +230,7 @@ function NodeCard({
   onDragMove: (id: string, screenY: number) => void;
   onDragEndPosition: (id: string, screenX: number, screenY: number) => void;
   onProvenanceTap: (id: string) => void;
+  dimmed?: boolean;
 }) {
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
@@ -279,6 +284,7 @@ function NodeCard({
       top: sy,
       width: NODE_W * scaleVal.value,
       transform: [{ scale: isDragging.value ? 1.05 : 1 }],
+      opacity: withTiming(dimmed ? 0.15 : 1, { duration: 200 }),
     };
   });
 
@@ -631,6 +637,7 @@ export default function InvestigationCanvas() {
 
   const canvasViewRef = React.useRef<View>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [showCollabSheet, setShowCollabSheet] = useState(false);
   const [collabSessions, setCollabSessions] = useState<any[]>([]);
   const [collabLoading, setCollabLoading] = useState(false);
@@ -692,6 +699,30 @@ export default function InvestigationCanvas() {
   const nodes = investigation?.nodes ?? [];
   const strings = investigation?.strings ?? [];
   const timelines = investigation?.timelines ?? [];
+
+  // Canvas search state — declared before matchingNodeIds useMemo
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchActive, setSearchActive] = useState<boolean>(false);
+
+  // Search matching node IDs
+  const matchingNodeIds = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.toLowerCase();
+    const ids = new Set<string>();
+    nodes.forEach(n => {
+      if (
+        n.title.toLowerCase().includes(q) ||
+        (n.content ?? '').toLowerCase().includes(q) ||
+        (n.description ?? '').toLowerCase().includes(q) ||
+        n.tags.some(t => t.label.toLowerCase().includes(q)) ||
+        n.provenance?.addedByUsername?.toLowerCase().includes(q) ||
+        (n.sources ?? []).some(s => (s.sourceUrl ?? '').toLowerCase().includes(q) || s.sourceName.toLowerCase().includes(q))
+      ) {
+        ids.add(n.id);
+      }
+    });
+    return ids;
+  }, [searchQuery, nodes]);
 
   // Local UI state
   const [connectMode, setConnectMode] = useState<boolean>(false);
@@ -1205,6 +1236,7 @@ export default function InvestigationCanvas() {
                   onDragMove={handleNodeDragMove}
                   onDragEndPosition={handleNodeDragEndPosition}
                   onProvenanceTap={handleProvenanceTap}
+                  dimmed={matchingNodeIds !== null && !matchingNodeIds.has(node.id)}
                 />
               ))}
             </View>
@@ -1243,12 +1275,58 @@ export default function InvestigationCanvas() {
           <View style={{ backgroundColor: 'rgba(196,30,58,0.95)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF' }} />
             <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', flex: 1 }}>
-              {connectingFromId ? '✓ Node selected — tap another to connect' : 'String Mode — tap a node to start'}
+              {connectingFromId ? '✓ Node selected — tap another to connect' : 'Connect Mode — tap any two nodes to draw a connection'}
             </Text>
             <Pressable onPress={() => { setConnectMode(false); setConnectingFrom(null); }} style={{ padding: 4, pointerEvents: 'auto' }}>
               <X size={14} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />
             </Pressable>
           </View>
+        </Animated.View>
+      ) : null}
+
+      {/* ---- SEARCH BAR ---- */}
+      {searchActive ? (
+        <Animated.View
+          entering={SlideInDown.springify().damping(18)}
+          exiting={SlideOutDown.duration(200)}
+          style={{
+            position: 'absolute',
+            top: insets.top + 56,
+            left: 12,
+            right: 12,
+            zIndex: 300,
+            flexDirection: 'row',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <View style={{
+            flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+            backgroundColor: C.surface, borderRadius: 12,
+            borderWidth: 1, borderColor: C.border,
+            paddingHorizontal: 12, paddingVertical: 10,
+          }}>
+            <Search size={16} color={C.muted} strokeWidth={2} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search nodes..."
+              placeholderTextColor={C.muted}
+              style={{ flex: 1, color: C.text, fontSize: 15 }}
+              autoFocus
+            />
+            {searchQuery.length > 0 ? (
+              <Pressable onPress={() => setSearchQuery('')}>
+                <X size={16} color={C.muted} strokeWidth={2} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={() => { setSearchActive(false); setSearchQuery(''); }}
+            style={{ paddingHorizontal: 8, paddingVertical: 10 }}
+          >
+            <Text style={{ color: C.red, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
+          </Pressable>
         </Animated.View>
       ) : null}
 
@@ -1398,7 +1476,7 @@ export default function InvestigationCanvas() {
             </Text>
             {connectMode ? (
               <Text className="text-xs" style={{ color: C.redLight }}>
-                {connectingFromId ? 'Tap second node' : 'Tap first node'}
+                {connectingFromId ? 'Tap second node to connect' : 'Tap first node to connect'}
               </Text>
             ) : maxNodes !== Infinity ? (
               <Text
@@ -1432,6 +1510,44 @@ export default function InvestigationCanvas() {
           >
             <Share2 size={22} color={C.text} strokeWidth={2} />
           </Pressable>
+
+          {/* Notification bell */}
+          <Pressable
+            onPress={() => {
+              router.push({ pathname: '/notifications' as any, params: { investigationId: investigation.id } });
+            }}
+            style={({ pressed }) => ({
+              width: 46, height: 46, borderRadius: 23,
+              backgroundColor: pressed ? C.border : C.surface,
+              alignItems: 'center', justifyContent: 'center',
+            })}
+          >
+            <Bell size={22} color={C.text} strokeWidth={2} />
+            {unreadNotifCount > 0 ? (
+              <View style={{
+                position: 'absolute', top: 6, right: 6,
+                width: 16, height: 16, borderRadius: 8,
+                backgroundColor: C.red, alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800' }}>
+                  {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+
+          {/* Screenshot lock badge */}
+          {screenshotBlocked ? (
+            <View style={{
+              width: 28, height: 28, borderRadius: 8,
+              backgroundColor: 'rgba(196,30,58,0.15)',
+              borderWidth: 1, borderColor: 'rgba(196,30,58,0.3)',
+              alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Lock size={14} color={C.red} strokeWidth={2.5} />
+            </View>
+          ) : null}
+
           <HamburgerButton color={C.text} />
         </View>
       </SafeAreaView>
@@ -1454,20 +1570,22 @@ export default function InvestigationCanvas() {
           onPress={() => setShowStylePicker(true)}
           style={({ pressed }) => ({
             width: 44,
-            height: 44,
+            height: 52,
             borderRadius: 12,
             backgroundColor: pressed ? C.border : C.surface,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1,
             borderColor: C.border,
+            gap: 2,
           })}
         >
           {canvasMode === 'corkboard' ? (
-            <Network size={22} color={C.text} strokeWidth={2} />
+            <Network size={20} color={C.text} strokeWidth={2} />
           ) : (
-            <LayoutGrid size={22} color={C.text} strokeWidth={2} />
+            <LayoutGrid size={20} color={C.text} strokeWidth={2} />
           )}
+          <Text style={{ fontSize: 8, color: '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>VIEW</Text>
         </Pressable>
 
         {/* Sources button */}
@@ -1479,16 +1597,18 @@ export default function InvestigationCanvas() {
           }}
           style={({ pressed }) => ({
             width: 44,
-            height: 44,
+            height: 52,
             borderRadius: 12,
             backgroundColor: pressed ? C.border : C.surface,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1,
             borderColor: C.border,
+            gap: 2,
           })}
         >
-          <BookOpen size={22} color={C.text} strokeWidth={2} />
+          <BookOpen size={20} color={C.text} strokeWidth={2} />
+          <Text style={{ fontSize: 8, color: '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>SOURCES</Text>
         </Pressable>
 
         {/* Connect toggle (corkboard only) */}
@@ -1498,16 +1618,18 @@ export default function InvestigationCanvas() {
             onPress={toggleConnectMode}
             style={({ pressed }) => ({
               width: 44,
-              height: 44,
+              height: 52,
               borderRadius: 12,
               backgroundColor: connectMode ? C.red : pressed ? C.border : C.surface,
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: connectMode ? 0 : 1,
               borderColor: C.border,
+              gap: 2,
             })}
           >
-            <Cable size={22} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
+            <Cable size={20} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
+            <Text style={{ fontSize: 8, color: connectMode ? 'rgba(255,255,255,0.8)' : '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>CONNECT</Text>
           </Pressable>
         ) : null}
 
@@ -1520,16 +1642,18 @@ export default function InvestigationCanvas() {
           }}
           style={({ pressed }) => ({
             width: 44,
-            height: 44,
+            height: 52,
             borderRadius: 12,
             backgroundColor: timelineMode ? C.red : pressed ? C.border : C.surface,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: timelineMode ? 0 : 1,
             borderColor: C.border,
+            gap: 2,
           })}
         >
-          <Calendar size={22} color={timelineMode ? '#FFF' : C.text} strokeWidth={2} />
+          <Calendar size={20} color={timelineMode ? '#FFF' : C.text} strokeWidth={2} />
+          <Text style={{ fontSize: 8, color: timelineMode ? 'rgba(255,255,255,0.8)' : '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>TIMELINE</Text>
         </Pressable>
 
         {/* Submit to Collab button */}
@@ -1540,16 +1664,18 @@ export default function InvestigationCanvas() {
           }}
           style={({ pressed }) => ({
             width: 44,
-            height: 44,
+            height: 52,
             borderRadius: 12,
             backgroundColor: pressed ? C.border : C.surface,
             borderWidth: 1,
             borderColor: C.border,
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 2,
           })}
         >
-          <Users size={22} color={C.text} strokeWidth={2} />
+          <Users size={20} color={C.text} strokeWidth={2} />
+          <Text style={{ fontSize: 8, color: '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>COLLAB</Text>
         </Pressable>
 
         {/* Go Live button */}
@@ -1557,16 +1683,64 @@ export default function InvestigationCanvas() {
           onPress={() => setIsBroadcasting(true)}
           style={({ pressed }) => ({
             width: 44,
-            height: 44,
+            height: 52,
             borderRadius: 12,
             backgroundColor: isBroadcasting ? C.red : pressed ? C.border : C.surface,
             borderWidth: isBroadcasting ? 0 : 1,
             borderColor: C.border,
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 2,
           })}
         >
-          <Radio size={22} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
+          <Radio size={20} color={isBroadcasting ? '#FFF' : C.text} strokeWidth={2} />
+          <Text style={{ fontSize: 8, color: isBroadcasting ? 'rgba(255,255,255,0.8)' : '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>LIVE</Text>
+        </Pressable>
+
+        {/* Invisible Ink button */}
+        <Pressable
+          onPress={() => {
+            if (!selectedNodeId || !activeId) {
+              burnt.toast({ title: 'Select a node first', preset: 'none' });
+              return;
+            }
+            storeToggleInvisibleInk(activeId, selectedNodeId);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            burnt.toast({ title: 'Invisible ink toggled', preset: 'done' });
+          }}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 52,
+            borderRadius: 12,
+            backgroundColor: pressed ? C.border : C.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            borderWidth: 1,
+            borderColor: C.border,
+          })}
+        >
+          <EyeOff size={20} color={C.text} strokeWidth={2} />
+          <Text style={{ fontSize: 8, color: '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>INK</Text>
+        </Pressable>
+
+        {/* Search */}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setSearchActive(s => !s);
+          }}
+          style={({ pressed }) => ({
+            width: 44, height: 52, borderRadius: 12,
+            backgroundColor: searchActive ? C.red : pressed ? C.border : C.surface,
+            alignItems: 'center', justifyContent: 'center', gap: 2,
+            borderWidth: searchActive ? 0 : 1, borderColor: C.border,
+          })}
+        >
+          <Search size={20} color={searchActive ? '#FFF' : C.text} strokeWidth={2} />
+          <Text style={{ fontSize: 8, color: searchActive ? 'rgba(255,255,255,0.7)' : '#6B5B4F', fontWeight: '600', letterSpacing: 0.3 }}>
+            SEARCH
+          </Text>
         </Pressable>
 
         {/* Add node */}
@@ -1583,18 +1757,20 @@ export default function InvestigationCanvas() {
           }}
           style={({ pressed }) => ({
             width: 44,
-            height: 44,
+            height: 52,
             borderRadius: 12,
             backgroundColor: isAtNodeLimit ? C.border : pressed ? '#A3162E' : C.red,
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 2,
           })}
         >
           {isAtNodeLimit ? (
             <Lock size={20} color={C.muted} strokeWidth={2} />
           ) : (
-            <Plus size={22} color="#FFF" strokeWidth={2.5} />
+            <Plus size={20} color="#FFF" strokeWidth={2.5} />
           )}
+          <Text style={{ fontSize: 8, color: isAtNodeLimit ? '#6B5B4F' : 'rgba(255,255,255,0.8)', fontWeight: '600', letterSpacing: 0.3 }}>ADD</Text>
         </Pressable>
       </View>
 

@@ -82,7 +82,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Cases" emoji="🗂️" />
+            <TabItem color={color} focused={focused} label="Files" emoji="🗂️" />
           ),
         }}
       />

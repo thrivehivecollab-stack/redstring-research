@@ -280,7 +280,7 @@ function HeroCard({
             letterSpacing: 2.5,
             fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
           }}>
-            ACTIVE CASE
+            ACTIVE INVESTIGATION
           </Text>
         </View>
 
@@ -704,7 +704,7 @@ export default function InvestigationsDashboard() {
                   fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
                   textTransform: 'uppercase',
                 }}>
-                  ALL CASES
+                  ALL INVESTIGATIONS
                 </Text>
                 <Text style={{ color: C.muted, fontSize: 10 }}>
                   {nonDemoInvestigationCount}/{maxInvestigationsCount === Infinity ? '∞' : maxInvestigationsCount}
@@ -715,16 +715,34 @@ export default function InvestigationsDashboard() {
           ListEmptyComponent={null}
         />
 
-        {/* Empty state — shown when truly no cases */}
+        {/* Empty state — shown when truly no investigations */}
         {sortedInvestigations.length === 0 ? (
-          <View style={{ position: 'absolute', top: '45%', left: 0, right: 0, alignItems: 'center', paddingHorizontal: 40 }}>
-            <Text style={{ fontSize: 52, marginBottom: 16 }}>🕵️</Text>
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>
-              No cases yet
+          <View style={{ position: 'absolute', top: '35%', left: 0, right: 0, alignItems: 'center', paddingHorizontal: 40 }}>
+            <Text style={{ fontSize: 56, marginBottom: 16 }}>🔍</Text>
+            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 0.3 }}>
+              No investigations yet
             </Text>
-            <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
-              Every conspiracy begins with a single thread. Tap + to start your first investigation.
+            <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
+              Start connecting the dots on your first case
             </Text>
+            <Pressable
+              onPress={handleNewInvestigationPress}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? '#A01830' : C.red,
+                borderRadius: 16,
+                paddingHorizontal: 28,
+                paddingVertical: 15,
+                shadowColor: C.red,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.35,
+                shadowRadius: 10,
+                elevation: 6,
+              })}
+            >
+              <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 }}>
+                New Investigation
+              </Text>
+            </Pressable>
           </View>
         ) : null}
 

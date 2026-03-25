@@ -1,12 +1,13 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import useSubscriptionStore from '@/lib/state/subscription-store';
 import { useSession } from '@/lib/auth/use-session';
 import useSecurityStore from '@/lib/state/security-store';
@@ -39,11 +40,14 @@ const BACKGROUND_LOCK_MS = 2 * 60 * 1000; // 2 minutes
 function RootLayoutNav() {
   const checkSubscription = useSubscriptionStore((s) => s.checkSubscription);
   const { data: session, isLoading } = useSession();
+  const router = useRouter();
 
   const appLockEnabled = useSecurityStore((s) => s.appLockEnabled);
   const sessionUnlocked = useSecurityStore((s) => s.sessionUnlocked);
   const lockSession = useSecurityStore((s) => s.lockSession);
   const setLastBackgroundTime = useSecurityStore((s) => s.setLastBackgroundTime);
+
+  const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
 
   // Use a ref so the AppState handler always reads fresh values
   const lockRef = useRef({ appLockEnabled, lockSession, setLastBackgroundTime });
@@ -61,10 +65,20 @@ function RootLayoutNav() {
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!isLoading) {
+    AsyncStorage.getItem('onboarding_seen').then((val) => {
+      setOnboardingSeen(val === 'true');
+    }).catch(() => setOnboardingSeen(false));
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && onboardingSeen !== null) {
       SplashScreen.hideAsync();
+      // If not authenticated and onboarding not seen, redirect to onboarding
+      if (!session?.user && !onboardingSeen) {
+        router.replace('/onboarding');
+      }
     }
-  }, [isLoading]);
+  }, [isLoading, onboardingSeen, session?.user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lock on launch if app lock is enabled
   useEffect(() => {
@@ -95,7 +109,7 @@ function RootLayoutNav() {
     return () => sub.remove();
   }, []);
 
-  if (isLoading) {
+  if (isLoading || onboardingSeen === null) {
     return null;
   }
 
@@ -104,6 +118,7 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={CorkboardTheme}>
       <Stack>
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="paywall" options={{ presentation: 'modal', headerShown: false }} />
@@ -116,6 +131,7 @@ function RootLayoutNav() {
           <Stack.Screen name="live-streams" options={{ headerShown: false, presentation: 'modal' }} />
           <Stack.Screen name="live-stream" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="new-case" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen name="hamburger-modal" options={{ presentation: 'transparentModal', headerShown: false, animation: 'slide_from_bottom' }} />
         </Stack.Protected>
         <Stack.Protected guard={!isAuthenticated}>

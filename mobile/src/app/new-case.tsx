@@ -30,6 +30,67 @@ const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 type BoardStyle = 'corkboard' | 'mindmap' | 'timeline' | 'casefile';
 type Step = 1 | 2;
 
+// ─── Permission presets ───────────────────────────────────────────
+const READ_ONLY_PERMISSIONS: InvestigationPermissions = {
+  collaborator: {
+    canDownloadPdf: false,
+    canSaveNodes: false,
+    canShareExternally: false,
+    canScreenshot: false,
+    canExportPresentation: false,
+    canExportTimeline: false,
+    canViewChainOfCustody: true,
+  },
+  viewer: {
+    canDownloadPdf: false,
+    canSaveNodes: false,
+    canShareExternally: false,
+    canScreenshot: false,
+    canExportPresentation: false,
+    canExportTimeline: false,
+    canViewChainOfCustody: true,
+  },
+  guest: {
+    canDownloadPdf: false,
+    canSaveNodes: false,
+    canShareExternally: false,
+    canScreenshot: false,
+    canExportPresentation: false,
+    canExportTimeline: false,
+    canViewChainOfCustody: false,
+  },
+};
+
+const FULL_ACCESS_PERMISSIONS: InvestigationPermissions = {
+  collaborator: {
+    canDownloadPdf: true,
+    canSaveNodes: true,
+    canShareExternally: true,
+    canScreenshot: true,
+    canExportPresentation: true,
+    canExportTimeline: true,
+    canViewChainOfCustody: true,
+  },
+  viewer: {
+    canDownloadPdf: true,
+    canSaveNodes: true,
+    canShareExternally: true,
+    canScreenshot: true,
+    canExportPresentation: true,
+    canExportTimeline: true,
+    canViewChainOfCustody: true,
+  },
+  guest: {
+    canDownloadPdf: false,
+    canSaveNodes: false,
+    canShareExternally: false,
+    canScreenshot: false,
+    canExportPresentation: false,
+    canExportTimeline: false,
+    canViewChainOfCustody: true,
+  },
+};
+
 // ─── Corkboard Preview ───────────────────────────────────────────
 function CorkboardPreview() {
   return (
@@ -257,6 +318,7 @@ export default function NewCaseScreen() {
   const [selectedStyle, setSelectedStyle] = useState<BoardStyle>('corkboard');
   const [name, setName] = useState<string>('');
   const [permissions, setPermissions] = useState<InvestigationPermissions>(DEFAULT_PERMISSIONS);
+  const [selectedPreset, setSelectedPreset] = useState<string>('Custom');
 
   const createInvestigation = useInvestigationStore((s) => s.createInvestigation);
   const setActiveInvestigation = useInvestigationStore((s) => s.setActiveInvestigation);
@@ -494,12 +556,41 @@ export default function NewCaseScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
         >
+          {/* Permission Presets */}
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+            {[
+              { label: 'Read Only', desc: 'Viewers can only look' },
+              { label: 'Full Access', desc: 'Collaborators can do everything' },
+              { label: 'Custom', desc: 'Set manually below' },
+            ].map(preset => (
+              <Pressable
+                key={preset.label}
+                onPress={() => {
+                  if (preset.label === 'Read Only') {
+                    setPermissions(READ_ONLY_PERMISSIONS);
+                  } else if (preset.label === 'Full Access') {
+                    setPermissions(FULL_ACCESS_PERMISSIONS);
+                  }
+                  setSelectedPreset(preset.label);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={{ flex: 1, padding: 10, borderRadius: 10, borderWidth: 1.5,
+                  borderColor: selectedPreset === preset.label ? '#C41E3A' : '#3D332C',
+                  backgroundColor: selectedPreset === preset.label ? 'rgba(196,30,58,0.08)' : '#1A1714',
+                  alignItems: 'center' }}
+              >
+                <Text style={{ color: '#E8DCC8', fontSize: 12, fontWeight: '700' }}>{preset.label}</Text>
+                <Text style={{ color: '#6B5B4F', fontSize: 9, marginTop: 2, textAlign: 'center' }}>{preset.desc}</Text>
+              </Pressable>
+            ))}
+          </View>
+
           <RoleCard
             role="collaborator"
             label="COLLABORATOR"
             borderColor="#C41E3A"
             permissions={permissions.collaborator}
-            onToggle={(key, value) => updatePerm('collaborator', key, value)}
+            onToggle={(key, value) => { updatePerm('collaborator', key, value); setSelectedPreset('Custom'); }}
             fontsLoaded={fontsLoaded}
           />
           <RoleCard
@@ -507,7 +598,7 @@ export default function NewCaseScreen() {
             label="VIEWER"
             borderColor="#3B82F6"
             permissions={permissions.viewer}
-            onToggle={(key, value) => updatePerm('viewer', key, value)}
+            onToggle={(key, value) => { updatePerm('viewer', key, value); setSelectedPreset('Custom'); }}
             fontsLoaded={fontsLoaded}
           />
           <RoleCard
@@ -515,9 +606,13 @@ export default function NewCaseScreen() {
             label="GUEST"
             borderColor="#6B5C4E"
             permissions={permissions.guest}
-            onToggle={(key, value) => updatePerm('guest', key, value)}
+            onToggle={(key, value) => { updatePerm('guest', key, value); setSelectedPreset('Custom'); }}
             fontsLoaded={fontsLoaded}
           />
+
+          <Text style={{ color: '#6B5B4F', fontSize: 12, textAlign: 'center', marginTop: 12 }}>
+            You can change permissions anytime in Investigation Settings
+          </Text>
         </ScrollView>
 
         {/* Create button pinned at bottom */}

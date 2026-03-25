@@ -101,4 +101,94 @@ meRouter.delete(
   }
 );
 
+// DELETE /api/me/account — Hard-delete all user data
+meRouter.delete(
+  "/account",
+  zValidator("json", z.object({ confirmText: z.string() })),
+  async (c) => {
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+    }
+
+    const { confirmText } = c.req.valid("json");
+    if (confirmText !== "DELETE") {
+      return c.json({ error: { message: "Type DELETE to confirm" } }, 400);
+    }
+
+    const userId = user.id;
+
+    // Step 1: delete TipMessages for tips where user is tipper or recipient
+    const userTips = await prisma.tip.findMany({
+      where: { OR: [{ tipperUserId: userId }, { recipientId: userId }] },
+      select: { id: true },
+    });
+    const tipIds = userTips.map((t) => t.id);
+
+    await prisma.$transaction(async (tx) => {
+      // 1. TipMessage
+      if (tipIds.length > 0) {
+        await tx.tipMessage.deleteMany({ where: { tipId: { in: tipIds } } });
+      }
+
+      // 2. Tip
+      await tx.tip.deleteMany({
+        where: { OR: [{ tipperUserId: userId }, { recipientId: userId }] },
+      });
+
+      // 3. DataRequest
+      await tx.dataRequest.deleteMany({ where: { requesterId: userId } });
+
+      // 4. AuditLog
+      await tx.auditLog.deleteMany({ where: { userId } });
+
+      // 5. NodeContribution
+      await tx.nodeContribution.deleteMany({ where: { contributorId: userId } });
+
+      // 6. CollabMember
+      await tx.collabMember.deleteMany({ where: { userId } });
+
+      // 7. CollabInvite
+      await tx.collabInvite.deleteMany({
+        where: { OR: [{ senderId: userId }, { receiverId: userId }] },
+      });
+
+      // 8. CollabSession (owned by user) — cascades PendingNode, NodeContribution,
+      //    CollabMember, CollabInvite, AuditLog remaining for those sessions
+      await tx.collabSession.deleteMany({ where: { ownerId: userId } });
+
+      // 9. NodeSource
+      await tx.nodeSource.deleteMany({ where: { ownerId: userId } });
+
+      // 10. ShareLog
+      await tx.shareLog.deleteMany({ where: { userId } });
+
+      // 11. OwnerNotification
+      await tx.ownerNotification.deleteMany({
+        where: { OR: [{ ownerId: userId }, { triggeredByUserId: userId }] },
+      });
+
+      // 12. InvestigationPermissions (cascades UserPermissionOverride)
+      await tx.investigationPermissions.deleteMany({ where: { ownerId: userId } });
+
+      // 13. PushToken
+      await tx.pushToken.deleteMany({ where: { userId } });
+
+      // 14. UserPublicKey
+      await tx.userPublicKey.deleteMany({ where: { userId } });
+
+      // 15. Session (Better Auth — cascade handled)
+      await tx.session.deleteMany({ where: { userId } });
+
+      // 16. Account (Better Auth — cascade handled)
+      await tx.account.deleteMany({ where: { userId } });
+
+      // 17. User
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    return c.json({ data: { message: "Account permanently deleted" } });
+  }
+);
+
 export { meRouter };
