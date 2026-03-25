@@ -57,6 +57,7 @@ import { useRouter } from 'expo-router';
 import { api } from '@/lib/api/api';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import type { ChatHistoryMessage } from '@/lib/types';
+import HamburgerButton from '@/components/HamburgerButton';
 
 // ─── Color constants ────────────────────────────────────────────────────────
 const COLORS = {
@@ -108,6 +109,7 @@ interface Message {
   highlight?: HighlightCategory;
   autoTag?: string;
   feedback?: 'up' | 'down' | null;
+  voiceId?: string;
 }
 
 interface AIChatResponse {
@@ -867,7 +869,7 @@ function MessageBubble({
   index: number;
   onPin: (id: string) => void;
   onLongPress: (id: string) => void;
-  onSpeak: (text: string) => void;
+  onSpeak: (text: string, voiceId?: string) => void;
   isSpeaking: boolean;
   onCopy: (text: string) => void;
   onFeedback: (id: string, feedback: 'up' | 'down') => void;
@@ -1225,7 +1227,7 @@ function MessageBubble({
             {/* ElevenLabs speak button (voice-enabled feature) */}
             <Pressable
               testID={`speak-message-${message.id}`}
-              onPress={() => onSpeak(message.text)}
+              onPress={() => onSpeak(message.text, message.voiceId)}
               style={({ pressed }) => ({
                 width: 30,
                 height: 30,
@@ -1636,7 +1638,7 @@ export default function AIResearchScreen() {
   );
 
   const speakText = useCallback(
-    (text: string, messageId?: string) => speakTextInternal(text, messageId),
+    (text: string, voiceId?: string) => speakTextInternal(text, undefined, voiceId),
     [speakTextInternal]
   );
 
@@ -1754,6 +1756,7 @@ export default function AIResearchScreen() {
               role: 'ai',
               text: aiText,
               timestamp: new Date(),
+              voiceId: selectedVoiceId,
             };
 
             // Save AI response to investigation store
@@ -2410,6 +2413,7 @@ export default function AIResearchScreen() {
           >
             <RotateCcw size={15} color={COLORS.muted} strokeWidth={2} />
           </Pressable>
+          <HamburgerButton />
         </View>
 
         {/* ── Messages + Input ────────────────────────────────────────── */}

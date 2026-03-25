@@ -1,4 +1,4 @@
-// auth v3 - phone OTP
+// auth v3 - phone OTP + social
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { expo } from "@better-auth/expo";
@@ -14,13 +14,26 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "sqlite",
   }),
+  socialProviders: {
+    ...(env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET ? {
+      apple: {
+        clientId: env.APPLE_CLIENT_ID,
+        clientSecret: env.APPLE_CLIENT_SECRET,
+      },
+    } : {}),
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? {
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      },
+    } : {}),
+  },
   plugins: [
     expo(),
     username(),
     phoneNumber({
       async sendOTP({ phoneNumber, code }) {
         if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER) {
-          // Real SMS via Twilio
           const twilio = require("twilio");
           const client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
           await client.messages.create({
@@ -29,17 +42,15 @@ export const auth = betterAuth({
             to: phoneNumber,
           });
         } else {
-          // Dev fallback: store OTP in memory and log to backend console
           lastDevOtp = { phone: phoneNumber, code };
           console.log(`\n[DEV OTP] Phone: ${phoneNumber} | Code: ${code}\n`);
         }
       },
       signUpOnVerification: {
-        // Auto-create account when user verifies their phone for the first time
         getTempEmail: (phone) => `${phone.replace(/\+/g, "").replace(/\s/g, "")}@phone.redstring.app`,
         getTempName: (phone) => phone,
       },
-      expiresIn: 600, // 10 minutes
+      expiresIn: 600,
       otpLength: 6,
     }),
   ],

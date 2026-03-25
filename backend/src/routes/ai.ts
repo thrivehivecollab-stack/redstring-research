@@ -177,12 +177,12 @@ aiRouter.post("/transcribe", async (c) => {
 
 // ─── Available voices ──────────────────────────────────────────────────────
 const AVAILABLE_VOICES = [
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'The Detective', description: 'Deep, commanding male — seasoned investigator', persona: 'detective', stability: 0.30, similarity_boost: 0.88, style: 0.55, speed: 0.92 },
-  { id: 'VR6AewLTigWG4xSOukaG', name: 'The Interrogator', description: 'Crisp, intense male — precise and pressuring', persona: 'interrogator', stability: 0.28, similarity_boost: 0.90, style: 0.62, speed: 0.96 },
-  { id: 'ErXwobaYiN019PkySvjV', name: 'The Analyst', description: 'Smooth, measured male — calm and clinical', persona: 'analyst', stability: 0.35, similarity_boost: 0.87, style: 0.48, speed: 0.98 },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'The Journalist', description: 'Warm, expressive female — sharp and empathetic', persona: 'journalist', stability: 0.28, similarity_boost: 0.88, style: 0.58, speed: 1.0 },
-  { id: '21m00Tcm4TlvDq8ikWAM', name: 'The Archivist', description: 'Clear, authoritative female — cool and precise', persona: 'archivist', stability: 0.32, similarity_boost: 0.87, style: 0.45, speed: 0.94 },
-  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'The Informant', description: 'Urgent, hushed female — wired and reactive', persona: 'informant', stability: 0.25, similarity_boost: 0.90, style: 0.68, speed: 1.05 },
+  { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', description: 'Clear, authoritative female — cool and precise', persona: 'archivist', stability: 0.32, similarity_boost: 0.87, style: 0.45, speed: 0.94 },
+  { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi', description: 'Confident, commanding female — sharp and analytical', persona: 'analyst', stability: 0.35, similarity_boost: 0.87, style: 0.48, speed: 0.98 },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella', description: 'Warm, expressive female — sharp and empathetic', persona: 'journalist', stability: 0.28, similarity_boost: 0.88, style: 0.58, speed: 1.0 },
+  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', description: 'Smooth, measured male — calm and clinical', persona: 'interrogator', stability: 0.28, similarity_boost: 0.90, style: 0.62, speed: 0.96 },
+  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', description: 'Urgent, hushed female — wired and reactive', persona: 'informant', stability: 0.25, similarity_boost: 0.90, style: 0.68, speed: 1.05 },
+  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', description: 'Deep, commanding male — seasoned investigator', persona: 'detective', stability: 0.30, similarity_boost: 0.88, style: 0.55, speed: 0.92 },
 ];
 
 aiRouter.get('/voices', (c) => {

@@ -22,6 +22,10 @@ import Animated, {
 import Svg, { Circle, Line, G } from "react-native-svg";
 import { authClient } from "@/lib/auth/auth-client";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
@@ -33,10 +37,9 @@ const COLORS = {
   amber: "#D4A574",
   text: "#E8DCC8",
   muted: "#6B5B4F",
-  border: "#3D332C",
+  border: "#272320",
 } as const;
 
-// Animated cork dots pattern
 function CorkPattern() {
   const ROWS = 12;
   const COLS = 8;
@@ -64,7 +67,6 @@ function CorkPattern() {
   );
 }
 
-// Animated red string nodes in background
 type StringNode = { x: number; y: number; dx: number; dy: number };
 function AnimatedStringNodes() {
   const nodes = useRef<StringNode[]>(
@@ -103,7 +105,6 @@ function AnimatedStringNodes() {
       style={{ position: "absolute", top: 0, left: 0 }}
       pointerEvents="none"
     >
-      {/* Draw lines between nearby nodes */}
       {positions.map((n, i) =>
         positions.slice(i + 1).map((m, j) => {
           const dist = Math.hypot(n.x - m.x, n.y - m.y);
@@ -122,7 +123,6 @@ function AnimatedStringNodes() {
           );
         })
       )}
-      {/* Draw node circles */}
       {positions.map((n, i) => (
         <G key={i}>
           <Circle cx={n.x} cy={n.y} r={6} fill="#C41E3A" opacity={0.15} />
@@ -133,35 +133,25 @@ function AnimatedStringNodes() {
   );
 }
 
-// Red string logo icon
 function RedStringLogo() {
   return (
     <Svg width={64} height={64} viewBox="0 0 64 64">
-      {/* Outer circle */}
       <Circle cx={32} cy={32} r={28} stroke="#C41E3A" strokeWidth={1.5} fill="none" opacity={0.6} />
-      {/* Inner nodes */}
       <Circle cx={32} cy={14} r={4} fill="#C41E3A" opacity={0.9} />
       <Circle cx={50} cy={44} r={4} fill="#C41E3A" opacity={0.9} />
       <Circle cx={14} cy={44} r={4} fill="#C41E3A" opacity={0.9} />
-      {/* Strings connecting nodes */}
       <Line x1={32} y1={14} x2={50} y2={44} stroke="#C41E3A" strokeWidth={1.5} opacity={0.7} />
       <Line x1={50} y1={44} x2={14} y2={44} stroke="#C41E3A" strokeWidth={1.5} opacity={0.7} />
       <Line x1={14} y1={44} x2={32} y2={14} stroke="#C41E3A" strokeWidth={1.5} opacity={0.7} />
-      {/* Center node */}
       <Circle cx={32} cy={34} r={5} fill="#D4A574" opacity={0.9} />
     </Svg>
   );
 }
 
 function formatPhone(input: string): string {
-  // Strip everything except digits and leading +
   const digits = input.replace(/\D/g, "");
-  // If user typed a + at the start, preserve it
   const hasPlus = input.trimStart().startsWith("+");
-  if (hasPlus) {
-    return "+" + digits;
-  }
-  // Default to US +1
+  if (hasPlus) return "+" + digits;
   return "+1" + digits;
 }
 
@@ -177,6 +167,84 @@ export default function SignInScreen() {
     transform: [{ scale: buttonScale.value }],
   }));
 
+  // Google OAuth via expo-auth-session
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  });
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (googleResponse?.type === "success" && googleResponse.authentication) {
+      const { idToken, accessToken } = googleResponse.authentication;
+      const tokenToSend = idToken ?? accessToken;
+      if (tokenToSend) {
+        handleGoogleToken(tokenToSend, !!idToken);
+      }
+    }
+  }, [googleResponse]);
+
+  const handleGoogleToken = async (token: string, isIdToken: boolean) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await (authClient as any).signIn.social({
+        provider: "google",
+        ...(isIdToken ? { idToken: { token } } : { accessToken: { token } }),
+      });
+      if (result?.error) {
+        setSocialMessage("Google Sign-In failed. Please try phone number.");
+        setTimeout(() => setSocialMessage(null), 3000);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace("/(tabs)" as any);
+      }
+    } catch {
+      setSocialMessage("Google Sign-In is not configured yet. Use phone number.");
+      setTimeout(() => setSocialMessage(null), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      setIsLoading(true);
+      // Use the auth client social sign-in for Apple.
+      // On a real device with expo-apple-authentication linked natively,
+      // Better Auth will handle the native credential flow server-side.
+      const result = await (authClient as any).signIn.social({
+        provider: "apple",
+      });
+      if (result?.error) {
+        setSocialMessage("Apple Sign-In failed. Please try phone number.");
+        setTimeout(() => setSocialMessage(null), 3000);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace("/(tabs)" as any);
+      }
+    } catch (e: any) {
+      if (e?.code !== "ERR_CANCELED") {
+        setSocialMessage("Apple Sign-In is not configured yet. Use phone number.");
+        setTimeout(() => setSocialMessage(null), 3000);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!googleRequest) {
+      setSocialMessage("Google Sign-In is not configured yet. Use phone number.");
+      setTimeout(() => setSocialMessage(null), 3000);
+      return;
+    }
+    await googlePromptAsync();
+  };
+
   const handleSendCode = async () => {
     const trimmed = phone.trim();
     const digits = trimmed.replace(/\D/g, "");
@@ -184,23 +252,16 @@ export default function SignInScreen() {
       setError("Please enter a valid phone number (at least 10 digits).");
       return;
     }
-
     const formattedPhone = formatPhone(trimmed);
-
     setError(null);
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Button press animation
     buttonScale.value = withSequence(
       withTiming(0.95, { duration: 80 }),
       withTiming(1, { duration: 80 })
     );
-
     try {
-      const result = await authClient.phoneNumber.sendOtp({
-        phoneNumber: formattedPhone,
-      });
+      const result = await authClient.phoneNumber.sendOtp({ phoneNumber: formattedPhone });
       if (result.error) {
         setError(result.error.message ?? "Failed to send code. Please try again.");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -220,162 +281,132 @@ export default function SignInScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      {/* Background layers */}
       <CorkPattern />
       <AnimatedStringNodes />
-
-      {/* Top gradient fade */}
       <LinearGradient
         colors={["#1A1614", "transparent"]}
         style={{ position: "absolute", top: 0, left: 0, right: 0, height: 200 }}
       />
-
-      {/* Bottom gradient fade */}
       <LinearGradient
         colors={["transparent", "#1A1614"]}
         style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 300 }}
       />
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-          {/* Top spacer + hero */}
           <View style={{ flex: 1, justifyContent: "flex-end", paddingHorizontal: 32, paddingBottom: 40 }}>
-            {/* Logo & title area */}
+            {/* Logo & title */}
             <Animated.View
               entering={FadeInDown.delay(100).duration(600).springify()}
-              style={{ alignItems: "center", marginBottom: 48 }}
+              style={{ alignItems: "center", marginBottom: 40 }}
             >
-              {/* Logo */}
               <View
                 style={{
-                  width: 88,
-                  height: 88,
-                  borderRadius: 44,
-                  backgroundColor: COLORS.surface,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 24,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  shadowColor: COLORS.red,
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 16,
-                  elevation: 12,
+                  width: 88, height: 88, borderRadius: 44,
+                  backgroundColor: COLORS.surface, alignItems: "center", justifyContent: "center",
+                  marginBottom: 24, borderWidth: 1, borderColor: COLORS.border,
+                  shadowColor: COLORS.red, shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.3, shadowRadius: 16, elevation: 12,
                 }}
               >
                 <RedStringLogo />
               </View>
-
-              {/* App name */}
-              <Text
-                style={{
-                  fontSize: 32,
-                  fontWeight: "900",
-                  color: COLORS.red,
-                  letterSpacing: 3.2,
-                  textAlign: "center",
-                  marginBottom: 4,
-                }}
-              >
+              <Text style={{ fontSize: 32, fontWeight: "900", color: COLORS.red, letterSpacing: 3.2, textAlign: "center", marginBottom: 4 }}>
                 RED STRING
               </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: "700",
-                  color: COLORS.amber,
-                  letterSpacing: 6.2,
-                  textAlign: "center",
-                  marginBottom: 16,
-                }}
-              >
+              <Text style={{ fontSize: 13, fontWeight: "700", color: COLORS.amber, letterSpacing: 6.2, textAlign: "center", marginBottom: 16 }}>
                 RESEARCH
               </Text>
-
-              {/* Tagline */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 4,
-                }}
-              >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
                 <View style={{ height: 1, width: 32, backgroundColor: COLORS.border }} />
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: COLORS.muted,
-                    fontStyle: "italic",
-                    letterSpacing: 0.7,
-                  }}
-                >
+                <Text style={{ fontSize: 13, color: COLORS.muted, fontStyle: "italic", letterSpacing: 0.7 }}>
                   Every thread leads somewhere.
                 </Text>
                 <View style={{ height: 1, width: 32, backgroundColor: COLORS.border }} />
               </View>
             </Animated.View>
 
-            {/* Form card */}
-            <Animated.View entering={FadeInDown.delay(300).duration(600).springify()}>
+            {/* Social sign-in — ABOVE phone form */}
+            <Animated.View entering={FadeInDown.delay(250).duration(500)} style={{ gap: 10, marginBottom: 20 }}>
+              {/* Apple Sign In — shown on iOS only */}
+              {Platform.OS === "ios" ? (
+                <Pressable
+                  testID="apple-sign-in-button"
+                  onPress={handleAppleSignIn}
+                  disabled={isLoading}
+                  style={({ pressed }) => ({
+                    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+                    backgroundColor: pressed ? "#111" : "#000",
+                    borderRadius: 12, paddingVertical: 14,
+                    borderWidth: 1, borderColor: "#333",
+                    opacity: isLoading ? 0.7 : 1,
+                  })}
+                >
+                  <View style={{ width: 20, height: 20, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "900" }}></Text>
+                  </View>
+                  <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "700" }}>Continue with Apple</Text>
+                </Pressable>
+              ) : null}
+
+              {/* Google Sign In */}
+              <Pressable
+                testID="google-sign-in-button"
+                onPress={handleGoogleSignIn}
+                disabled={isLoading}
+                style={({ pressed }) => ({
+                  flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+                  backgroundColor: pressed ? "#2A2421" : COLORS.surface,
+                  borderRadius: 12, paddingVertical: 14,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  opacity: isLoading ? 0.7 : 1,
+                })}
+              >
+                {/* Colorful 2x2 Google G tile */}
+                <View style={{ width: 20, height: 20, borderRadius: 10, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", width: 14, height: 14 }}>
+                    <View style={{ width: 7, height: 7, backgroundColor: "#4285F4" }} />
+                    <View style={{ width: 7, height: 7, backgroundColor: "#34A853" }} />
+                    <View style={{ width: 7, height: 7, backgroundColor: "#FBBC05" }} />
+                    <View style={{ width: 7, height: 7, backgroundColor: "#EA4335" }} />
+                  </View>
+                </View>
+                <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: "600" }}>Continue with Google</Text>
+              </Pressable>
+            </Animated.View>
+
+            {/* OR divider */}
+            <Animated.View
+              entering={FadeInDown.delay(350).duration(400)}
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20 }}
+            >
+              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+              <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: "600", letterSpacing: 1.2 }}>OR</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+            </Animated.View>
+
+            {/* Phone form */}
+            <Animated.View entering={FadeInDown.delay(400).duration(600).springify()}>
               <View
                 style={{
-                  backgroundColor: COLORS.surface,
-                  borderRadius: 20,
-                  padding: 24,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 16,
-                  elevation: 10,
+                  backgroundColor: COLORS.surface, borderRadius: 20, padding: 24,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.3, shadowRadius: 16, elevation: 10,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: "700",
-                    color: COLORS.text,
-                    marginBottom: 4,
-                  }}
-                >
+                <Text style={{ fontSize: 20, fontWeight: "700", color: COLORS.text, marginBottom: 4 }}>
                   Access your files
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: COLORS.muted,
-                    marginBottom: 20,
-                    lineHeight: 18,
-                  }}
-                >
+                <Text style={{ fontSize: 13, color: COLORS.muted, marginBottom: 20, lineHeight: 18 }}>
                   Enter your phone number and we'll send a verification code via SMS.
                 </Text>
-
-                {/* Phone input */}
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "700",
-                    color: COLORS.muted,
-                    letterSpacing: 1.6,
-                    marginBottom: 8,
-                  }}
-                >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: COLORS.muted, letterSpacing: 1.6, marginBottom: 8 }}>
                   PHONE NUMBER
                 </Text>
                 <TextInput
                   testID="phone-input"
                   value={phone}
-                  onChangeText={(t) => {
-                    setPhone(t);
-                    if (error) setError(null);
-                  }}
+                  onChangeText={(t) => { setPhone(t); if (error) setError(null); }}
                   placeholder="+1 (555) 000-0000"
                   placeholderTextColor={COLORS.muted}
                   keyboardType="phone-pad"
@@ -385,70 +416,35 @@ export default function SignInScreen() {
                   returnKeyType="send"
                   onSubmitEditing={handleSendCode}
                   style={{
-                    backgroundColor: COLORS.bg,
-                    borderRadius: 12,
-                    padding: 16,
-                    color: COLORS.text,
-                    fontSize: 16,
-                    borderWidth: 1,
+                    backgroundColor: COLORS.bg, borderRadius: 12, padding: 16,
+                    color: COLORS.text, fontSize: 16, borderWidth: 1,
                     borderColor: error ? COLORS.red : COLORS.border,
                     marginBottom: error ? 8 : 24,
                   }}
                 />
-
-                {/* Error message */}
                 {error ? (
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: COLORS.red,
-                      marginBottom: 16,
-                      lineHeight: 16,
-                    }}
-                  >
+                  <Text style={{ fontSize: 13, color: COLORS.red, marginBottom: 16, lineHeight: 16 }}>
                     {error}
                   </Text>
                 ) : null}
-
-                {/* Send code button */}
                 <Animated.View style={buttonAnimStyle}>
                   <Pressable
                     testID="send-code-button"
                     onPress={handleSendCode}
                     disabled={isLoading}
-                    style={() => ({
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      opacity: isLoading ? 0.8 : 1,
-                    })}
+                    style={{ borderRadius: 12, overflow: "hidden", opacity: isLoading ? 0.8 : 1 }}
                   >
                     <LinearGradient
-                      colors={
-                        isValidPhone
-                          ? ["#D42240", "#C41E3A", "#A3162E"]
-                          : [COLORS.border, COLORS.border]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      colors={isValidPhone ? ["#D42240", "#C41E3A", "#A3162E"] : [COLORS.border, COLORS.border]}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                       style={{
-                        paddingVertical: 16,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 12,
-                        shadowColor: COLORS.red,
+                        paddingVertical: 16, alignItems: "center", justifyContent: "center",
+                        borderRadius: 12, shadowColor: COLORS.red,
                         shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: isValidPhone ? 0.4 : 0,
-                        shadowRadius: 8,
+                        shadowOpacity: isValidPhone ? 0.4 : 0, shadowRadius: 8,
                       }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "800",
-                          color: isValidPhone ? "#FFFFFF" : COLORS.muted,
-                          letterSpacing: 0.7,
-                        }}
-                      >
+                      <Text style={{ fontSize: 16, fontWeight: "800", color: isValidPhone ? "#FFFFFF" : COLORS.muted, letterSpacing: 0.7 }}>
                         {isLoading ? "Sending Code..." : "Send Verification Code"}
                       </Text>
                     </LinearGradient>
@@ -457,89 +453,21 @@ export default function SignInScreen() {
               </View>
             </Animated.View>
 
-            {/* OR divider */}
-            <Animated.View entering={FadeInDown.delay(400).duration(500)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, marginBottom: 16 }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-              <Text style={{ color: COLORS.muted, fontSize: 13, fontWeight: '600', letterSpacing: 1.2 }}>OR</Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-            </Animated.View>
-
-            {/* Social sign-in buttons */}
-            <Animated.View entering={FadeInDown.delay(500).duration(500)} style={{ gap: 12 }}>
-              {/* Google */}
-              <Pressable
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  try {
-                    await (authClient as any).signIn.social({ provider: 'google', callbackURL: '/dashboard' });
-                  } catch {
-                    setSocialMessage('Google Sign-In is not configured yet. Use phone number for now.');
-                    setTimeout(() => setSocialMessage(null), 3000);
-                  }
-                }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                  backgroundColor: pressed ? '#2A2421' : COLORS.surface,
-                  borderRadius: 12, padding: 14,
-                  borderWidth: 1, borderColor: COLORS.border,
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#4285F4', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>G</Text>
-                </View>
-                <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '600' }}>Continue with Google</Text>
-              </Pressable>
-
-              {/* Apple */}
-              <Pressable
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  try {
-                    await (authClient as any).signIn.social({ provider: 'apple', callbackURL: '/dashboard' });
-                  } catch {
-                    setSocialMessage('Apple Sign-In is not configured yet. Use phone number for now.');
-                    setTimeout(() => setSocialMessage(null), 3000);
-                  }
-                }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                  backgroundColor: pressed ? '#2A2421' : COLORS.surface,
-                  borderRadius: 12, padding: 14,
-                  borderWidth: 1, borderColor: COLORS.border,
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#F5ECD7', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#1A1614', fontSize: 13, fontWeight: '900' }}></Text>
-                </View>
-                <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '600' }}>Continue with Apple</Text>
-              </Pressable>
-            </Animated.View>
-
             {/* Social message toast */}
             {socialMessage ? (
-              <Animated.View entering={FadeInDown.duration(300)} style={{
-                marginTop: 12, backgroundColor: COLORS.surface, borderRadius: 10, padding: 12,
-                borderWidth: 1, borderColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: COLORS.amber,
-              }}>
-                <Text style={{ color: COLORS.text, fontSize: 13, textAlign: 'center' }}>{socialMessage}</Text>
+              <Animated.View
+                entering={FadeInDown.duration(300)}
+                style={{
+                  marginTop: 12, backgroundColor: COLORS.surface, borderRadius: 10, padding: 12,
+                  borderWidth: 1, borderColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: COLORS.amber,
+                }}
+              >
+                <Text style={{ color: COLORS.text, fontSize: 13, textAlign: "center" }}>{socialMessage}</Text>
               </Animated.View>
             ) : null}
 
-            {/* Footer text */}
-            <Animated.View
-              entering={FadeIn.delay(600).duration(400)}
-              style={{ alignItems: "center", marginTop: 24 }}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: COLORS.muted,
-                  textAlign: "center",
-                  lineHeight: 18,
-                }}
-              >
+            <Animated.View entering={FadeIn.delay(600).duration(400)} style={{ alignItems: "center", marginTop: 24 }}>
+              <Text style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", lineHeight: 18 }}>
                 No password needed. We keep your investigations secure{"\n"}with one-time SMS codes.
               </Text>
             </Animated.View>

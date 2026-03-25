@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,6 +49,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import BroadcasterOverlay from '@/components/BroadcasterOverlay';
+import HamburgerButton from '@/components/HamburgerButton';
 import {
   ArrowLeft,
   Plus,
@@ -346,6 +348,19 @@ function NodeCard({
                 </View>
               ))}
             </View>
+          ) : null}
+          {/* Image preview for image type */}
+          {node.type === 'image' && node.imageUri ? (
+            <Image
+              source={{ uri: node.imageUri }}
+              style={{
+                width: '100%',
+                height: 60,
+                borderRadius: 6,
+                marginTop: 6,
+              }}
+              resizeMode="cover"
+            />
           ) : null}
         </View>
       </Animated.View>
@@ -837,9 +852,14 @@ export default function InvestigationCanvas() {
       }
       if (type === 'image') {
         setShowAddMenu(false);
+        const permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permResult.granted) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          return;
+        }
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          allowsEditing: false,
+          allowsEditing: true,
           quality: 0.8,
         });
         if (!result.canceled && result.assets[0]) {
@@ -1327,6 +1347,7 @@ export default function InvestigationCanvas() {
           >
             <Share2 size={22} color={C.text} strokeWidth={2} />
           </Pressable>
+          <HamburgerButton color={C.text} />
         </View>
       </SafeAreaView>
 
@@ -1652,6 +1673,36 @@ export default function InvestigationCanvas() {
                 key={item.type}
                 testID={`add-node-${item.type}`}
                 onPress={() => handleAddNode(item.type)}
+                onLongPress={item.type === 'image' ? () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  Alert.alert(
+                    'Add Image',
+                    'Choose source',
+                    [
+                      {
+                        text: 'Camera',
+                        onPress: async () => {
+                          setShowAddMenu(false);
+                          const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+                          if (!camPerm.granted) return;
+                          const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
+                          if (!result.canceled && result.assets[0]) {
+                            const scatter = () => (Math.random() - 0.5) * 200;
+                            const centerX = (-tX.value + screenW / 2) / scaleVal.value - NODE_W / 2;
+                            const centerY = (-tY.value + screenH / 2) / scaleVal.value - NODE_H / 2;
+                            storeAddNode(activeId!, 'image', 'Camera Photo', { x: centerX + scatter(), y: centerY + scatter() }, { imageUri: result.assets[0].uri });
+                          }
+                        },
+                      },
+                      {
+                        text: 'Photo Library',
+                        onPress: () => handleAddNode('image'),
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]
+                  );
+                } : undefined}
+                delayLongPress={400}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',

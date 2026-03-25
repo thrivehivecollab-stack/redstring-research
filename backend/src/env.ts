@@ -23,6 +23,12 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   // Perplexity (primary research AI — independent search, not Google)
   PERPLEXITY_API_KEY: z.string().optional(),
+  // Apple OAuth
+  APPLE_CLIENT_ID: z.string().optional(),
+  APPLE_CLIENT_SECRET: z.string().optional(),
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   // ElevenLabs
   ELEVENLABS_API_KEY: z.string().optional(),
   // Daily.co (War Room video calls)
