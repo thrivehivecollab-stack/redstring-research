@@ -20,6 +20,7 @@ import { permissionsRouter } from "./routes/permissions";
 import { shareLogRouter } from "./routes/share-log";
 import { ownerNotificationsRouter } from "./routes/owner-notifications";
 import { keysRouter } from "./routes/keys";
+import { provenanceRouter } from "./routes/provenance";
 
 const app = new Hono<{ Variables: HonoVariables }>();
 
@@ -76,6 +77,7 @@ app.route("/api/permissions", permissionsRouter);
 app.route("/api/share-log", shareLogRouter);
 app.route("/api/owner-notifications", ownerNotificationsRouter);
 app.route("/api/keys", keysRouter);
+app.route("/api/provenance", provenanceRouter);
 
 // Dev-only route to expose last OTP code
 if (env.NODE_ENV !== "production") {

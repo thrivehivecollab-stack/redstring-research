@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker, ChatHistoryMessage, InvestigationPermissions } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker, ChatHistoryMessage, InvestigationPermissions, NodeProvenanceRecord } from '@/lib/types';
 import { api } from '@/lib/api/api';
 
 function generateId(): string {
@@ -68,7 +68,7 @@ interface InvestigationStore {
   restoreInvestigation: (investigation: Investigation) => void;
 
   // ─── New actions ──────────────────────────────────────────────────────────
-  updateInvestigationMeta: (id: string, updates: Pick<Investigation, 'icon' | 'iconUri' | 'boardStyle' | 'filingTabColor' | 'filingTabLabel'> & { permissions?: import('@/lib/types').InvestigationPermissions }) => void;
+  updateInvestigationMeta: (id: string, updates: Partial<Investigation>) => void;
   setInvestigationPin: (id: string, pinHash: string) => void;
   logAccess: (id: string, entry: Omit<AccessLogEntry, 'id'>) => void;
   addSticker: (investigationId: string, nodeId: string, sticker: Omit<NodeSticker, 'id'>) => void;
@@ -80,6 +80,7 @@ interface InvestigationStore {
   updateMessageFeedback: (investigationId: string, messageId: string, feedback: 'up' | 'down' | null) => void;
   updateChatMessage: (investigationId: string, messageId: string, updates: Partial<ChatHistoryMessage>) => void;
   clearChatHistory: (investigationId: string) => void;
+  updateInvestigationTimelineSettings: (id: string, settings: Investigation['timelineSettings']) => void;
 }
 
 const useInvestigationStore = create<InvestigationStore>()(
@@ -146,6 +147,12 @@ const useInvestigationStore = create<InvestigationStore>()(
           createdAt: now,
           updatedAt: now,
           ...extras,
+          provenance: {
+            entryMethod: extras?.provenance?.entryMethod ?? 'direct_add',
+            addedAt: now,
+            editHistory: [],
+            ...extras?.provenance,
+          },
         };
         set((state) => ({
           investigations: state.investigations.map((inv) =>
@@ -605,6 +612,14 @@ const useInvestigationStore = create<InvestigationStore>()(
         set((state) => ({
           investigations: state.investigations.map((inv) =>
             inv.id === investigationId ? { ...inv, chatHistory: [] } : inv
+          ),
+        }));
+      },
+
+      updateInvestigationTimelineSettings: (id, settings) => {
+        set((state) => ({
+          investigations: state.investigations.map((inv) =>
+            inv.id === id ? { ...inv, timelineSettings: settings } : inv
           ),
         }));
       },

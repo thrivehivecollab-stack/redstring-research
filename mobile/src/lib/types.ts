@@ -60,6 +60,30 @@ export interface NodeSource {
   addedAt: number;
 }
 
+export type EntryMethod = 'tip' | 'direct_add' | 'collab_contribution' | 'import';
+
+export type SourceTypeBadge = 'FOIA' | 'Witness' | 'CCTV' | 'Document' | 'Social Media' | 'Manual Entry';
+
+export interface ProvenanceEditEntry {
+  id: string;
+  userId: string;
+  username: string;
+  action: string; // "Updated title", "Changed source", "Moved on canvas", "Verified source", etc.
+  field?: string;
+  oldValue?: string;
+  newValue?: string;
+  timestamp: number;
+}
+
+export interface NodeProvenanceRecord {
+  entryMethod?: EntryMethod;
+  addedByUserId?: string;
+  addedByUsername?: string;
+  addedByAvatar?: string; // first letter of username
+  addedAt?: number; // unix ms
+  editHistory?: ProvenanceEditEntry[];
+}
+
 export interface CanvasNode {
   id: string;
   type: NodeType;
@@ -82,6 +106,7 @@ export interface CanvasNode {
   stickers?: NodeSticker[];    // array of applied stickers
   tapeColor?: string;          // per-node tape override
   pushpinColor?: string;       // per-node pushpin override
+  provenance?: NodeProvenanceRecord;
 }
 
 export interface RedString {
@@ -193,6 +218,11 @@ export interface Investigation {
   accessLog?: AccessLogEntry[];
   chatHistory?: ChatHistoryMessage[];
   permissions?: InvestigationPermissions;
+  timelineSettings?: {
+    scrollDirection?: 'horizontal' | 'vertical';
+    dateRangeStart?: number; // unix ms
+    dateRangeEnd?: number;   // unix ms
+  };
 }
 
 export interface AISuggestion {

@@ -50,6 +50,8 @@ import BottomSheet, {
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import BroadcasterOverlay from '@/components/BroadcasterOverlay';
 import HamburgerButton from '@/components/HamburgerButton';
+import ProvenanceSheet from '@/components/ProvenanceSheet';
+import CanvasTimeline from '@/components/CanvasTimeline';
 import {
   ArrowLeft,
   Plus,
@@ -210,6 +212,7 @@ function NodeCard({
   onDragStart,
   onDragMove,
   onDragEndPosition,
+  onProvenanceTap,
 }: {
   node: CanvasNode;
   scaleVal: Animated.SharedValue<number>;
@@ -222,6 +225,7 @@ function NodeCard({
   onDragStart: (id: string) => void;
   onDragMove: (id: string, screenY: number) => void;
   onDragEndPosition: (id: string, screenX: number, screenY: number) => void;
+  onProvenanceTap: (id: string) => void;
 }) {
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
@@ -406,6 +410,26 @@ function NodeCard({
               ) : null}
             </>
           )}
+          {/* Chain of custody button — bottom right corner */}
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onProvenanceTap(node.id);
+            }}
+            style={{
+              position: 'absolute',
+              bottom: 4,
+              right: 4,
+              width: 20,
+              height: 20,
+              borderRadius: 5,
+              backgroundColor: 'rgba(0,0,0,0.08)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Link2 size={11} color={C.muted} strokeWidth={2} />
+          </Pressable>
         </View>
         </Pressable>
       </Animated.View>
@@ -673,6 +697,9 @@ export default function InvestigationCanvas() {
   const [connectMode, setConnectMode] = useState<boolean>(false);
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
   const [showStylePicker, setShowStylePicker] = useState<boolean>(false);
+  const [timelineMode, setTimelineMode] = useState<boolean>(false);
+  const [provenanceNodeId, setProvenanceNodeId] = useState<string | null>(null);
+  const [showProvenanceSheet, setShowProvenanceSheet] = useState<boolean>(false);
   const [showNodeLimitModal, setShowNodeLimitModal] = useState<boolean>(false);
   const [selectedStringId, setSelectedStringId] = useState<string | null>(null);
   const [showStringSheet, setShowStringSheet] = useState<boolean>(false);
@@ -962,6 +989,13 @@ export default function InvestigationCanvas() {
     setCanvasMode(canvasMode === 'corkboard' ? 'mindmap' : 'corkboard');
   }, [canvasMode, setCanvasMode]);
 
+  // Provenance (chain of custody) tap
+  const handleProvenanceTap = useCallback((nodeId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setProvenanceNodeId(nodeId);
+    setShowProvenanceSheet(true);
+  }, []);
+
   // Save node edits
   const handleSaveNode = useCallback(() => {
     if (!activeId || !selectedNodeId) return;
@@ -1170,6 +1204,7 @@ export default function InvestigationCanvas() {
                   onDragStart={handleNodeDragStart}
                   onDragMove={handleNodeDragMove}
                   onDragEndPosition={handleNodeDragEndPosition}
+                  onProvenanceTap={handleProvenanceTap}
                 />
               ))}
             </View>
@@ -1475,6 +1510,27 @@ export default function InvestigationCanvas() {
             <Cable size={22} color={connectMode ? '#FFF' : C.text} strokeWidth={2} />
           </Pressable>
         ) : null}
+
+        {/* Timeline mode toggle */}
+        <Pressable
+          testID="timeline-mode-button"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setTimelineMode((prev) => !prev);
+          }}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: timelineMode ? C.red : pressed ? C.border : C.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: timelineMode ? 0 : 1,
+            borderColor: C.border,
+          })}
+        >
+          <Calendar size={22} color={timelineMode ? '#FFF' : C.text} strokeWidth={2} />
+        </Pressable>
 
         {/* Submit to Collab button */}
         <Pressable
@@ -2933,6 +2989,131 @@ export default function InvestigationCanvas() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ---- CANVAS TIMELINE OVERLAY ---- */}
+      {timelineMode ? (
+        <Animated.View
+          entering={FadeIn.duration(250)}
+          exiting={FadeOut.duration(200)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#0F0D0B',
+            zIndex: 500,
+          }}
+        >
+          {/* Header */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 16,
+              paddingTop: insets.top + 8,
+              paddingBottom: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: '#3D332C',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Calendar size={16} color="#C41E3A" strokeWidth={2} />
+              <Text style={{ color: '#E8DCC8', fontSize: 16, fontWeight: '800', letterSpacing: 0.4 }}>
+                Canvas Timeline
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setTimelineMode(false);
+              }}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#1A1714',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: '#3D332C',
+              }}
+            >
+              <X size={15} color="#6B5B4F" strokeWidth={2.5} />
+            </Pressable>
+          </View>
+          <CanvasTimeline
+            nodes={nodes}
+            strings={strings}
+            investigationId={investigation.id}
+            scrollDirection={investigation.timelineSettings?.scrollDirection ?? 'horizontal'}
+            dateRangeStart={investigation.timelineSettings?.dateRangeStart}
+            dateRangeEnd={investigation.timelineSettings?.dateRangeEnd}
+            onNodeTap={(nodeId) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              const nd = nodes.find((n) => n.id === nodeId);
+              if (nd) {
+                setEditTitle(nd.title);
+                setEditContent(nd.content ?? nd.description ?? '');
+                setEditDate(nd.timestamp ? new Date(nd.timestamp).toISOString().split('T')[0] : '');
+              }
+              setSelectedNode(nodeId);
+              setTimelineMode(false);
+              bottomSheetRef.current?.snapToIndex(0);
+            }}
+            onNodeTimestampUpdate={(nodeId, timestamp) => {
+              if (activeId) {
+                storeUpdateNode(activeId, nodeId, { timestamp });
+              }
+            }}
+            onAddManualEvent={(event) => {
+              if (!activeId) return;
+              storeAddNode(activeId, 'note', event.description, { x: 200, y: 200 }, {
+                timestamp: event.timestamp,
+                content: event.note,
+                sources: event.sourceUrl ? [{
+                  id: Date.now().toString(36),
+                  sourceType: 'url',
+                  sourceName: event.sourceUrl,
+                  sourceUrl: event.sourceUrl,
+                  credibility: event.credibility as any,
+                  contentType: event.sourceType as any,
+                  addedAt: Date.now(),
+                }] : undefined,
+              });
+            }}
+            onAIFlagTap={(flag) => {
+              burnt.toast({ title: flag.message, preset: 'error' });
+            }}
+          />
+        </Animated.View>
+      ) : null}
+
+      {/* ---- PROVENANCE / CHAIN OF CUSTODY SHEET ---- */}
+      <ProvenanceSheet
+        visible={showProvenanceSheet}
+        node={provenanceNodeId ? (nodes.find((n) => n.id === provenanceNodeId) ?? null) : null}
+        investigationId={investigation.id}
+        isOwnerOrCoInvestigator
+        onClose={() => {
+          setShowProvenanceSheet(false);
+          setProvenanceNodeId(null);
+        }}
+        onVerifySource={(sourceId) => {
+          if (activeId && provenanceNodeId) {
+            const node = nodes.find((n) => n.id === provenanceNodeId);
+            const src = node?.sources?.find((s) => s.id === sourceId);
+            if (src) {
+              storeUpdateNode(activeId, provenanceNodeId, {
+                sources: (node?.sources ?? []).map((s) =>
+                  s.id === sourceId ? { ...s, credibility: 'confirmed' } : s
+                ),
+              });
+            }
+          }
+        }}
+      />
     </View>
   );
 }
