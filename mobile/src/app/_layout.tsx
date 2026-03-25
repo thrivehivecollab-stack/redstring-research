@@ -107,6 +107,7 @@ function RootLayoutNav() {
           <Stack.Screen name="pin-setup" options={{ headerShown: false }} />
           <Stack.Screen name="live-broadcast" options={{ headerShown: false, presentation: 'modal' }} />
           <Stack.Screen name="live-streams" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="live-stream" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="new-case" options={{ headerShown: false }} />
           <Stack.Screen name="hamburger-modal" options={{ presentation: 'transparentModal', headerShown: false, animation: 'slide_from_bottom' }} />
         </Stack.Protected>

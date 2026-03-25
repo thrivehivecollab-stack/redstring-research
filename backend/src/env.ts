@@ -33,6 +33,9 @@ const envSchema = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   // Daily.co (War Room video calls)
   DAILY_API_KEY: z.string().optional(),
+  // Mux (Live Streaming)
+  MUX_TOKEN_ID: z.string().optional(),
+  MUX_TOKEN_SECRET: z.string().optional(),
 });
 
 /**

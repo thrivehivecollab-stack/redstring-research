@@ -4,6 +4,7 @@ import {
   Text,
   Pressable,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,9 +14,11 @@ import {
   LogOut,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import { useSession, useInvalidateSession } from '@/lib/auth/use-session';
 import { authClient } from '@/lib/auth/auth-client';
 import useSubscriptionStore from '@/lib/state/subscription-store';
+import { api } from '@/lib/api/api';
 
 const C = {
   bg: '#0F0D0B',
@@ -34,6 +37,7 @@ type MenuItem = {
   sub?: string;
   onPress: () => void;
   danger?: boolean;
+  isLoading?: boolean;
 };
 
 export default function HamburgerModal() {
@@ -43,6 +47,7 @@ export default function HamburgerModal() {
   const tier = useSubscriptionStore((s) => s.tier);
   const isPremium = tier === 'pro' || tier === 'plus';
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isOpeningWarRoom, setIsOpeningWarRoom] = useState(false);
 
   const close = () => router.back();
 
@@ -58,6 +63,29 @@ export default function HamburgerModal() {
     }
   };
 
+  const handleWarRoom = async () => {
+    setIsOpeningWarRoom(true);
+    try {
+      const timestamp = new Date(Date.now()).toISOString().toLowerCase().replace(/[:.]/g, '-').replace('t', '-').slice(0, 19);
+      const title = `war-room-${timestamp}`;
+      const result = await api.post<{ roomUrl: string }>('/api/warroom/rooms', { title });
+      close();
+      await WebBrowser.openBrowserAsync(result.roomUrl);
+    } catch (err: any) {
+      if (err?.message?.includes('DAILY_NOT_CONFIGURED') || err?.code === 'DAILY_NOT_CONFIGURED') {
+        Alert.alert(
+          'Daily.co Not Configured',
+          'To use War Room video collaboration, add your DAILY_API_KEY in the ENV tab.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', err?.message ?? 'Failed to open War Room');
+      }
+    } finally {
+      setIsOpeningWarRoom(false);
+    }
+  };
+
   const sections: { title: string; items: MenuItem[] }[] = [
     {
       title: 'COLLABORATE',
@@ -69,10 +97,17 @@ export default function HamburgerModal() {
           onPress: () => { close(); router.push('/live-broadcast' as any); },
         },
         {
+          emoji: '🔴',
+          label: 'Live Stream',
+          sub: 'Stream to YouTube, Twitch & TikTok',
+          onPress: () => { close(); router.push('/live-stream' as any); },
+        },
+        {
           emoji: '🎥',
-          label: 'War Room',
+          label: isOpeningWarRoom ? 'Opening...' : 'War Room',
           sub: 'Video collaboration',
-          onPress: () => { close(); router.push('/war-room' as any); },
+          onPress: handleWarRoom,
+          isLoading: isOpeningWarRoom,
         },
         {
           emoji: '👥',
@@ -207,6 +242,7 @@ export default function HamburgerModal() {
                     <Pressable
                       key={item.label}
                       testID={`menu-item-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+                      disabled={item.isLoading}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         item.onPress();
@@ -219,6 +255,7 @@ export default function HamburgerModal() {
                         backgroundColor: pressed ? C.surface2 : 'transparent',
                         borderTopWidth: idx > 0 ? 1 : 0,
                         borderTopColor: C.border,
+                        opacity: item.isLoading ? 0.6 : 1,
                       })}
                     >
                       <Text style={{ fontSize: 22, marginRight: 14 }}>{item.emoji}</Text>

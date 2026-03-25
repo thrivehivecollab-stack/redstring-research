@@ -70,6 +70,7 @@ import {
   Calendar,
   Users,
   Share2,
+  EyeOff,
 } from 'lucide-react-native';
 import { generateDossier } from '@/lib/generateDossier';
 import * as Haptics from 'expo-haptics';
@@ -225,6 +226,7 @@ function NodeCard({
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
   const isDragging = useSharedValue(false);
+  const inkOpacity = useSharedValue(node.invisibleInk ? 0 : 1);
 
   const panGesture = useMemo(
     () =>
@@ -280,19 +282,38 @@ function NodeCard({
   const pinColor = node.color ? TAG_COLORS[node.color] : C.pin;
   const leftBorderColor = node.color ? TAG_COLORS[node.color] : 'transparent';
   const isFrom = connectingFromId === node.id;
+  const inkContentStyle = useAnimatedStyle(() => ({ opacity: inkOpacity.value }));
 
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={animStyle}>
+        <Pressable
+          onPressIn={node.invisibleInk ? () => { inkOpacity.value = withTiming(1, { duration: 300 }); } : undefined}
+          onPressOut={node.invisibleInk ? () => { inkOpacity.value = withTiming(0, { duration: 300 }); } : undefined}
+          onPress={() => onTap(node.id)}
+        >
         <View
           style={[
-            styles.nodeCard,
-            node.color ? {
+            node.invisibleInk
+              ? {
+                  width: NODE_W,
+                  minHeight: NODE_H,
+                  borderRadius: 10,
+                  borderStyle: 'dashed',
+                  borderWidth: 1.5,
+                  borderColor: node.color ? TAG_COLORS[node.color] : C.muted,
+                  backgroundColor: 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 12,
+                }
+              : styles.nodeCard,
+            !node.invisibleInk && node.color ? {
               backgroundColor: pinColor + '14',
               borderWidth: 1,
               borderColor: pinColor + '66',
             } : undefined,
-            connectMode
+            !node.invisibleInk && connectMode
               ? {
                   borderWidth: node.id === connectingFromId ? 2 : 1,
                   borderColor: node.id === connectingFromId ? C.red : 'rgba(196,30,58,0.4)',
@@ -301,68 +322,92 @@ function NodeCard({
                   shadowOpacity: node.id === connectingFromId ? 0.9 : 0,
                   shadowRadius: node.id === connectingFromId ? 12 : 0,
                 }
-              : isFrom ? { borderWidth: 2, borderColor: C.red } : undefined,
+              : !node.invisibleInk && isFrom ? { borderWidth: 2, borderColor: C.red } : undefined,
           ]}
         >
-          {/* Colored left category stripe */}
-          {node.color ? (
-            <View
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 4,
-                backgroundColor: leftBorderColor,
-                borderTopLeftRadius: 8,
-                borderBottomLeftRadius: 8,
-                opacity: 0.85,
-              }}
-            />
-          ) : null}
+          {/* Pushpin — always visible */}
           <View style={[styles.pushpin, { backgroundColor: pinColor }]} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
-            <Icon size={18} color={C.muted} strokeWidth={2} />
-            <Text
-              style={{ color: C.cardText, flex: 1, fontSize: 14, fontWeight: '800' }}
-              numberOfLines={2}
-            >
-              {node.title}
-            </Text>
-          </View>
-          {node.tags.length > 0 ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
-              {node.tags.slice(0, 3).map((tag) => (
-                <View
-                  key={tag.id}
-                  style={{
-                    backgroundColor: TAG_COLORS[tag.color] + '22',
-                    borderRadius: 4,
-                    paddingHorizontal: 5,
-                    paddingVertical: 1,
-                  }}
-                >
-                  <Text style={{ color: TAG_COLORS[tag.color], fontSize: 9, fontWeight: '600' }}>
-                    {tag.label}
+
+          {node.invisibleInk ? (
+            <>
+              {/* Ghost icon — always visible as placeholder */}
+              <EyeOff size={20} color={node.color ? TAG_COLORS[node.color] : C.muted} strokeWidth={1.5} />
+              {/* Revealed content on press-in */}
+              <Animated.View style={[{ marginTop: 8, alignItems: 'center', width: '100%' }, inkContentStyle]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: node.color ? 6 : 0 }}>
+                  <Icon size={14} color={C.muted} strokeWidth={2} />
+                  <Text
+                    style={{ color: C.cardText, flex: 1, fontSize: 12, fontWeight: '700' }}
+                    numberOfLines={2}
+                  >
+                    {node.title}
                   </Text>
                 </View>
-              ))}
-            </View>
-          ) : null}
-          {/* Image preview for image type */}
-          {node.type === 'image' && node.imageUri ? (
-            <Image
-              source={{ uri: node.imageUri }}
-              style={{
-                width: '100%',
-                height: 60,
-                borderRadius: 6,
-                marginTop: 6,
-              }}
-              resizeMode="cover"
-            />
-          ) : null}
+              </Animated.View>
+            </>
+          ) : (
+            <>
+              {/* Colored left category stripe */}
+              {node.color ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 4,
+                    backgroundColor: leftBorderColor,
+                    borderTopLeftRadius: 8,
+                    borderBottomLeftRadius: 8,
+                    opacity: 0.85,
+                  }}
+                />
+              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
+                <Icon size={18} color={C.muted} strokeWidth={2} />
+                <Text
+                  style={{ color: C.cardText, flex: 1, fontSize: 14, fontWeight: '800' }}
+                  numberOfLines={2}
+                >
+                  {node.title}
+                </Text>
+              </View>
+              {node.tags.length > 0 ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6, paddingLeft: node.color ? 6 : 0 }}>
+                  {node.tags.slice(0, 3).map((tag) => (
+                    <View
+                      key={tag.id}
+                      style={{
+                        backgroundColor: TAG_COLORS[tag.color] + '22',
+                        borderRadius: 4,
+                        paddingHorizontal: 5,
+                        paddingVertical: 1,
+                      }}
+                    >
+                      <Text style={{ color: TAG_COLORS[tag.color], fontSize: 9, fontWeight: '600' }}>
+                        {tag.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {/* Image preview for image type */}
+              {node.type === 'image' && node.imageUri ? (
+                <Image
+                  source={{ uri: node.imageUri }}
+                  style={{
+                    width: '100%',
+                    height: 60,
+                    borderRadius: 6,
+                    marginTop: 6,
+                  }}
+                  resizeMode="cover"
+                />
+              ) : null}
+            </>
+          )}
         </View>
+        </Pressable>
       </Animated.View>
     </GestureDetector>
   );
@@ -590,6 +635,10 @@ export default function InvestigationCanvas() {
   const storeToggleTimelineMinimized = useInvestigationStore((s) => s.toggleTimelineMinimized);
   const storeAddSource = useInvestigationStore((s) => s.addSource);
   const storeRemoveSource = useInvestigationStore((s) => s.removeSource);
+  const storeToggleInvisibleInk = useInvestigationStore((s) => s.toggleInvisibleInk);
+
+  // Security store
+  const isDecoyMode = useSecurityStore((s) => s.isDecoyMode);
 
   // Subscription store
   const maxNodesPerInvestigation = useSubscriptionStore((s) => s.maxNodesPerInvestigation);
@@ -1042,6 +1091,7 @@ export default function InvestigationCanvas() {
   }
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const visibleNodes = isDecoyMode ? nodes.filter((n) => !n.invisibleInk) : nodes;
 
   // Tab bar height estimate (88) + safe area bottom
   const tabBarH = 88;
@@ -1106,7 +1156,7 @@ export default function InvestigationCanvas() {
               />
 
               {/* Node cards */}
-              {nodes.map((node) => (
+              {visibleNodes.map((node) => (
                 <NodeCard
                   key={node.id}
                   node={node}
@@ -2188,7 +2238,64 @@ export default function InvestigationCanvas() {
                 </Text>
               ) : null}
 
-              {/* Connected strings with color pickers */}
+              {/* ---- INVISIBLE INK toggle ---- */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: 16,
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  backgroundColor: selectedNode.invisibleInk ? 'rgba(196,30,58,0.08)' : C.bg,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: selectedNode.invisibleInk ? 'rgba(196,30,58,0.3)' : C.border,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <EyeOff size={16} color={selectedNode.invisibleInk ? C.red : C.muted} strokeWidth={2} />
+                  <View>
+                    <Text style={{ color: selectedNode.invisibleInk ? C.red : C.text, fontSize: 14, fontWeight: '600' }}>
+                      Invisible Ink
+                    </Text>
+                    <Text style={{ color: C.muted, fontSize: 11, marginTop: 1 }}>
+                      Hold to reveal on canvas
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  testID="invisible-ink-toggle"
+                  onPress={() => {
+                    if (activeId && selectedNodeId) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      storeToggleInvisibleInk(activeId, selectedNodeId);
+                    }
+                  }}
+                  style={({ pressed }) => ({
+                    width: 48,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: selectedNode.invisibleInk
+                      ? pressed ? '#A3162E' : C.red
+                      : pressed ? C.border : C.surface,
+                    borderWidth: 1,
+                    borderColor: selectedNode.invisibleInk ? 'transparent' : C.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: '#FFF',
+                      transform: [{ translateX: selectedNode.invisibleInk ? 10 : -10 }],
+                    }}
+                  />
+                </Pressable>
+              </View>
               {selectedNodeStrings.length > 0 ? (
                 <>
                   <Text

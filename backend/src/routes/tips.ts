@@ -6,6 +6,29 @@ import { prisma } from "../prisma";
 import type { HonoVariables } from "../types";
 import { checkRateLimit, getClientIp } from '../lib/rateLimit';
 
+async function sendPushNotificationToUser(
+  userId: string,
+  notification: { title: string; body: string; data?: Record<string, unknown> }
+): Promise<void> {
+  const tokens = await prisma.pushToken.findMany({ where: { userId } });
+  if (tokens.length === 0) return;
+
+  await Promise.all(
+    tokens.map((t) =>
+      fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: t.token,
+          title: notification.title,
+          body: notification.body,
+          data: notification.data ?? {},
+        }),
+      })
+    )
+  );
+}
+
 const tipsRouter = new Hono<{ Variables: HonoVariables }>();
 
 function unauthorized(c: any) {
@@ -79,6 +102,13 @@ tipsRouter.post(
         status: "unread",
       },
     });
+
+    // Fire-and-forget push notification to recipient
+    sendPushNotificationToUser(recipientId, {
+      title: "New Tip Received",
+      body: tip.subject,
+      data: { tipId: tip.id },
+    }).catch(() => {});
 
     return c.json({ data: tip }, 201);
   }
