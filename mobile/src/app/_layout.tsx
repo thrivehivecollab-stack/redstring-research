@@ -1,5 +1,5 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -40,7 +40,6 @@ const BACKGROUND_LOCK_MS = 2 * 60 * 1000; // 2 minutes
 function RootLayoutNav() {
   const checkSubscription = useSubscriptionStore((s) => s.checkSubscription);
   const { data: session, isLoading } = useSession();
-  const router = useRouter();
 
   const appLockEnabled = useSecurityStore((s) => s.appLockEnabled);
   const sessionUnlocked = useSecurityStore((s) => s.sessionUnlocked);
@@ -78,15 +77,8 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!isLoading && onboardingSeen !== null && notifPermShown !== null) {
       SplashScreen.hideAsync();
-      if (!session?.user) {
-        if (!onboardingSeen) {
-          router.replace('/onboarding');
-        } else if (!notifPermShown) {
-          router.replace('/notification-permissions');
-        }
-      }
     }
-  }, [isLoading, onboardingSeen, notifPermShown, session?.user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, onboardingSeen, notifPermShown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lock on launch if app lock is enabled
   useEffect(() => {
@@ -122,6 +114,16 @@ function RootLayoutNav() {
   }
 
   const isAuthenticated = !!session?.user;
+
+  // Redirect unauthenticated users to the correct first screen
+  if (!isAuthenticated) {
+    if (!onboardingSeen) {
+      return <Redirect href="/onboarding" />;
+    }
+    if (!notifPermShown) {
+      return <Redirect href="/notification-permissions" />;
+    }
+  }
 
   return (
     <ThemeProvider value={CorkboardTheme}>
