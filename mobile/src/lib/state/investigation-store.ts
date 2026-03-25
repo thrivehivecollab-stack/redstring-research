@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker, ChatHistoryMessage } from '@/lib/types';
+import type { Investigation, CanvasNode, RedString, Timeline, Position, NodeType, TagColor, Tag, AISuggestion, ColorLegendEntry, NodeSource, AccessLogEntry, NodeSticker, ChatHistoryMessage, InvestigationPermissions } from '@/lib/types';
 import { api } from '@/lib/api/api';
 
 function generateId(): string {
@@ -68,7 +68,7 @@ interface InvestigationStore {
   restoreInvestigation: (investigation: Investigation) => void;
 
   // ─── New actions ──────────────────────────────────────────────────────────
-  updateInvestigationMeta: (id: string, updates: Pick<Investigation, 'icon' | 'iconUri' | 'boardStyle' | 'filingTabColor' | 'filingTabLabel'>) => void;
+  updateInvestigationMeta: (id: string, updates: Pick<Investigation, 'icon' | 'iconUri' | 'boardStyle' | 'filingTabColor' | 'filingTabLabel'> & { permissions?: import('@/lib/types').InvestigationPermissions }) => void;
   setInvestigationPin: (id: string, pinHash: string) => void;
   logAccess: (id: string, entry: Omit<AccessLogEntry, 'id'>) => void;
   addSticker: (investigationId: string, nodeId: string, sticker: Omit<NodeSticker, 'id'>) => void;

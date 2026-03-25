@@ -35,6 +35,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   StopCircle,
+  Share2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -55,6 +56,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api/api';
+import { shareWithLogging } from '@/utils/shareWithLogging';
 import useInvestigationStore from '@/lib/state/investigation-store';
 import type { ChatHistoryMessage } from '@/lib/types';
 import HamburgerButton from '@/components/HamburgerButton';
@@ -864,6 +866,7 @@ function MessageBubble({
   onFeedback,
   onNativeSpeak,
   isNativeSpeaking,
+  onShare,
 }: {
   message: Message;
   index: number;
@@ -875,6 +878,7 @@ function MessageBubble({
   onFeedback: (id: string, feedback: 'up' | 'down') => void;
   onNativeSpeak: (text: string, id: string) => void;
   isNativeSpeaking: boolean;
+  onShare: (text: string, id: string) => void;
 }) {
   const isUser = message.role === 'user';
   const timeStr = message.timestamp.toLocaleTimeString('en-US', {
@@ -1202,6 +1206,24 @@ function MessageBubble({
               ) : (
                 <Volume2 size={13} color={COLORS.muted} strokeWidth={2.5} />
               )}
+            </Pressable>
+
+            {/* Share button */}
+            <Pressable
+              testID={`share-message-${message.id}`}
+              onPress={() => onShare(message.text, message.id)}
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                backgroundColor: pressed ? 'rgba(196,30,58,0.1)' : 'rgba(255,255,255,0.04)',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              })}
+            >
+              <Share2 size={13} color={COLORS.muted} strokeWidth={2.5} />
             </Pressable>
 
             {/* ElevenLabs voice pin button (existing) */}
@@ -2093,6 +2115,22 @@ export default function AIResearchScreen() {
     [isSpeaking, speakingMessageId, stopCurrentAudio, speakText]
   );
 
+  // ─── Handle share for a specific message ─────────────────────────────
+  const handleShareMessage = useCallback(
+    (text: string, messageId: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      shareWithLogging({
+        investigationId: activeInvestigationId ?? 'unknown',
+        itemType: 'chat',
+        itemId: messageId,
+        destination: 'native_share',
+        text,
+        title: 'AI Research Note',
+      }).catch(console.warn);
+    },
+    [activeInvestigationId]
+  );
+
   // ─── Toggle voice output ──────────────────────────────────────────────
   const handleToggleVoice = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2226,10 +2264,11 @@ export default function AIResearchScreen() {
         onFeedback={handleFeedback}
         onNativeSpeak={handleNativeSpeak}
         isNativeSpeaking={nativeSpeakingId === item.id}
+        onShare={handleShareMessage}
       />
     ),
     [handlePinMessage, handleLongPress, handleSpeakMessage, isSpeaking, speakingMessageId,
-     handleCopyMessage, handleFeedback, handleNativeSpeak, nativeSpeakingId]
+     handleCopyMessage, handleFeedback, handleNativeSpeak, nativeSpeakingId, handleShareMessage]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);

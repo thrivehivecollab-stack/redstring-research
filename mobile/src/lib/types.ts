@@ -122,6 +122,55 @@ export interface ChatHistoryMessage {
   autoTag?: string;
 }
 
+// ─── Permission flags per role ────────────────────────────────────────────────
+export interface RolePermissions {
+  canDownloadPdf: boolean;
+  canSaveNodes: boolean;
+  canShareExternally: boolean;
+  canScreenshot: boolean;
+  canExportPresentation: boolean;
+  canExportTimeline: boolean;
+  canViewChainOfCustody: boolean;
+}
+
+export interface InvestigationPermissions {
+  collaborator: RolePermissions;
+  viewer: RolePermissions;
+  guest: RolePermissions;
+  // per-user overrides: userId -> partial RolePermissions
+  userOverrides?: Record<string, Partial<RolePermissions>>;
+}
+
+export const DEFAULT_PERMISSIONS: InvestigationPermissions = {
+  collaborator: {
+    canDownloadPdf: true,
+    canSaveNodes: true,
+    canShareExternally: false,
+    canScreenshot: true,
+    canExportPresentation: false,
+    canExportTimeline: true,
+    canViewChainOfCustody: true,
+  },
+  viewer: {
+    canDownloadPdf: false,
+    canSaveNodes: false,
+    canShareExternally: false,
+    canScreenshot: false,
+    canExportPresentation: false,
+    canExportTimeline: false,
+    canViewChainOfCustody: true,
+  },
+  guest: {
+    canDownloadPdf: false,
+    canSaveNodes: false,
+    canShareExternally: false,
+    canScreenshot: false,
+    canExportPresentation: false,
+    canExportTimeline: false,
+    canViewChainOfCustody: false,
+  },
+};
+
 export interface Investigation {
   id: string;
   title: string;
@@ -143,6 +192,7 @@ export interface Investigation {
   investigationPin?: string;   // bcrypt hash of invisible-ink PIN for this investigation
   accessLog?: AccessLogEntry[];
   chatHistory?: ChatHistoryMessage[];
+  permissions?: InvestigationPermissions;
 }
 
 export interface AISuggestion {

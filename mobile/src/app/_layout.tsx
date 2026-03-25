@@ -11,6 +11,7 @@ import useSubscriptionStore from '@/lib/state/subscription-store';
 import { useSession } from '@/lib/auth/use-session';
 import useSecurityStore from '@/lib/state/security-store';
 import AppLockOverlay from '@/components/AppLockOverlay';
+import { initializeEncryption } from '@/lib/encryption';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -52,6 +53,12 @@ function RootLayoutNav() {
   useEffect(() => {
     checkSubscription();
   }, [checkSubscription]);
+
+  useEffect(() => {
+    if (session?.user) {
+      initializeEncryption().catch(console.warn);
+    }
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isLoading) {
