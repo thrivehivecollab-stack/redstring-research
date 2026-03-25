@@ -48,6 +48,7 @@ function RootLayoutNav() {
   const setLastBackgroundTime = useSecurityStore((s) => s.setLastBackgroundTime);
 
   const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
+  const [notifPermShown, setNotifPermShown] = useState<boolean | null>(null);
 
   // Use a ref so the AppState handler always reads fresh values
   const lockRef = useRef({ appLockEnabled, lockSession, setLastBackgroundTime });
@@ -65,20 +66,27 @@ function RootLayoutNav() {
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    AsyncStorage.getItem('onboarding_seen').then((val) => {
-      setOnboardingSeen(val === 'true');
-    }).catch(() => setOnboardingSeen(false));
+    Promise.all([
+      AsyncStorage.getItem('onboarding_seen').catch(() => null),
+      AsyncStorage.getItem('notification_permission_shown').catch(() => null),
+    ]).then(([onboarding, notif]) => {
+      setOnboardingSeen(onboarding === 'true');
+      setNotifPermShown(notif === 'true');
+    });
   }, []);
 
   useEffect(() => {
-    if (!isLoading && onboardingSeen !== null) {
+    if (!isLoading && onboardingSeen !== null && notifPermShown !== null) {
       SplashScreen.hideAsync();
-      // If not authenticated and onboarding not seen, redirect to onboarding
-      if (!session?.user && !onboardingSeen) {
-        router.replace('/onboarding');
+      if (!session?.user) {
+        if (!onboardingSeen) {
+          router.replace('/onboarding');
+        } else if (!notifPermShown) {
+          router.replace('/notification-permissions');
+        }
       }
     }
-  }, [isLoading, onboardingSeen, session?.user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, onboardingSeen, notifPermShown, session?.user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lock on launch if app lock is enabled
   useEffect(() => {
@@ -109,7 +117,7 @@ function RootLayoutNav() {
     return () => sub.remove();
   }, []);
 
-  if (isLoading || onboardingSeen === null) {
+  if (isLoading || onboardingSeen === null || notifPermShown === null) {
     return null;
   }
 
@@ -119,6 +127,7 @@ function RootLayoutNav() {
     <ThemeProvider value={CorkboardTheme}>
       <Stack>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="notification-permissions" options={{ headerShown: false }} />
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="paywall" options={{ presentation: 'modal', headerShown: false }} />
@@ -133,6 +142,8 @@ function RootLayoutNav() {
           <Stack.Screen name="new-case" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen name="hamburger-modal" options={{ presentation: 'transparentModal', headerShown: false, animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="help" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="feature-requests" options={{ headerShown: false, presentation: 'modal' }} />
         </Stack.Protected>
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />

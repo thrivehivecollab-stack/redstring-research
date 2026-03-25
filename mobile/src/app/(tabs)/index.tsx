@@ -462,8 +462,8 @@ export default function InvestigationsDashboard() {
   ], [sortedInvestigations]);
 
   const nonDemoInvestigationCount = investigations.filter((inv) => !inv.isDemo).length;
-  const tierLabel = tier === 'free' ? 'FREE' : tier === 'pro' ? 'PRO' : 'PLUS';
-  const tierColor = tier === 'free' ? C.muted : tier === 'pro' ? C.pin : C.gold;
+  const tierLabel = tier === 'free' ? 'FREE' : tier === 'researcher' ? 'RESEARCHER' : tier === 'investigator' ? 'INVESTIGATOR' : tier === 'professional' || tier === 'lifetime' ? 'PROFESSIONAL' : 'FOUNDING';
+  const tierColor = tier === 'free' ? C.muted : tier === 'researcher' || tier === 'founding_member' ? C.pin : C.gold;
 
   // ── Handlers (all preserved exactly) ──────────────────────────────────────
   const handleCreate = useCallback(() => {

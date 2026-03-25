@@ -63,6 +63,17 @@ const sendMessageSchema = z.object({
   senderName: z.string().optional(),
 });
 
+// GET /api/tips/stats — returns total tip count and blocked attempts for the current user
+tipsRouter.get("/stats", async (c) => {
+  const user = c.get("user");
+  if (!user) return unauthorized(c);
+
+  const totalTips = await prisma.tip.count({ where: { recipientId: user.id } });
+  const blockedAttempts = await prisma.tipAttemptLog.count({ where: { success: false } });
+
+  return c.json({ data: { totalTips, blockedAttempts } });
+});
+
 // POST /api/tips/submit/:recipientId — Public (no auth): submit a tip to an investigator
 tipsRouter.post(
   "/submit/:recipientId",

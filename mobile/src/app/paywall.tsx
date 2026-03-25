@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { X, Check, Star, Zap, Infinity as InfinityIcon, Crown } from 'lucide-react-native';
+import { X, Check, Star, Zap, Infinity as InfinityIcon, Crown, Rocket } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -28,46 +28,48 @@ import type { PurchasesPackage } from 'react-native-purchases';
 
 // ---- Colors ----
 const C = {
-  bg: '#1A1614',
-  surface: '#231F1C',
-  surfaceAlt: '#2C2521',
-  card: '#F5ECD7',
-  cardDark: '#EDE0C4',
+  bg: '#0F0D0B',
+  surface: '#1A1714',
+  surfaceAlt: '#211E1A',
   red: '#C41E3A',
   redDark: '#A3162E',
-  redGlow: 'rgba(196, 30, 58, 0.2)',
-  pin: '#D4A574',
+  pin: '#C8934A',
   amber: '#D4A574',
-  text: '#E8DCC8',
-  muted: '#6B5B4F',
+  text: '#EDE0CC',
+  muted: '#6B5D4F',
   mutedLight: '#8B7B6F',
-  border: '#3D332C',
-  borderLight: '#4D3F38',
+  border: '#272320',
+  borderLight: '#3D332C',
   gold: '#F0C060',
-  proGlow: 'rgba(212, 165, 116, 0.15)',
 } as const;
 
 type BillingCycle = 'monthly' | 'annual';
+type SelectedTier = 'researcher' | 'investigator' | 'professional' | null;
 
 // Package identifiers
 const PKG = {
-  proMonthly: '$rc_monthly',
-  proAnnual: '$rc_annual',
-  plusMonthly: '$rc_custom_plus_monthly',
-  plusAnnual: '$rc_custom_plus_annual',
-  lifetime: '$rc_lifetime',
+  researcherMonthly: 'researcher_monthly',
+  researcherAnnual: 'researcher_annual',
+  investigatorMonthly: 'investigator_monthly',
+  investigatorAnnual: 'investigator_annual',
+  professionalMonthly: 'professional_monthly',
+  professionalAnnual: 'professional_annual',
+  lifetimeAccess: 'lifetime_access',
+  foundingMemberMonthly: 'founding_member_monthly',
 } as const;
 
-// Pricing fallbacks (shown if RevenueCat unavailable)
 const PRICE_FALLBACK: Record<string, string> = {
-  [PKG.proMonthly]: '$4.99/mo',
-  [PKG.proAnnual]: '$39.99/yr',
-  [PKG.plusMonthly]: '$9.99/mo',
-  [PKG.plusAnnual]: '$79.99/yr',
-  [PKG.lifetime]: '$99.99',
+  [PKG.researcherMonthly]: '$9.99/mo',
+  [PKG.researcherAnnual]: '$79.99/yr',
+  [PKG.investigatorMonthly]: '$19.99/mo',
+  [PKG.investigatorAnnual]: '$159.99/yr',
+  [PKG.professionalMonthly]: '$49.99/mo',
+  [PKG.professionalAnnual]: '$399.99/yr',
+  [PKG.lifetimeAccess]: '$299.99',
+  [PKG.foundingMemberMonthly]: '$7.99/mo',
 };
 
-// ---- Animated red string decoration ----
+// ---- Animated string decoration ----
 function StringDecoration() {
   const opacity = useSharedValue(0.3);
 
@@ -82,9 +84,7 @@ function StringDecoration() {
     );
   }, [opacity]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
     <Animated.View
@@ -94,14 +94,11 @@ function StringDecoration() {
       ]}
     >
       <Svg width="100%" height="120" viewBox="0 0 400 120">
-        {/* String from left to right connecting the tier dots */}
         <Line x1="60" y1="70" x2="200" y2="45" stroke={C.red} strokeWidth="1.5" opacity="0.8" />
         <Line x1="200" y1="45" x2="340" y2="70" stroke={C.red} strokeWidth="1.5" opacity="0.8" />
-        {/* Pin dots */}
         <SvgCircle cx="60" cy="70" r="4" fill={C.pin} opacity="0.9" />
         <SvgCircle cx="200" cy="45" r="4" fill={C.red} opacity="0.9" />
         <SvgCircle cx="340" cy="70" r="4" fill={C.pin} opacity="0.9" />
-        {/* Small detail strings */}
         <Line x1="60" y1="70" x2="40" y2="100" stroke={C.red} strokeWidth="1" opacity="0.4" />
         <Line x1="340" y1="70" x2="360" y2="100" stroke={C.red} strokeWidth="1" opacity="0.4" />
       </Svg>
@@ -109,38 +106,12 @@ function StringDecoration() {
   );
 }
 
-// ---- Feature row ----
-function FeatureRow({ label, free, pro, plus }: { label: string; free: string | boolean; pro: string | boolean; plus: string | boolean }) {
-  const renderCell = (val: string | boolean) => {
-    if (val === true) return <Check size={16} color={C.red} strokeWidth={2.5} />;
-    if (val === false) return <Text style={{ color: C.muted, fontSize: 14 }}>—</Text>;
-    return <Text style={{ color: C.text, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>{val}</Text>;
-  };
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: C.border,
-      }}
-    >
-      <Text style={{ color: C.mutedLight, fontSize: 12, flex: 3 }}>{label}</Text>
-      <View style={{ flex: 1, alignItems: 'center' }}>{renderCell(free)}</View>
-      <View style={{ flex: 1, alignItems: 'center' }}>{renderCell(pro)}</View>
-      <View style={{ flex: 1, alignItems: 'center' }}>{renderCell(plus)}</View>
-    </View>
-  );
-}
-
-// ---- Tier card ----
+// ---- Tier card (vertical layout) ----
 function TierCard({
   title,
-  subtitle,
+  badge,
   price,
-  isPopular,
+  subtitle,
   isSelected,
   features,
   onSelect,
@@ -148,9 +119,9 @@ function TierCard({
   icon,
 }: {
   title: string;
-  subtitle: string;
+  badge?: string;
   price: string;
-  isPopular?: boolean;
+  subtitle: string;
   isSelected: boolean;
   features: string[];
   onSelect: () => void;
@@ -173,12 +144,11 @@ function TierCard({
   }, [onSelect, scale]);
 
   return (
-    <Animated.View style={animStyle}>
+    <Animated.View style={[animStyle, { marginBottom: 12 }]}>
       <Pressable
         onPress={handlePress}
         testID={`tier-card-${title.toLowerCase()}`}
         style={{
-          flex: 1,
           backgroundColor: isSelected ? C.surfaceAlt : C.surface,
           borderRadius: 16,
           padding: 16,
@@ -186,91 +156,82 @@ function TierCard({
           borderColor: isSelected ? badgeColor : C.border,
           shadowColor: isSelected ? badgeColor : 'transparent',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: isSelected ? 0.3 : 0,
+          shadowOpacity: isSelected ? 0.25 : 0,
           shadowRadius: 12,
-          elevation: isSelected ? 8 : 2,
+          elevation: isSelected ? 6 : 2,
           position: 'relative',
-          overflow: 'visible',
         }}
       >
-        {/* Most Popular badge */}
-        {isPopular ? (
+        {badge ? (
           <View
             style={{
               position: 'absolute',
-              top: -12,
-              alignSelf: 'center',
-              backgroundColor: C.red,
+              top: -10,
+              right: 16,
+              backgroundColor: badgeColor,
               borderRadius: 20,
-              paddingHorizontal: 12,
-              paddingVertical: 4,
+              paddingHorizontal: 10,
+              paddingVertical: 3,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
-              shadowColor: C.red,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.4,
-              shadowRadius: 6,
-              elevation: 4,
               zIndex: 10,
             }}
           >
-            <Star size={10} color="#FFF" strokeWidth={2.5} fill="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>
-              MOST POPULAR
+            <Star size={9} color="#FFF" strokeWidth={2.5} fill="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
+              {badge.toUpperCase()}
             </Text>
           </View>
         ) : null}
 
-        {/* Icon + title */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: isPopular ? 8 : 0, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: badge ? 8 : 0 }}>
           <View
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               backgroundColor: badgeColor + '22',
               alignItems: 'center',
               justifyContent: 'center',
+              marginRight: 10,
             }}
           >
             {icon}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{title}</Text>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{title}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ color: badgeColor, fontSize: 18, fontWeight: '900' }}>{price}</Text>
+            <Text style={{ color: C.muted, fontSize: 10 }}>{subtitle}</Text>
           </View>
         </View>
 
-        {/* Price */}
-        <Text style={{ color: badgeColor, fontSize: 20, fontWeight: '900', marginBottom: 2 }}>
-          {price}
-        </Text>
-        <Text style={{ color: C.muted, fontSize: 11, marginBottom: 12 }}>{subtitle}</Text>
+        <View style={{ marginTop: 12, gap: 5 }}>
+          {features.map((f) => (
+            <View key={f} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+              <Check size={12} color={badgeColor} strokeWidth={2.5} style={{ marginTop: 2 }} />
+              <Text style={{ color: C.mutedLight, fontSize: 12, flex: 1, lineHeight: 16 }}>{f}</Text>
+            </View>
+          ))}
+        </View>
 
-        {/* Features */}
-        {features.map((f) => (
-          <View key={f} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 5 }}>
-            <Check size={12} color={badgeColor} strokeWidth={2.5} style={{ marginTop: 1 }} />
-            <Text style={{ color: C.mutedLight, fontSize: 11, flex: 1, lineHeight: 16 }}>{f}</Text>
-          </View>
-        ))}
-
-        {/* Selected indicator */}
         {isSelected ? (
           <View
             style={{
               position: 'absolute',
-              top: 12,
-              right: 12,
-              width: 20,
-              height: 20,
-              borderRadius: 10,
+              top: 14,
+              left: 14,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
               backgroundColor: badgeColor,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Check size={11} color="#FFF" strokeWidth={3} />
+            <Check size={10} color="#FFF" strokeWidth={3} />
           </View>
         ) : null}
       </Pressable>
@@ -284,7 +245,7 @@ export default function PaywallScreen() {
   const checkSubscription = useSubscriptionStore((s) => s.checkSubscription);
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
-  const [selectedTier, setSelectedTier] = useState<'pro' | 'plus'>('pro');
+  const [selectedTier, setSelectedTier] = useState<SelectedTier>('investigator');
   const [packages, setPackages] = useState<Record<string, PurchasesPackage>>({});
   const [isPurchasing, setIsPurchasing] = useState<boolean>(false);
   const [isRestoring, setIsRestoring] = useState<boolean>(false);
@@ -292,7 +253,6 @@ export default function PaywallScreen() {
   const [loadingPackages, setLoadingPackages] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Load packages
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -312,46 +272,38 @@ export default function PaywallScreen() {
     return () => { mounted = false; };
   }, []);
 
-  // Get display price for a package id
   const getPrice = useCallback((pkgId: string): string => {
     const pkg = packages[pkgId];
     if (pkg) return pkg.product.priceString;
     return PRICE_FALLBACK[pkgId] ?? '—';
   }, [packages]);
 
-  // Get price per month for annual (for savings display)
-  const getAnnualMonthlyEquiv = useCallback((annualPkgId: string, monthlyPkgId: string): string => {
+  const getSubtitle = useCallback((annualPkgId: string, monthlyPkgId: string): string => {
+    if (billingCycle === 'monthly') return 'billed monthly';
     const annualPkg = packages[annualPkgId];
     const monthlyPkg = packages[monthlyPkgId];
     if (annualPkg && monthlyPkg) {
-      const annualMonthly = annualPkg.product.price / 12;
-      const monthly = monthlyPkg.product.price;
-      const savings = Math.round(((monthly - annualMonthly) / monthly) * 100);
-      return `Save ${savings}%`;
+      const savings = Math.round(
+        ((monthlyPkg.product.price - annualPkg.product.price / 12) / monthlyPkg.product.price) * 100
+      );
+      return `Save ${savings}% vs monthly`;
     }
-    return 'Save 33%';
-  }, [packages]);
+    return 'billed annually';
+  }, [billingCycle, packages]);
 
-  // Determine which package to purchase
-  const getSelectedPackageId = useCallback((): string => {
-    if (selectedTier === 'pro') {
-      return billingCycle === 'annual' ? PKG.proAnnual : PKG.proMonthly;
-    }
-    return billingCycle === 'annual' ? PKG.plusAnnual : PKG.plusMonthly;
+  const getSelectedPackageId = useCallback((): string | null => {
+    if (!selectedTier) return null;
+    const map: Record<NonNullable<SelectedTier>, { monthly: string; annual: string }> = {
+      researcher: { monthly: PKG.researcherMonthly, annual: PKG.researcherAnnual },
+      investigator: { monthly: PKG.investigatorMonthly, annual: PKG.investigatorAnnual },
+      professional: { monthly: PKG.professionalMonthly, annual: PKG.professionalAnnual },
+    };
+    return map[selectedTier][billingCycle];
   }, [selectedTier, billingCycle]);
-
-  // Current price display
-  const currentProPrice = billingCycle === 'annual' ? getPrice(PKG.proAnnual) : getPrice(PKG.proMonthly);
-  const currentPlusPrice = billingCycle === 'annual' ? getPrice(PKG.plusAnnual) : getPrice(PKG.plusMonthly);
-  const proSubtitle = billingCycle === 'annual'
-    ? `${getAnnualMonthlyEquiv(PKG.proAnnual, PKG.proMonthly)} vs monthly`
-    : 'billed monthly';
-  const plusSubtitle = billingCycle === 'annual'
-    ? `${getAnnualMonthlyEquiv(PKG.plusAnnual, PKG.plusMonthly)} vs monthly`
-    : 'billed monthly';
 
   const handlePurchase = useCallback(async () => {
     const pkgId = getSelectedPackageId();
+    if (!pkgId) return;
     const pkg = packages[pkgId];
     if (!pkg) {
       setErrorMessage('Package not available. Please try again.');
@@ -366,15 +318,13 @@ export default function PaywallScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await checkSubscription();
       setShowSuccessModal(true);
-    } else if (result.reason === 'sdk_error') {
-      // User likely cancelled — don't show error
-    } else {
+    } else if (result.reason !== 'sdk_error') {
       setErrorMessage('Purchase unavailable right now. Please try again.');
     }
   }, [getSelectedPackageId, packages, checkSubscription]);
 
   const handleLifetimePurchase = useCallback(async () => {
-    const pkg = packages[PKG.lifetime];
+    const pkg = packages[PKG.lifetimeAccess];
     if (!pkg) {
       setErrorMessage('Lifetime package not available. Please try again.');
       return;
@@ -408,14 +358,18 @@ export default function PaywallScreen() {
     }
   }, [checkSubscription]);
 
-  const handleClose = useCallback(() => {
-    router.back();
-  }, [router]);
+  const handleClose = useCallback(() => { router.back(); }, [router]);
+  const handleSuccessDone = useCallback(() => { setShowSuccessModal(false); router.back(); }, [router]);
 
-  const handleSuccessDone = useCallback(() => {
-    setShowSuccessModal(false);
-    router.back();
-  }, [router]);
+  const researcherPrice = billingCycle === 'annual' ? getPrice(PKG.researcherAnnual) : getPrice(PKG.researcherMonthly);
+  const investigatorPrice = billingCycle === 'annual' ? getPrice(PKG.investigatorAnnual) : getPrice(PKG.investigatorMonthly);
+  const professionalPrice = billingCycle === 'annual' ? getPrice(PKG.professionalAnnual) : getPrice(PKG.professionalMonthly);
+
+  const tierLabel = selectedTier
+    ? selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)
+    : '';
+  const ctaPkgId = getSelectedPackageId();
+  const ctaPrice = ctaPkgId ? getPrice(ctaPkgId) : '—';
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }} testID="paywall-screen">
@@ -442,16 +396,11 @@ export default function PaywallScreen() {
           <X size={18} color={C.muted} strokeWidth={2} />
         </Pressable>
 
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <Animated.View entering={FadeIn.duration(600)} style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}>
-            {/* String decoration above header */}
+          <Animated.View entering={FadeIn.duration(600)} style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 8 }}>
             <View style={{ height: 120, position: 'relative', marginBottom: 0 }}>
               <StringDecoration />
-              {/* Header text centered */}
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8 }}>
                 <View
                   style={{
@@ -472,16 +421,7 @@ export default function PaywallScreen() {
                 </View>
               </View>
             </View>
-            <Text
-              style={{
-                color: C.text,
-                fontSize: 28,
-                fontWeight: '900',
-                textAlign: 'center',
-                letterSpacing: -0.5,
-                marginBottom: 6,
-              }}
-            >
+            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5, marginBottom: 6 }}>
               Follow Every Thread
             </Text>
             <Text style={{ color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
@@ -489,8 +429,35 @@ export default function PaywallScreen() {
             </Text>
           </Animated.View>
 
+          {/* Founding Member banner */}
+          <Animated.View entering={FadeInDown.delay(50).duration(500)} style={{ marginHorizontal: 20, marginTop: 16, marginBottom: 4 }}>
+            <View
+              style={{
+                backgroundColor: C.gold + '18',
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: C.gold + '44',
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>🏅</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800' }}>
+                  Beta Founding Member — {getPrice(PKG.foundingMemberMonthly)} locked forever
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+                  TestFlight only — disappears at launch
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+
           {/* Billing toggle */}
-          <Animated.View entering={FadeInDown.delay(100).duration(500)} style={{ paddingHorizontal: 24, marginBottom: 20 }}>
+          <Animated.View entering={FadeInDown.delay(100).duration(500)} style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
             <View
               style={{
                 flexDirection: 'row',
@@ -537,44 +504,32 @@ export default function PaywallScreen() {
                 <Text style={{ color: billingCycle === 'annual' ? C.text : C.muted, fontSize: 13, fontWeight: '700' }}>
                   Annual
                 </Text>
-                {billingCycle === 'annual' ? (
-                  <View
-                    style={{
-                      backgroundColor: C.red,
-                      borderRadius: 6,
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                    }}
-                  >
-                    <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800' }}>SAVE 33%</Text>
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      backgroundColor: C.border,
-                      borderRadius: 6,
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                    }}
-                  >
-                    <Text style={{ color: C.muted, fontSize: 9, fontWeight: '800' }}>SAVE 33%</Text>
-                  </View>
-                )}
+                <View
+                  style={{
+                    backgroundColor: billingCycle === 'annual' ? C.red : C.border,
+                    borderRadius: 6,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                  }}
+                >
+                  <Text style={{ color: billingCycle === 'annual' ? '#FFF' : C.muted, fontSize: 9, fontWeight: '800' }}>
+                    SAVE 33%
+                  </Text>
+                </View>
               </Pressable>
             </View>
           </Animated.View>
 
-          {/* Tier cards */}
-          <Animated.View entering={FadeInDown.delay(200).duration(500)} style={{ paddingHorizontal: 16, flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+          {/* Tier cards — vertical */}
+          <Animated.View entering={FadeInDown.delay(200).duration(500)} style={{ paddingHorizontal: 16, marginTop: 8 }}>
             <TierCard
-              title="Pro"
-              subtitle={proSubtitle}
-              price={loadingPackages ? '...' : currentProPrice}
-              isPopular
-              isSelected={selectedTier === 'pro'}
+              title="Researcher"
+              price={loadingPackages ? '...' : researcherPrice}
+              subtitle={getSubtitle(PKG.researcherAnnual, PKG.researcherMonthly)}
+              isSelected={selectedTier === 'researcher'}
               badgeColor={C.amber}
-              icon={<Zap size={16} color={C.amber} strokeWidth={2} />}
-              onSelect={() => setSelectedTier('pro')}
+              icon={<Zap size={18} color={C.amber} strokeWidth={2} />}
+              onSelect={() => setSelectedTier('researcher')}
               features={[
                 '25 investigations',
                 '200 nodes each',
@@ -583,56 +538,39 @@ export default function PaywallScreen() {
               ]}
             />
             <TierCard
-              title="Plus"
-              subtitle={plusSubtitle}
-              price={loadingPackages ? '...' : currentPlusPrice}
-              isSelected={selectedTier === 'plus'}
-              badgeColor={C.gold}
-              icon={<Crown size={16} color={C.gold} strokeWidth={2} />}
-              onSelect={() => setSelectedTier('plus')}
+              title="Investigator"
+              badge="Most Popular"
+              price={loadingPackages ? '...' : investigatorPrice}
+              subtitle={getSubtitle(PKG.investigatorAnnual, PKG.investigatorMonthly)}
+              isSelected={selectedTier === 'investigator'}
+              badgeColor={C.red}
+              icon={<Star size={18} color={C.red} strokeWidth={2} />}
+              onSelect={() => setSelectedTier('investigator')}
               features={[
                 'Unlimited investigations',
                 'Unlimited nodes',
+                'Full collaboration suite',
                 'Early feature access',
-                'Everything in Pro',
               ]}
             />
-          </Animated.View>
+            <TierCard
+              title="Professional"
+              badge="Outcome-Driven"
+              price={loadingPackages ? '...' : professionalPrice}
+              subtitle={getSubtitle(PKG.professionalAnnual, PKG.professionalMonthly)}
+              isSelected={selectedTier === 'professional'}
+              badgeColor={C.gold}
+              icon={<Rocket size={18} color={C.gold} strokeWidth={2} />}
+              onSelect={() => setSelectedTier('professional')}
+              features={[
+                'Everything in Investigator',
+                'Live streaming',
+                'Advanced AI features',
+                'Custom export branding',
+              ]}
+            />
 
-          {/* Feature comparison table */}
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(500)}
-            style={{
-              marginHorizontal: 20,
-              backgroundColor: C.surface,
-              borderRadius: 16,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: C.border,
-              marginBottom: 20,
-            }}
-          >
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginBottom: 12, letterSpacing: 0.5 }}>
-              FEATURE COMPARISON
-            </Text>
-            {/* Column headers */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color: C.muted, fontSize: 11, flex: 3 }}>Feature</Text>
-              <Text style={{ color: C.muted, fontSize: 11, flex: 1, textAlign: 'center' }}>Free</Text>
-              <Text style={{ color: C.amber, fontSize: 11, flex: 1, textAlign: 'center', fontWeight: '700' }}>Pro</Text>
-              <Text style={{ color: C.gold, fontSize: 11, flex: 1, textAlign: 'center', fontWeight: '700' }}>Plus</Text>
-            </View>
-            <FeatureRow label="Investigations" free="3" pro="25" plus="∞" />
-            <FeatureRow label="Nodes per case" free="25" pro="200" plus="∞" />
-            <FeatureRow label="All node types" free={true} pro={true} plus={true} />
-            <FeatureRow label="Red string connections" free={true} pro={true} plus={true} />
-            <FeatureRow label="Color tags" free={false} pro={true} plus={true} />
-            <FeatureRow label="Priority support" free={false} pro={true} plus={true} />
-            <FeatureRow label="Early access" free={false} pro={false} plus={true} />
-          </Animated.View>
-
-          {/* Lifetime option */}
-          <Animated.View entering={FadeInDown.delay(400).duration(500)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
+            {/* Lifetime full-width card */}
             <Pressable
               testID="lifetime-purchase-button"
               onPress={handleLifetimePurchase}
@@ -642,10 +580,11 @@ export default function PaywallScreen() {
                 borderRadius: 16,
                 padding: 16,
                 borderWidth: 1,
-                borderColor: C.gold + '66',
+                borderColor: C.gold + '55',
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 12,
+                marginBottom: 12,
               })}
             >
               <View
@@ -662,11 +601,11 @@ export default function PaywallScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>Lifetime Access</Text>
-                <Text style={{ color: C.muted, fontSize: 12 }}>One-time purchase, forever Plus</Text>
+                <Text style={{ color: C.muted, fontSize: 12 }}>One-time purchase, forever Professional</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={{ color: C.gold, fontSize: 18, fontWeight: '900' }}>
-                  {loadingPackages ? '...' : getPrice(PKG.lifetime)}
+                  {loadingPackages ? '...' : getPrice(PKG.lifetimeAccess)}
                 </Text>
                 <Text style={{ color: C.muted, fontSize: 10 }}>one-time</Text>
               </View>
@@ -681,11 +620,11 @@ export default function PaywallScreen() {
           ) : null}
 
           {/* CTA button */}
-          <Animated.View entering={FadeInDown.delay(500).duration(500)} style={{ marginHorizontal: 20, marginBottom: 16 }}>
+          <Animated.View entering={FadeInDown.delay(400).duration(500)} style={{ marginHorizontal: 20, marginBottom: 16 }}>
             <Pressable
               testID="purchase-button"
               onPress={handlePurchase}
-              disabled={isPurchasing || isRestoring}
+              disabled={isPurchasing || isRestoring || !selectedTier}
               style={({ pressed }) => ({
                 backgroundColor: pressed ? C.redDark : C.red,
                 borderRadius: 16,
@@ -697,7 +636,7 @@ export default function PaywallScreen() {
                 shadowOpacity: 0.4,
                 shadowRadius: 12,
                 elevation: 8,
-                opacity: isPurchasing || isRestoring ? 0.7 : 1,
+                opacity: isPurchasing || isRestoring || !selectedTier ? 0.7 : 1,
               })}
             >
               {isPurchasing ? (
@@ -705,8 +644,7 @@ export default function PaywallScreen() {
               ) : (
                 <>
                   <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 0.3 }}>
-                    Get {selectedTier === 'pro' ? 'Pro' : 'Plus'} —{' '}
-                    {billingCycle === 'annual' ? getPrice(selectedTier === 'pro' ? PKG.proAnnual : PKG.plusAnnual) : getPrice(selectedTier === 'pro' ? PKG.proMonthly : PKG.plusMonthly)}
+                    {selectedTier ? `Get ${tierLabel} — ${ctaPrice}` : 'Select a plan'}
                   </Text>
                   <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
                     {billingCycle === 'annual' ? 'Billed annually · Cancel anytime' : 'Billed monthly · Cancel anytime'}
@@ -717,7 +655,7 @@ export default function PaywallScreen() {
           </Animated.View>
 
           {/* Restore + legal */}
-          <Animated.View entering={FadeInDown.delay(600).duration(500)} style={{ alignItems: 'center', paddingHorizontal: 24 }}>
+          <Animated.View entering={FadeInDown.delay(500).duration(500)} style={{ alignItems: 'center', paddingHorizontal: 24 }}>
             <Pressable
               testID="restore-purchases-button"
               onPress={handleRestore}
@@ -741,13 +679,7 @@ export default function PaywallScreen() {
       {/* Success modal */}
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 32,
-          }}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', alignItems: 'center', justifyContent: 'center', padding: 32 }}
           onPress={handleSuccessDone}
         >
           <Animated.View

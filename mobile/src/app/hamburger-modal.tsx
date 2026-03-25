@@ -45,7 +45,7 @@ export default function HamburgerModal() {
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();
   const tier = useSubscriptionStore((s) => s.tier);
-  const isPremium = tier === 'pro' || tier === 'plus';
+  const isPremium = tier !== 'free';
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isOpeningWarRoom, setIsOpeningWarRoom] = useState(false);
 
@@ -143,6 +143,28 @@ export default function HamburgerModal() {
           label: 'Subscription',
           sub: isPremium ? 'Premium active' : 'Upgrade to Premium',
           onPress: () => { close(); router.push('/paywall'); },
+        },
+      ],
+    },
+    {
+      title: 'COMMUNITY',
+      items: [
+        {
+          emoji: '💡',
+          label: 'Feature Requests',
+          sub: 'Vote on what we build next',
+          onPress: () => { close(); router.push('/feature-requests' as any); },
+        },
+      ],
+    },
+    {
+      title: 'SUPPORT',
+      items: [
+        {
+          emoji: '❓',
+          label: 'Help & Support',
+          sub: 'FAQ, bug reports & live chat',
+          onPress: () => { close(); router.push('/help' as any); },
         },
       ],
     },

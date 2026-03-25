@@ -21,6 +21,8 @@ import { shareLogRouter } from "./routes/share-log";
 import { ownerNotificationsRouter } from "./routes/owner-notifications";
 import { keysRouter } from "./routes/keys";
 import { provenanceRouter } from "./routes/provenance";
+import { supportRouter } from "./routes/support";
+import { featureRequestsRouter } from "./routes/feature-requests";
 import auditLogsRouter from "./routes/audit-logs";
 import presentationsRouter from "./routes/presentations";
 
@@ -82,6 +84,8 @@ app.route("/api/keys", keysRouter);
 app.route("/api/provenance", provenanceRouter);
 app.route("/api/audit-logs", auditLogsRouter);
 app.route("/api/presentation", presentationsRouter);
+app.route("/api/support", supportRouter);
+app.route("/api/feature-requests", featureRequestsRouter);
 
 // Dev-only route to expose last OTP code
 if (env.NODE_ENV !== "production") {

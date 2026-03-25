@@ -5,6 +5,7 @@ import {
   useFonts,
   CourierPrime_400Regular,
 } from '@expo-google-fonts/courier-prime';
+import OfflineBanner from '@/components/OfflineBanner';
 
 const COLORS = {
   background: '#1A1614',
@@ -62,67 +63,70 @@ function TabItem({ color, focused, label, emoji }: TabIconProps) {
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0F0D0B',
-          borderTopColor: '#272320',
-          borderTopWidth: 1,
-          height: 88,
-          paddingBottom: 12,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: COLORS.red,
-        tabBarInactiveTintColor: COLORS.muted,
-        tabBarShowLabel: false,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Files" emoji="🗂️" />
-          ),
+    <View style={{ flex: 1 }}>
+      <OfflineBanner />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: '#0F0D0B',
+            borderTopColor: '#272320',
+            borderTopWidth: 1,
+            height: 88,
+            paddingBottom: 12,
+            paddingTop: 8,
+          },
+          tabBarActiveTintColor: COLORS.red,
+          tabBarInactiveTintColor: COLORS.muted,
+          tabBarShowLabel: false,
         }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Canvas" emoji="📌" />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ai-research"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="AI" emoji="🤖" />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="podcast"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Live" emoji="📡" />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="scripts"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabItem color={color} focused={focused} label="Pods" emoji="🎙️" />
-          ),
-        }}
-      />
-      {/* Hidden tabs - accessible via hamburger menu */}
-      <Tabs.Screen name="tips" options={{ href: null }} />
-      <Tabs.Screen name="collab-tab" options={{ href: null }} />
-      <Tabs.Screen name="bookmarks" options={{ href: null }} />
-      <Tabs.Screen name="prompt-history" options={{ href: null }} />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabItem color={color} focused={focused} label="Files" emoji="🗂️" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="two"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabItem color={color} focused={focused} label="Canvas" emoji="📌" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="ai-research"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabItem color={color} focused={focused} label="AI" emoji="🤖" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="podcast"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabItem color={color} focused={focused} label="Live" emoji="📡" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="scripts"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabItem color={color} focused={focused} label="Pods" emoji="🎙️" />
+            ),
+          }}
+        />
+        {/* Hidden tabs - accessible via hamburger menu */}
+        <Tabs.Screen name="tips" options={{ href: null }} />
+        <Tabs.Screen name="collab-tab" options={{ href: null }} />
+        <Tabs.Screen name="bookmarks" options={{ href: null }} />
+        <Tabs.Screen name="prompt-history" options={{ href: null }} />
+      </Tabs>
+    </View>
   );
 }

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { hasEntitlement } from '@/lib/revenuecatClient';
 
-export type SubscriptionTier = 'free' | 'pro' | 'plus';
+export type SubscriptionTier = 'free' | 'researcher' | 'investigator' | 'professional' | 'lifetime' | 'founding_member';
 
 interface SubscriptionStore {
   tier: SubscriptionTier;
@@ -18,14 +18,30 @@ const useSubscriptionStore = create<SubscriptionStore>()((set, get) => ({
   checkSubscription: async () => {
     set({ isLoading: true });
     try {
-      const plusResult = await hasEntitlement('plus');
-      if (plusResult.ok && plusResult.data) {
-        set({ tier: 'plus', isLoading: false });
+      // Check highest tiers first
+      const lifetimeResult = await hasEntitlement('lifetime');
+      if (lifetimeResult.ok && lifetimeResult.data) {
+        set({ tier: 'lifetime', isLoading: false });
         return;
       }
-      const proResult = await hasEntitlement('pro');
-      if (proResult.ok && proResult.data) {
-        set({ tier: 'pro', isLoading: false });
+      const professionalResult = await hasEntitlement('professional');
+      if (professionalResult.ok && professionalResult.data) {
+        set({ tier: 'professional', isLoading: false });
+        return;
+      }
+      const investigatorResult = await hasEntitlement('investigator');
+      if (investigatorResult.ok && investigatorResult.data) {
+        set({ tier: 'investigator', isLoading: false });
+        return;
+      }
+      const foundingResult = await hasEntitlement('founding_member');
+      if (foundingResult.ok && foundingResult.data) {
+        set({ tier: 'founding_member', isLoading: false });
+        return;
+      }
+      const researcherResult = await hasEntitlement('researcher');
+      if (researcherResult.ok && researcherResult.data) {
+        set({ tier: 'researcher', isLoading: false });
         return;
       }
       set({ tier: 'free', isLoading: false });
@@ -36,15 +52,15 @@ const useSubscriptionStore = create<SubscriptionStore>()((set, get) => ({
 
   maxInvestigations: () => {
     const tier = get().tier;
-    if (tier === 'plus') return Infinity;
-    if (tier === 'pro') return 25;
+    if (tier === 'lifetime' || tier === 'professional' || tier === 'investigator') return Infinity;
+    if (tier === 'founding_member' || tier === 'researcher') return 25;
     return 3;
   },
 
   maxNodesPerInvestigation: () => {
     const tier = get().tier;
-    if (tier === 'plus') return Infinity;
-    if (tier === 'pro') return 200;
+    if (tier === 'lifetime' || tier === 'professional' || tier === 'investigator') return Infinity;
+    if (tier === 'founding_member' || tier === 'researcher') return 200;
     return 25;
   },
 }));

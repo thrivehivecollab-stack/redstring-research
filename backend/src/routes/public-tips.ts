@@ -1,10 +1,40 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { createHash } from "crypto";
 import { prisma } from "../prisma";
 import type { HonoVariables } from "../types";
 
 export const publicTipsRouter = new Hono<{ Variables: HonoVariables }>();
+
+function hashIp(ip: string): string {
+  return createHash("sha256").update(ip).digest("hex");
+}
+
+function getClientIp(req: Request): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+async function checkTipRateLimit(hashedIp: string): Promise<boolean> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const count = await prisma.tipAttemptLog.count({
+    where: {
+      hashedIp,
+      timestamp: { gte: oneHourAgo },
+    },
+  });
+  return count < 5;
+}
+
+async function logTipAttempt(hashedIp: string, success: boolean): Promise<void> {
+  await prisma.tipAttemptLog.create({
+    data: { hashedIp, success },
+  }).catch(() => null);
+}
 
 async function sendPushNotificationToUser(
   userId: string,
@@ -48,9 +78,12 @@ const HTML_STYLES = `
   .success h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
   .success p { color: #6B5D4F; font-size: 14px; }
   .error-msg { background: rgba(196,30,58,0.1); border: 1px solid rgba(196,30,58,0.3); border-radius: 8px; padding: 12px; color: #C41E3A; font-size: 14px; margin-bottom: 16px; display: none; }
+  .captcha-row { display: flex; align-items: center; gap: 12px; }
+  .captcha-question { color: #E8DCC8; font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .captcha-row input { max-width: 80px; text-align: center; }
 `;
 
-function buildFormPage(username: string, error?: string): string {
+function buildFormPage(username: string, captchaA: number, captchaB: number, error?: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,6 +100,8 @@ function buildFormPage(username: string, error?: string): string {
     <div class="anon-badge">🔒 Anonymous Submission</div>
     ${error ? `<div class="error-msg" style="display:block">${error}</div>` : ''}
     <form method="POST" action="/tip/${username}">
+      <input type="hidden" name="captcha_a" value="${captchaA}">
+      <input type="hidden" name="captcha_b" value="${captchaB}">
       <div class="field">
         <label>Your Tip *</label>
         <textarea name="content" placeholder="Share what you know. Be as specific as possible." required></textarea>
@@ -78,6 +113,13 @@ function buildFormPage(username: string, error?: string): string {
       <div class="field">
         <label>Contact (optional)</label>
         <input type="text" name="contactInfo" placeholder="Email, Signal, or other contact (not stored with your tip)">
+      </div>
+      <div class="field">
+        <label>Verify you are human</label>
+        <div class="captcha-row">
+          <span class="captcha-question">What is ${captchaA} + ${captchaB}?</span>
+          <input type="number" name="captcha_answer" placeholder="?" required>
+        </div>
       </div>
       <button type="submit">Submit Tip Securely →</button>
     </form>
@@ -108,6 +150,10 @@ function buildSuccessPage(username: string): string {
 </html>`;
 }
 
+function randomCaptchaNum(): number {
+  return Math.floor(Math.random() * 9) + 1;
+}
+
 // GET /tip/:username — public tip submission form
 publicTipsRouter.get("/:username", async (c) => {
   const username = c.req.param("username");
@@ -115,7 +161,9 @@ publicTipsRouter.get("/:username", async (c) => {
   if (!user) {
     return c.html(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${HTML_STYLES}</style></head><body><div class="card"><div class="logo">RED STRING</div><h1>Not Found</h1><p class="subtitle">No investigator found with that username.</p></div></body></html>`, 404);
   }
-  return c.html(buildFormPage(username));
+  const captchaA = randomCaptchaNum();
+  const captchaB = randomCaptchaNum();
+  return c.html(buildFormPage(username, captchaA, captchaB));
 });
 
 // POST /tip/:username — form submission (HTML form POST)
@@ -123,12 +171,33 @@ publicTipsRouter.post("/:username", async (c) => {
   const username = c.req.param("username");
   const user = await prisma.user.findFirst({ where: { username } });
   if (!user) {
-    return c.html(buildFormPage(username, "Investigator not found."), 404);
+    const a = randomCaptchaNum();
+    const b = randomCaptchaNum();
+    return c.html(buildFormPage(username, a, b, "Investigator not found."), 404);
+  }
+
+  const rawIp = getClientIp(c.req.raw);
+  const hashedIp = hashIp(rawIp);
+
+  // Rate limit check
+  const allowed = await checkTipRateLimit(hashedIp);
+  if (!allowed) {
+    await logTipAttempt(hashedIp, false);
+    const ct = c.req.header("content-type") ?? "";
+    if (ct.includes("application/json")) {
+      return c.json({ error: { message: "Too many attempts. Please try again later.", code: "RATE_LIMITED" } }, 429);
+    }
+    const a = randomCaptchaNum();
+    const b = randomCaptchaNum();
+    return c.html(buildFormPage(username, a, b, "Too many attempts from your location. Please try again in an hour."), 429);
   }
 
   let subject = "";
   let content = "";
   let contactInfo = "";
+  let captchaA = 0;
+  let captchaB = 0;
+  let captchaAnswer = "";
 
   const ct = c.req.header("content-type") ?? "";
   if (ct.includes("application/json")) {
@@ -136,18 +205,34 @@ publicTipsRouter.post("/:username", async (c) => {
     subject = (body.subject ?? "").trim();
     content = (body.content ?? "").trim();
     contactInfo = (body.contactInfo ?? "").trim();
+    // JSON submissions skip HTML captcha (API clients handle their own verification)
   } else {
     const form = await c.req.parseBody().catch(() => ({})) as Record<string, string>;
     subject = (form.subject ?? "").trim();
     content = (form.content ?? "").trim();
     contactInfo = (form.contactInfo ?? "").trim();
+    captchaA = parseInt(form.captcha_a ?? "0", 10);
+    captchaB = parseInt(form.captcha_b ?? "0", 10);
+    captchaAnswer = (form.captcha_answer ?? "").trim();
+
+    // Validate CAPTCHA for form submissions
+    const expectedAnswer = captchaA + captchaB;
+    const providedAnswer = parseInt(captchaAnswer, 10);
+    if (isNaN(providedAnswer) || providedAnswer !== expectedAnswer) {
+      await logTipAttempt(hashedIp, false);
+      const newA = randomCaptchaNum();
+      const newB = randomCaptchaNum();
+      return c.html(buildFormPage(username, newA, newB, "Incorrect answer to the math question. Please try again."), 400);
+    }
   }
 
   if (!subject || !content) {
     if (ct.includes("application/json")) {
       return c.json({ error: { message: "Subject and content are required", code: "INVALID_INPUT" } }, 400);
     }
-    return c.html(buildFormPage(username, "Subject and tip content are required."), 400);
+    const newA = randomCaptchaNum();
+    const newB = randomCaptchaNum();
+    return c.html(buildFormPage(username, newA, newB, "Subject and tip content are required."), 400);
   }
 
   const tip = await prisma.tip.create({
@@ -161,6 +246,8 @@ publicTipsRouter.post("/:username", async (c) => {
       status: "unread",
     },
   });
+
+  await logTipAttempt(hashedIp, true);
 
   // Push notification — fire and forget, no IP stored
   sendPushNotificationToUser(user.id, {
@@ -188,6 +275,16 @@ publicTipsRouter.post("/api/:username", zValidator("json", z.object({
     return c.json({ error: { message: "Investigator not found", code: "NOT_FOUND" } }, 404);
   }
 
+  const rawIp = getClientIp(c.req.raw);
+  const hashedIp = hashIp(rawIp);
+
+  // Rate limit check
+  const allowed = await checkTipRateLimit(hashedIp);
+  if (!allowed) {
+    await logTipAttempt(hashedIp, false);
+    return c.json({ error: { message: "Too many attempts. Please try again later.", code: "RATE_LIMITED" } }, 429);
+  }
+
   const tip = await prisma.tip.create({
     data: {
       recipientId: user.id,
@@ -199,6 +296,8 @@ publicTipsRouter.post("/api/:username", zValidator("json", z.object({
       status: "unread",
     },
   });
+
+  await logTipAttempt(hashedIp, true);
 
   sendPushNotificationToUser(user.id, {
     title: "New Tip Received",
