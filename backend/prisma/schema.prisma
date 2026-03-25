@@ -327,6 +327,115 @@ model PushToken {
 }
 
 // ============================================
+// INVESTIGATION PERMISSIONS MODELS
+// ============================================
+
+// Investigation permissions per role (Collaborator/Viewer/Guest)
+model InvestigationPermissions {
+  id                    String   @id @default(cuid())
+  investigationId       String   @unique // local investigation ID from mobile app
+  ownerId               String   // Better Auth user ID of the investigation owner
+
+  // Collaborator role permissions
+  collabCanDownloadPdf          Boolean @default(true)
+  collabCanSaveNodes            Boolean @default(true)
+  collabCanShareExternally      Boolean @default(false)
+  collabCanScreenshot           Boolean @default(true)
+  collabCanExportPresentation   Boolean @default(false)
+  collabCanExportTimeline       Boolean @default(true)
+  collabCanViewChainOfCustody   Boolean @default(true)
+
+  // Viewer role permissions
+  viewerCanDownloadPdf          Boolean @default(false)
+  viewerCanSaveNodes            Boolean @default(false)
+  viewerCanShareExternally      Boolean @default(false)
+  viewerCanScreenshot           Boolean @default(false)
+  viewerCanExportPresentation   Boolean @default(false)
+  viewerCanExportTimeline       Boolean @default(false)
+  viewerCanViewChainOfCustody   Boolean @default(true)
+
+  // Guest role permissions
+  guestCanDownloadPdf           Boolean @default(false)
+  guestCanSaveNodes             Boolean @default(false)
+  guestCanShareExternally       Boolean @default(false)
+  guestCanScreenshot            Boolean @default(false)
+  guestCanExportPresentation    Boolean @default(false)
+  guestCanExportTimeline        Boolean @default(false)
+  guestCanViewChainOfCustody    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userOverrides UserPermissionOverride[]
+}
+
+// Per-user permission override (owner can override defaults)
+model UserPermissionOverride {
+  id                    String   @id @default(cuid())
+  permissionsId         String
+  targetUserId          String   // the user being overridden
+
+  canDownloadPdf        Boolean?
+  canSaveNodes          Boolean?
+  canShareExternally    Boolean?
+  canScreenshot         Boolean?
+  canExportPresentation Boolean?
+  canExportTimeline     Boolean?
+  canViewChainOfCustody Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions InvestigationPermissions @relation(fields: [permissionsId], references: [id], onDelete: Cascade)
+
+  @@unique([permissionsId, targetUserId])
+  @@index([permissionsId])
+}
+
+// Immutable share log - NEVER add DELETE or UPDATE routes for this
+model ShareLog {
+  id              String   @id @default(cuid())
+  investigationId String
+  userId          String
+  userName        String
+  itemType        String   // node | string | chat | dossier | timeline | presentation
+  itemId          String?
+  destination     String   // native_share | google_drive | icloud | email
+  watermarkId     String?
+  timestamp       DateTime @default(now())
+
+  @@index([investigationId])
+  @@index([userId])
+  @@index([watermarkId])
+  @@index([timestamp])
+}
+
+// Owner notification log per investigation
+model OwnerNotification {
+  id                  String   @id @default(cuid())
+  investigationId     String
+  ownerId             String
+  triggeredByUserId   String?
+  triggeredByUserName String?
+  eventType           String   // viewed | downloaded | exported | shared | screenshot | tip_submitted | joined | left | presentation_viewed | timeline_viewed
+  details             String?  // JSON details
+  timestamp           DateTime @default(now())
+
+  @@index([investigationId])
+  @@index([ownerId])
+  @@index([timestamp])
+}
+
+// User RSA public keys for tip E2E encryption
+model UserPublicKey {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  publicKey String   // base64-encoded RSA public key
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
 // TIP INBOX MODELS
 // ============================================
 
