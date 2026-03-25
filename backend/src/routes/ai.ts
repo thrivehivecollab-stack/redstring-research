@@ -17,6 +17,23 @@ const chatSchema = z.object({
   ),
   investigationContext: z.string().optional(),
   persona: z.string().optional(),
+  canvasState: z.object({
+    nodes: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      type: z.string(),
+      tags: z.array(z.object({ id: z.string(), label: z.string(), color: z.string() })).optional(),
+      position: z.object({ x: z.number(), y: z.number() }).optional(),
+      color: z.string().optional(),
+    })).optional(),
+    strings: z.array(z.object({
+      id: z.string(),
+      fromNodeId: z.string(),
+      toNodeId: z.string(),
+      label: z.string().optional(),
+      color: z.string().optional(),
+    })).optional(),
+  }).optional(),
 });
 
 const SYSTEM_PROMPT = `You are an elite investigative research assistant for Red String Research, a professional true crime and investigative journalism platform used by journalists, researchers, and true crime analysts. Your role is to help users research publicly available information, analyze evidence, find connections between facts, and build investigative narratives. You assist with researching cold cases, true crime topics, historical crimes, public figures' public activities, and journalistic investigations.
@@ -48,7 +65,7 @@ aiRouter.post(
       return c.json({ error: { message: 'Too many requests', code: 'RATE_LIMITED' } }, 429);
     }
 
-    const { messages, investigationContext, persona } = c.req.valid("json");
+    const { messages, investigationContext, persona, canvasState } = c.req.valid("json");
 
     const totalLength = messages.reduce((sum, m) => sum + m.content.length, 0) + (investigationContext?.length ?? 0);
     if (totalLength > 50_000) {
@@ -59,10 +76,53 @@ aiRouter.post(
       return c.json({ error: { message: "No AI API key configured. Add PERPLEXITY_API_KEY or GROQ_API_KEY in the ENV tab." } }, 500);
     }
 
+    let canvasStateFormatted = '';
+    if (canvasState) {
+      const nodeLines = (canvasState.nodes ?? []).map((n) => {
+        const tags = n.tags && n.tags.length > 0 ? ` [tags: ${n.tags.map((t) => t.label).join(', ')}]` : '';
+        const color = n.color ? ` (color: ${n.color})` : '';
+        return `  - [${n.id}] "${n.title}" (type: ${n.type})${color}${tags}`;
+      });
+      const stringLines = (canvasState.strings ?? []).map((s) => {
+        const label = s.label ? ` "${s.label}"` : '';
+        const color = s.color ? ` (color: ${s.color})` : '';
+        return `  - [${s.id}]${label} from ${s.fromNodeId} → ${s.toNodeId}${color}`;
+      });
+      const parts: string[] = [];
+      if (nodeLines.length > 0) parts.push(`Nodes:\n${nodeLines.join('\n')}`);
+      if (stringLines.length > 0) parts.push(`Strings:\n${stringLines.join('\n')}`);
+      canvasStateFormatted = parts.length > 0 ? parts.join('\n') : '(empty canvas)';
+    }
+
+    const canvasControlSection = canvasState ? `CANVAS CONTROL: You have direct control over the investigation canvas. When the user asks you to modify the board, append a [CANVAS_ACTIONS] block at the very end of your response (after all text). Format:
+
+[CANVAS_ACTIONS]
+{"actions":[...]}
+[/CANVAS_ACTIONS]
+
+Available actions (use the exact JSON format):
+- {"type":"addNode","nodeType":"note","title":"Node Title","tags":[]} — nodeType can be: note, investigation, link, image
+- {"type":"deleteNode","nodeId":"<id>"}
+- {"type":"addString","fromNodeId":"<id>","toNodeId":"<id>","label":"connection label","color":"#C41E3A"}
+- {"type":"deleteString","stringId":"<id>"}
+- {"type":"labelString","stringId":"<id>","label":"new label"}
+- {"type":"highlightNodes","nodeIds":["<id>","<id>"],"color":"#F59E0B"}
+- {"type":"highlightByTag","tag":"suspect","color":"#C41E3A"}
+- {"type":"focusNode","nodeId":"<id>"}
+- {"type":"showConnections","nodeId":"<id>"}
+- {"type":"pinNode","nodeId":"<id>","priority":1}
+- {"type":"zoomIn","nodeId":"<id>"}
+
+CURRENT CANVAS STATE:
+${canvasStateFormatted}
+
+Use node IDs exactly as listed. Only emit [CANVAS_ACTIONS] when the user explicitly asks you to modify the canvas (e.g. "add a node", "connect X to Y", "highlight suspects", "delete that", "show me connections", etc.). Do NOT emit canvas actions for regular research questions.` : '';
+
     const systemContent = [
       SYSTEM_PROMPT,
       investigationContext ? `Current investigation context:\n${investigationContext}` : '',
       persona ? `Active persona: ${persona}` : '',
+      canvasControlSection,
     ].filter(Boolean).join('\n\n');
 
     try {
@@ -133,7 +193,21 @@ aiRouter.post(
         return c.json({ error: { message: 'AI returned an empty response. Please try again.' } }, 502);
       }
 
-      return c.json({ data: { message: finalReply, role: 'assistant' as const } });
+      // Parse canvas actions
+      let canvasActions: unknown[] = [];
+      const canvasActionsMatch = finalReply.match(/\[CANVAS_ACTIONS\]([\s\S]*?)\[\/CANVAS_ACTIONS\]/);
+      if (canvasActionsMatch) {
+        try {
+          const parsed = JSON.parse(canvasActionsMatch[1]?.trim() ?? '{}');
+          canvasActions = Array.isArray(parsed.actions) ? parsed.actions : [];
+        } catch {
+          canvasActions = [];
+        }
+        // Remove the canvas actions block from the reply
+        finalReply = finalReply.replace(/\[CANVAS_ACTIONS\][\s\S]*?\[\/CANVAS_ACTIONS\]/g, '').trim();
+      }
+
+      return c.json({ data: { message: finalReply, role: 'assistant' as const, canvasActions } });
     } catch (err) {
       console.error('AI chat error:', err);
       const message = err instanceof Error ? err.message : 'AI request failed';

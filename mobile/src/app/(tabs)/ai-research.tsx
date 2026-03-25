@@ -116,7 +116,21 @@ interface Message {
 
 interface AIChatResponse {
   message: string;
+  canvasActions?: CanvasActionPayload[];
 }
+
+type CanvasActionPayload =
+  | { type: 'addNode'; nodeType: string; title: string; tags?: string[] }
+  | { type: 'deleteNode'; nodeId: string }
+  | { type: 'addString'; fromNodeId: string; toNodeId: string; label?: string; color?: string }
+  | { type: 'deleteString'; stringId: string }
+  | { type: 'labelString'; stringId: string; label: string }
+  | { type: 'highlightNodes'; nodeIds: string[]; color: string }
+  | { type: 'highlightByTag'; tag: string; color: string }
+  | { type: 'focusNode'; nodeId: string }
+  | { type: 'showConnections'; nodeId: string }
+  | { type: 'pinNode'; nodeId: string; priority: number }
+  | { type: 'zoomIn'; nodeId: string };
 
 interface TranscribeResponse {
   text: string;
@@ -1370,6 +1384,12 @@ export default function AIResearchScreen() {
   const updateChatMessage = useInvestigationStore((s) => s.updateChatMessage);
   const clearChatHistory = useInvestigationStore((s) => s.clearChatHistory);
   const addNode = useInvestigationStore((s) => s.addNode);
+  const deleteNode = useInvestigationStore((s) => s.deleteNode);
+  const addString = useInvestigationStore((s) => s.addString);
+  const deleteString = useInvestigationStore((s) => s.deleteString);
+  const updateString = useInvestigationStore((s) => s.updateString);
+  const updateNode = useInvestigationStore((s) => s.updateNode);
+  const setSelectedNode = useInvestigationStore((s) => s.setSelectedNode);
 
   const WELCOME: Message = {
     id: 'welcome',
@@ -1535,6 +1555,103 @@ export default function AIResearchScreen() {
       : '';
     return `Investigation: "${activeInvestigation.title}"${desc}\n\nEvidence Board (${activeInvestigation.nodes.length} nodes):\n${nodesSummary}${stringsSummary}`;
   }, [activeInvestigation]);
+
+  // ─── Build canvas state for AI ─────────────────────────────────────────
+  const buildCanvasState = useCallback(() => {
+    if (!activeInvestigation) return undefined;
+    return {
+      nodes: activeInvestigation.nodes.slice(0, 50).map((n) => ({
+        id: n.id,
+        title: n.title,
+        type: n.type,
+        color: n.color,
+        tags: n.tags?.map((t) => ({ id: t.id, label: t.label, color: t.color })),
+        position: n.position,
+      })),
+      strings: (activeInvestigation.strings ?? []).slice(0, 50).map((s) => ({
+        id: s.id,
+        fromNodeId: s.fromNodeId,
+        toNodeId: s.toNodeId,
+        label: s.label,
+        color: s.color,
+      })),
+    };
+  }, [activeInvestigation]);
+
+  // ─── Apply canvas actions returned by AI ──────────────────────────────
+  const applyCanvasActions = useCallback((actions: CanvasActionPayload[]) => {
+    if (!activeInvestigationId || !activeInvestigation || actions.length === 0) return;
+
+    let actionsApplied = 0;
+
+    for (const action of actions) {
+      if (action.type === 'addNode') {
+        const nodeType = (action.nodeType as 'note' | 'investigation' | 'link' | 'image') ?? 'note';
+        const nodeCount = activeInvestigation.nodes.length;
+        const col = nodeCount % 4;
+        const row = Math.floor(nodeCount / 4);
+        const pos = { x: 40 + col * 200, y: 40 + row * 140 };
+        addNode(activeInvestigationId, nodeType, action.title, pos);
+        actionsApplied++;
+      } else if (action.type === 'deleteNode') {
+        deleteNode(activeInvestigationId, action.nodeId);
+        actionsApplied++;
+      } else if (action.type === 'addString') {
+        const fromNode = activeInvestigation.nodes.find((n) => n.id === action.fromNodeId);
+        const toNode = activeInvestigation.nodes.find((n) => n.id === action.toNodeId);
+        if (fromNode && toNode) {
+          addString(activeInvestigationId, action.fromNodeId, action.toNodeId, action.label, action.color ?? '#C41E3A');
+          actionsApplied++;
+        }
+      } else if (action.type === 'deleteString') {
+        deleteString(activeInvestigationId, action.stringId);
+        actionsApplied++;
+      } else if (action.type === 'labelString') {
+        updateString(activeInvestigationId, action.stringId, { label: action.label });
+        actionsApplied++;
+      } else if (action.type === 'highlightNodes') {
+        for (const nodeId of action.nodeIds) {
+          const colorMap: Record<string, 'red' | 'blue' | 'green' | 'amber' | 'purple' | 'teal'> = {
+            '#C41E3A': 'red', '#3B82F6': 'blue', '#22C55E': 'green',
+            '#F59E0B': 'amber', '#A855F7': 'purple', '#14B8A6': 'teal',
+          };
+          const tagColor = colorMap[action.color] ?? 'red';
+          updateNode(activeInvestigationId, nodeId, { color: tagColor });
+        }
+        actionsApplied++;
+      } else if (action.type === 'highlightByTag') {
+        const tagLower = action.tag.toLowerCase();
+        const colorMap: Record<string, 'red' | 'blue' | 'green' | 'amber' | 'purple' | 'teal'> = {
+          '#C41E3A': 'red', '#3B82F6': 'blue', '#22C55E': 'green',
+          '#F59E0B': 'amber', '#A855F7': 'purple', '#14B8A6': 'teal',
+        };
+        const tagColor = colorMap[action.color] ?? 'amber';
+        activeInvestigation.nodes.forEach((n) => {
+          const hasTag = n.tags?.some((t) => t.label.toLowerCase().includes(tagLower));
+          if (hasTag) {
+            updateNode(activeInvestigationId, n.id, { color: tagColor });
+          }
+        });
+        actionsApplied++;
+      } else if (action.type === 'focusNode' || action.type === 'showConnections' || action.type === 'zoomIn') {
+        setSelectedNode(action.nodeId);
+        actionsApplied++;
+      } else if (action.type === 'pinNode') {
+        updateNode(activeInvestigationId, action.nodeId, {
+          stickers: [
+            ...(activeInvestigation.nodes.find((n) => n.id === action.nodeId)?.stickers ?? []),
+          ],
+        });
+        setSelectedNode(action.nodeId);
+        actionsApplied++;
+      }
+    }
+
+    if (actionsApplied > 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast(`Canvas updated: ${actionsApplied} action${actionsApplied > 1 ? 's' : ''} applied`);
+    }
+  }, [activeInvestigationId, activeInvestigation, addNode, deleteNode, addString, deleteString, updateString, updateNode, setSelectedNode, showToast]);
 
   // ─── Handle verify / fact-check a claim ───────────────────────────────
   const handleVerifyClaim = useCallback(async (claim: string) => {
@@ -1766,11 +1883,17 @@ export default function AIResearchScreen() {
               ],
               investigationContext: buildInvestigationContext(),
               persona: selectedVoice?.persona,
+              canvasState: buildCanvasState(),
             });
 
             const aiText =
               response?.message ??
               "I couldn't process that request. Please try again.";
+
+            // Apply canvas actions if any
+            if (response?.canvasActions && Array.isArray(response.canvasActions) && response.canvasActions.length > 0) {
+              applyCanvasActions(response.canvasActions as CanvasActionPayload[]);
+            }
 
             const aiMsgId = `ai-${Date.now()}`;
             const aiMsg: Message = {
@@ -1828,9 +1951,10 @@ export default function AIResearchScreen() {
         return prev;
       });
     },
-    [isThinking, scrollToBottom, buildHistory, buildInvestigationContext, handleVerifyClaim,
-     voiceEnabled, speakTextInternal, startHandsFreeRecording, activeInvestigationId, saveChatMessage,
-     selectedVoice]
+    [isThinking, scrollToBottom, buildHistory, buildInvestigationContext, buildCanvasState,
+     applyCanvasActions, handleVerifyClaim, voiceEnabled, speakTextInternal, startHandsFreeRecording,
+     activeInvestigationId, saveChatMessage, selectedVoice,
+     deleteNode, addString, deleteString, updateString, updateNode, setSelectedNode]
   );
 
   const handleSend = useCallback(() => {
